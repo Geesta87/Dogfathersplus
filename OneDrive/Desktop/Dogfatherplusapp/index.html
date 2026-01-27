@@ -6499,7 +6499,7 @@
                             </div>
                             <div>
                                 <h2 class="font-bold text-slate-900 dark:text-white">Weekly Schedule</h2>
-                                <p class="text-sm text-slate-500 dark:text-slate-400">Your regular working hours</p>
+                                <p class="text-sm text-slate-500 dark:text-slate-400">Your regular working hours <span class="text-xs">(Pacific Time)</span></p>
                             </div>
                         </div>
                         <button onclick="openAvailabilityEditor()" class="flex items-center gap-2 px-4 py-2 bg-groomer-primary hover:bg-groomer-primary/90 text-white rounded-xl font-bold text-sm transition-colors">
@@ -6728,7 +6728,10 @@
                             <div class="w-10 h-10 rounded-xl bg-groomer-primary/10 flex items-center justify-center">
                                 <span class="material-symbols-outlined text-groomer-primary">edit_calendar</span>
                             </div>
-                            <h2 class="text-xl font-bold text-slate-900 dark:text-white">Edit Weekly Schedule</h2>
+                            <div>
+                                <h2 class="text-xl font-bold text-slate-900 dark:text-white">Edit Weekly Schedule</h2>
+                                <p class="text-xs text-slate-500">All times in Pacific Time (PT)</p>
+                            </div>
                         </div>
                         <button onclick="closeAvailabilityEditor()" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
                             <span class="material-symbols-outlined text-slate-400">close</span>
@@ -15244,7 +15247,7 @@
                             </div>
                             <div>
                                 <h2 class="text-xl font-bold text-slate-900 dark:text-white">Edit Schedule</h2>
-                                <p class="text-sm text-slate-500">${groomerName}</p>
+                                <p class="text-sm text-slate-500">${groomerName} <span class="text-xs">(Pacific Time)</span></p>
                             </div>
                         </div>
                         <button onclick="closeAdminAvailabilityEditor()" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
@@ -15400,7 +15403,7 @@
                             </div>
                             <div>
                                 <h2 class="font-bold text-slate-900 dark:text-white">Team Weekly Schedules</h2>
-                                <p class="text-sm text-slate-500 dark:text-slate-400">View and edit groomer working hours</p>
+                                <p class="text-sm text-slate-500 dark:text-slate-400">View and edit groomer working hours <span class="text-xs">(Pacific Time)</span></p>
                             </div>
                         </div>
                     </div>
@@ -15447,11 +15450,21 @@
                                             const startTime = avail?.start_time?.slice(0, 5) || '';
                                             const endTime = avail?.end_time?.slice(0, 5) || '';
                                             
+                                            // Convert to compact 12-hour format (e.g., "8a-5p")
+                                            const formatCompact = (time24) => {
+                                                if (!time24) return '';
+                                                const [h, m] = time24.split(':');
+                                                const hour = parseInt(h);
+                                                const ampm = hour >= 12 ? 'p' : 'a';
+                                                const h12 = hour % 12 || 12;
+                                                return m === '00' ? h12 + ampm : h12 + ':' + m + ampm;
+                                            };
+                                            
                                             return `
                                             <div class="text-center p-2 rounded-lg ${isWorking ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-slate-200 dark:bg-slate-700'}">
                                                 <p class="text-xs font-bold ${isWorking ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-400'}">${day}</p>
                                                 ${isWorking ? `
-                                                    <p class="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">${startTime.replace(':00', '')}-${endTime.replace(':00', '')}</p>
+                                                    <p class="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">${formatCompact(startTime)}-${formatCompact(endTime)}</p>
                                                 ` : `
                                                     <p class="text-[10px] text-slate-400 mt-0.5">Off</p>
                                                 `}
