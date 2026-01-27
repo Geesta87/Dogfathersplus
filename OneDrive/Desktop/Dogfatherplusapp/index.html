@@ -396,6 +396,8 @@
             editingAvailability: {}, // Temp storage for editing weekly schedule
             adminGroomersSubTab: 'team', // 'team' | 'schedules' | 'timeoff'
             editingGroomerAvailabilityId: null, // Which groomer admin is editing
+            allGroomerAvailability: {}, // All groomers' weekly schedules (keyed by groomer_id)
+            showAdminAvailabilityEditor: false, // Admin editing groomer schedule modal
             // Phase 2: Redemption Fulfillment
             pendingRedemptions: [], // For admin - redemptions to fulfill
             showRedemptionModal: null, // { redemption, action: 'fulfill' | 'cancel' }
@@ -15110,9 +15112,201 @@
                 if (!error) {
                     state.pendingTimeOffRequests = data || [];
                 }
+                
+                // Also load all groomers' availability
+                await loadAllGroomerAvailability();
             } catch (err) {
                 console.error('Error loading time off requests:', err);
             }
+        }
+        
+        // Load all groomers' weekly availability (Admin)
+        async function loadAllGroomerAvailability() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('groomer_availability')
+                    .select('*')
+                    .order('day_of_week');
+                
+                if (!error && data) {
+                    // Group by groomer_id
+                    const grouped = {};
+                    data.forEach(a => {
+                        if (!grouped[a.groomer_id]) grouped[a.groomer_id] = [];
+                        grouped[a.groomer_id].push(a);
+                    });
+                    state.allGroomerAvailability = grouped;
+                }
+            } catch (err) {
+                console.error('Error loading groomer availability:', err);
+            }
+        }
+        
+        // Open admin availability editor for a specific groomer
+        async function openAdminAvailabilityEditor(groomerId) {
+            state.editingGroomerAvailabilityId = groomerId;
+            
+            // Get this groomer's current availability
+            const currentAvail = state.allGroomerAvailability[groomerId] || [];
+            
+            // Initialize editing state
+            state.editingAvailability = {};
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            dayNames.forEach((day, idx) => {
+                const existing = currentAvail.find(a => a.day_of_week === idx);
+                state.editingAvailability[idx] = {
+                    is_available: existing?.is_available || false,
+                    start_time: existing?.start_time?.slice(0, 5) || '08:00',
+                    end_time: existing?.end_time?.slice(0, 5) || '18:00'
+                };
+            });
+            
+            state.showAdminAvailabilityEditor = true;
+            render();
+        }
+        
+        function closeAdminAvailabilityEditor() {
+            state.showAdminAvailabilityEditor = false;
+            state.editingGroomerAvailabilityId = null;
+            state.editingAvailability = {};
+            render();
+        }
+        
+        // Save groomer availability (Admin version)
+        async function saveAdminGroomerAvailability() {
+            const groomerId = state.editingGroomerAvailabilityId;
+            if (!groomerId) return;
+            
+            showLoading();
+            try {
+                // Delete existing availability
+                await supabaseClient
+                    .from('groomer_availability')
+                    .delete()
+                    .eq('groomer_id', groomerId);
+                
+                // Insert new availability records - only for working days
+                const records = [];
+                for (let day = 0; day < 7; day++) {
+                    const avail = state.editingAvailability[day];
+                    if (avail.is_available) {
+                        records.push({
+                            groomer_id: groomerId,
+                            day_of_week: day,
+                            is_available: true,
+                            start_time: avail.start_time,
+                            end_time: avail.end_time
+                        });
+                    }
+                }
+                
+                if (records.length > 0) {
+                    const { error } = await supabaseClient
+                        .from('groomer_availability')
+                        .insert(records);
+                    
+                    if (error) throw error;
+                }
+                
+                hideLoading();
+                showToast('Schedule saved successfully!', 'success');
+                closeAdminAvailabilityEditor();
+                await loadAllGroomerAvailability();
+                render();
+            } catch (err) {
+                hideLoading();
+                showToast('Failed to save schedule: ' + err.message, 'error');
+            }
+        }
+        
+        // Render Admin Availability Editor Modal
+        function renderAdminAvailabilityEditorModal() {
+            const groomerId = state.editingGroomerAvailabilityId;
+            const groomer = state.groomers.find(g => g.id === groomerId);
+            const groomerName = groomer?.full_name || groomer?.name || 'Groomer';
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            
+            const timeOptions = [];
+            for (let h = 6; h <= 22; h++) {
+                for (let m = 0; m < 60; m += 30) {
+                    const time = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                    timeOptions.push(time);
+                }
+            }
+            
+            return `
+            <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onclick="closeAdminAvailabilityEditor()">
+                <div class="bg-white dark:bg-surface-dark rounded-2xl w-full max-w-lg max-h-[90vh] overflow-hidden shadow-2xl" onclick="event.stopPropagation()">
+                    <div class="p-5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-emerald-600">edit_calendar</span>
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-bold text-slate-900 dark:text-white">Edit Schedule</h2>
+                                <p class="text-sm text-slate-500">${groomerName}</p>
+                            </div>
+                        </div>
+                        <button onclick="closeAdminAvailabilityEditor()" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                            <span class="material-symbols-outlined text-slate-400">close</span>
+                        </button>
+                    </div>
+                    
+                    <div class="p-5 max-h-[60vh] overflow-y-auto">
+                        <div class="space-y-3">
+                            ${dayNames.map((day, idx) => {
+                                const avail = state.editingAvailability[idx];
+                                return `
+                                <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 ${avail.is_available ? 'bg-emerald-50/50 dark:bg-emerald-900/10' : 'bg-slate-50 dark:bg-slate-800/50'}">
+                                    <div class="flex items-center gap-4">
+                                        <label class="flex items-center gap-2 cursor-pointer min-w-[120px]">
+                                            <input type="checkbox" ${avail.is_available ? 'checked' : ''} onchange="toggleAdminAvailabilityDay(${idx})" class="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer">
+                                            <span class="font-semibold text-slate-900 dark:text-white">${day}</span>
+                                        </label>
+                                        
+                                        ${avail.is_available ? `
+                                        <div class="flex items-center gap-2 flex-1">
+                                            <select onchange="updateAdminAvailabilityTime(${idx}, 'start_time', this.value)" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium focus:ring-2 focus:ring-emerald-500">
+                                                ${timeOptions.map(t => `<option value="${t}" ${avail.start_time === t ? 'selected' : ''}>${formatTime12(t)}</option>`).join('')}
+                                            </select>
+                                            <span class="text-slate-400">to</span>
+                                            <select onchange="updateAdminAvailabilityTime(${idx}, 'end_time', this.value)" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium focus:ring-2 focus:ring-emerald-500">
+                                                ${timeOptions.map(t => `<option value="${t}" ${avail.end_time === t ? 'selected' : ''}>${formatTime12(t)}</option>`).join('')}
+                                            </select>
+                                        </div>
+                                        ` : `
+                                        <span class="text-slate-400 dark:text-slate-500 text-sm">Not working</span>
+                                        `}
+                                    </div>
+                                </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="p-5 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
+                        <button onclick="closeAdminAvailabilityEditor()" class="px-5 py-2.5 rounded-xl font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                            Cancel
+                        </button>
+                        <button onclick="saveAdminGroomerAvailability()" class="px-5 py-2.5 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors flex items-center gap-2">
+                            <span class="material-symbols-outlined text-lg">save</span>
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+            `;
+        }
+        
+        // Toggle day for admin editing
+        function toggleAdminAvailabilityDay(dayIndex) {
+            state.editingAvailability[dayIndex].is_available = !state.editingAvailability[dayIndex].is_available;
+            render();
+        }
+        
+        // Update time for admin editing
+        function updateAdminAvailabilityTime(dayIndex, field, value) {
+            state.editingAvailability[dayIndex][field] = value;
         }
         
         // Render Admin Time Off Content
@@ -15205,36 +15399,76 @@
                                 <span class="material-symbols-outlined text-blue-600 dark:text-blue-400">calendar_month</span>
                             </div>
                             <div>
-                                <h2 class="font-bold text-slate-900 dark:text-white">Team Availability</h2>
-                                <p class="text-sm text-slate-500 dark:text-slate-400">Quick overview of groomer schedules</p>
+                                <h2 class="font-bold text-slate-900 dark:text-white">Team Weekly Schedules</h2>
+                                <p class="text-sm text-slate-500 dark:text-slate-400">View and edit groomer working hours</p>
                             </div>
                         </div>
                     </div>
                     
                     <div class="p-5">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            ${(state.groomers || []).filter(g => g.is_active !== false).map(g => `
-                            <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                                <div class="flex items-center justify-between mb-3">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm">
-                                            ${(g.full_name || g.name || 'G').split(' ').map(n => n.charAt(0)).join('').toUpperCase().slice(0, 2)}
+                        <div class="space-y-4">
+                            ${(state.groomers || []).filter(g => g.is_active !== false).map(g => {
+                                // Get this groomer's availability from state
+                                const groomerAvail = state.allGroomerAvailability?.[g.id] || [];
+                                const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                                const availMap = {};
+                                groomerAvail.forEach(a => { availMap[a.day_of_week] = a; });
+                                
+                                // Build schedule summary
+                                const workingDays = dayNames.filter((d, i) => availMap[i]?.is_available).join(', ') || 'No schedule set';
+                                
+                                return `
+                                <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm">
+                                                ${(g.full_name || g.name || 'G').split(' ').map(n => n.charAt(0)).join('').toUpperCase().slice(0, 2)}
+                                            </div>
+                                            <div>
+                                                <span class="font-bold text-slate-900 dark:text-white">${g.full_name || g.name}</span>
+                                                <p class="text-xs text-slate-500">${g.appointmentsThisMonth || 0} appointments this month</p>
+                                            </div>
                                         </div>
-                                        <span class="font-bold text-slate-900 dark:text-white">${g.full_name || g.name}</span>
+                                        <div class="flex gap-2">
+                                            <button onclick="openGroomerScheduleModal('${g.id}')" class="px-3 py-1.5 text-xs font-bold text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
+                                                Calendar
+                                            </button>
+                                            <button onclick="openAdminAvailabilityEditor('${g.id}')" class="px-3 py-1.5 text-xs font-bold text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors">
+                                                Edit Hours
+                                            </button>
+                                        </div>
                                     </div>
-                                    <button onclick="openGroomerScheduleModal('${g.id}')" class="px-3 py-1.5 text-xs font-bold text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors">
-                                        View Calendar
-                                    </button>
+                                    
+                                    <!-- Weekly Schedule Grid -->
+                                    <div class="grid grid-cols-7 gap-1 mt-3">
+                                        ${dayNames.map((day, idx) => {
+                                            const avail = availMap[idx];
+                                            const isWorking = avail?.is_available;
+                                            const startTime = avail?.start_time?.slice(0, 5) || '';
+                                            const endTime = avail?.end_time?.slice(0, 5) || '';
+                                            
+                                            return `
+                                            <div class="text-center p-2 rounded-lg ${isWorking ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-slate-200 dark:bg-slate-700'}">
+                                                <p class="text-xs font-bold ${isWorking ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-400'}">${day}</p>
+                                                ${isWorking ? `
+                                                    <p class="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">${startTime.replace(':00', '')}-${endTime.replace(':00', '')}</p>
+                                                ` : `
+                                                    <p class="text-[10px] text-slate-400 mt-0.5">Off</p>
+                                                `}
+                                            </div>
+                                            `;
+                                        }).join('')}
+                                    </div>
                                 </div>
-                                <p class="text-sm text-slate-500 dark:text-slate-400">
-                                    ${g.appointmentsThisMonth || 0} appointments this month
-                                </p>
-                            </div>
-                            `).join('')}
+                                `;
+                            }).join('')}
                         </div>
                     </div>
                 </div>
             </div>
+            
+            <!-- Admin Availability Editor Modal -->
+            ${state.showAdminAvailabilityEditor ? renderAdminAvailabilityEditorModal() : ''}
             `;
         }
         
