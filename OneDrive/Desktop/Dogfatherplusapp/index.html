@@ -1084,13 +1084,13 @@
                 .lte('start_date', endDate)
                 .eq('status', 'approved');
             
-            // 4. Get existing appointments
+            // 4. Get existing appointments (include duration for proper blocking)
             const { data: appointments } = await supabaseClient
                 .from('appointments')
-                .select('id, appointment_date, start_time, assigned_groomer_id, latitude, longitude')
+                .select('id, appointment_date, start_time, duration_minutes, assigned_groomer_id, latitude, longitude, status')
                 .gte('appointment_date', startDate)
                 .lte('appointment_date', endDate)
-                .not('status', 'in', '("cancelled","no_show")');
+                .in('status', ['pending', 'confirmed', 'in_progress']);
             
             console.log('Existing appointments:', appointments?.length, appointments);
             
@@ -1112,10 +1112,14 @@
                 }
             });
             
+            // Build booked slots - only block the exact start time (each slot is independent)
             const bookedSlots = new Set();
             const appointmentsByGroomerDate = {};
             (appointments || []).forEach(a => {
-                bookedSlots.add(`${a.assigned_groomer_id}_${a.appointment_date}_${a.start_time?.slice(0,5)}`);
+                // Block only the exact start time for this groomer
+                const startTimeSlice = a.start_time?.slice(0,5);
+                bookedSlots.add(`${a.assigned_groomer_id}_${a.appointment_date}_${startTimeSlice}`);
+                
                 const key = `${a.assigned_groomer_id}_${a.appointment_date}`;
                 if (!appointmentsByGroomerDate[key]) appointmentsByGroomerDate[key] = [];
                 appointmentsByGroomerDate[key].push(a);
@@ -15797,11 +15801,19 @@
             // Double-check availability before booking (prevent race conditions)
             showLoading();
             try {
-                const slots = await getAvailableSlots(date, serviceId);
-                // Convert time to 24hr format if needed for comparison
                 const time24 = time.includes(':') ? time.slice(0, 5) : time;
                 
-                if (!slots.includes(time24)) {
+                // Check if this exact slot is already booked for this groomer
+                const { data: conflictingAppt } = await supabaseClient
+                    .from('appointments')
+                    .select('id')
+                    .eq('appointment_date', date)
+                    .eq('assigned_groomer_id', selectedGroomerId)
+                    .eq('start_time', time24)
+                    .in('status', ['pending', 'confirmed', 'in_progress'])
+                    .limit(1);
+                
+                if (conflictingAppt && conflictingAppt.length > 0) {
                     hideLoading();
                     showToast('Sorry, this time slot is no longer available. Please select another time.', 'error');
                     // Refresh the available slots
