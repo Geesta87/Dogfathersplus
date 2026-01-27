@@ -2047,13 +2047,14 @@
                 console.log('Pets loaded:', pets?.length || 0);
                 state.pets = pets || [];
 
-                // Load appointments with JOINs
+                // Load appointments with JOINs (including groomer)
                 const { data: appointments, error: apptsError } = await supabaseClient
                     .from('appointments')
                     .select(`
                         *,
                         pet:pets(name, breed),
-                        service:services(name)
+                        service:services(name),
+                        groomer:profiles!appointments_assigned_groomer_id_fkey(full_name, phone)
                     `)
                     .eq('customer_id', userId)
                     .order('created_at', { ascending: false });
@@ -2066,6 +2067,8 @@
                     let petName = a.pet?.name;
                     let petBreed = a.pet?.breed;
                     let serviceName = a.service?.name;
+                    let groomerName = a.groomer?.full_name || null;
+                    let groomerPhone = a.groomer?.phone || null;
                     
                     // If JOIN didn't return pet data, look it up from local state
                     if (!petName && a.pet_id && state.pets.length > 0) {
@@ -2088,7 +2091,9 @@
                         ...a,
                         petName: petName || 'Pet',
                         petBreed: petBreed || '',
-                        serviceName: serviceName || 'Grooming'
+                        serviceName: serviceName || 'Grooming',
+                        groomerName: groomerName,
+                        groomerPhone: groomerPhone
                     };
                 });
 
@@ -12554,8 +12559,9 @@
                                         </div>
                                         <div>
                                             <p class="text-white/80 text-sm">Next appointment ${countdownText ? `• ${countdownText}` : ''}</p>
-                                            <p class="font-bold text-lg">${nextAppt.petName || 'Pet'} • ${nextAppt.serviceName || 'Grooming'}</p>
+                                            <p class="font-bold text-lg">${escapeHtml(nextAppt.petName) || 'Pet'} • ${escapeHtml(nextAppt.serviceName) || 'Grooming'}</p>
                                             <p class="text-white/80 text-sm">${formatDate(nextAppt.appointment_date)} at ${formatTime(nextAppt.start_time)}</p>
+                                            ${nextAppt.groomerName ? `<p class="text-white/90 text-sm font-medium flex items-center gap-1 mt-1"><span class="material-symbols-outlined text-sm">person</span>Your groomer: ${escapeHtml(nextAppt.groomerName)}</p>` : '<p class="text-yellow-200 text-sm flex items-center gap-1 mt-1"><span class="material-symbols-outlined text-sm">hourglass_top</span>Groomer being assigned</p>'}
                                         </div>
                                     </div>
                                     <div class="flex gap-2">
@@ -12766,8 +12772,9 @@
                             <div class="flex items-center gap-4">
                                 <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center"><span class="material-symbols-outlined text-primary">pets</span></div>
                                 <div>
-                                    <p class="font-bold dark:text-white">${apt.petName || 'Pet'}</p>
-                                    <p class="text-sm text-text-sub-light dark:text-text-sub-dark">${apt.serviceName || apt.service || 'Grooming'}${apt.total_price ? ' • $' + apt.total_price : ''}</p>
+                                    <p class="font-bold dark:text-white">${escapeHtml(apt.petName) || 'Pet'}</p>
+                                    <p class="text-sm text-text-sub-light dark:text-text-sub-dark">${escapeHtml(apt.serviceName) || apt.service || 'Grooming'}${apt.total_price ? ' • $' + apt.total_price : ''}</p>
+                                    ${apt.groomerName ? `<p class="text-sm text-primary font-medium flex items-center gap-1 mt-1"><span class="material-symbols-outlined text-sm">person</span>Groomer: ${escapeHtml(apt.groomerName)}</p>` : '<p class="text-sm text-amber-600 flex items-center gap-1 mt-1"><span class="material-symbols-outlined text-sm">hourglass_top</span>Groomer being assigned</p>'}
                                 </div>
                             </div>
                             <div class="flex items-center gap-4">
@@ -12793,8 +12800,9 @@
                             <div class="flex items-center gap-4">
                                 <div class="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center"><span class="material-symbols-outlined text-slate-400">pets</span></div>
                                 <div>
-                                    <p class="font-bold dark:text-white">${apt.petName || 'Pet'}</p>
-                                    <p class="text-sm text-text-sub-light dark:text-text-sub-dark">${apt.serviceName || apt.service || 'Grooming'}${apt.total_price ? ' • $' + apt.total_price : ''}</p>
+                                    <p class="font-bold dark:text-white">${escapeHtml(apt.petName) || 'Pet'}</p>
+                                    <p class="text-sm text-text-sub-light dark:text-text-sub-dark">${escapeHtml(apt.serviceName) || apt.service || 'Grooming'}${apt.total_price ? ' • $' + apt.total_price : ''}</p>
+                                    ${apt.groomerName ? `<p class="text-xs text-text-sub-light dark:text-text-sub-dark flex items-center gap-1 mt-1"><span class="material-symbols-outlined text-xs">person</span>Groomed by ${escapeHtml(apt.groomerName)}</p>` : ''}
                                 </div>
                             </div>
                             <div class="flex items-center gap-4">
