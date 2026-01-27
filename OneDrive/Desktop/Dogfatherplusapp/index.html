@@ -462,6 +462,22 @@
         // =============================================
         const TIMEZONE = 'America/Los_Angeles';
         
+        // =============================================
+        // SECURITY: XSS Prevention - HTML Sanitization
+        // =============================================
+        // Escapes HTML special characters to prevent XSS attacks
+        // Use this for ALL user-generated content before displaying
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            if (typeof text !== 'string') text = String(text);
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Shorthand alias for convenience
+        const e = escapeHtml;
+        
         // Format time string (HH:MM:SS or HH:MM) to 12-hour format in Pacific Time
         function formatTime(timeStr) {
             if (!timeStr) return 'TBD';
@@ -1404,12 +1420,33 @@
         // =============================================
         // REAL-TIME SUBSCRIPTIONS (2-WAY SYNC)
         // =============================================
+        
+        // Track active channels for cleanup on logout (prevents memory leaks)
+        let activeRealtimeChannels = [];
+        
+        // Cleanup function - call this on logout
+        function cleanupRealtimeSubscriptions() {
+            console.log('Cleaning up', activeRealtimeChannels.length, 'realtime subscriptions...');
+            activeRealtimeChannels.forEach(channel => {
+                try {
+                    supabaseClient.removeChannel(channel);
+                } catch (err) {
+                    console.log('Channel cleanup error (safe to ignore):', err);
+                }
+            });
+            activeRealtimeChannels = [];
+            console.log('Realtime subscriptions cleaned up');
+        }
+        
         function setupRealtimeSubscriptions() {
             if (!supabaseClient) return;
             
+            // Clean up any existing subscriptions first
+            cleanupRealtimeSubscriptions();
+            
             try {
                 // Subscribe to appointments changes
-                supabaseClient
+                const appointmentsChannel = supabaseClient
                     .channel('appointments-changes')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, async (payload) => {
                         console.log('Appointment change:', payload.eventType);
@@ -1418,69 +1455,77 @@
                     .subscribe((status) => {
                         console.log('Appointments subscription:', status);
                     });
+                activeRealtimeChannels.push(appointmentsChannel);
 
                 // Subscribe to pets changes
-                supabaseClient
+                const petsChannel = supabaseClient
                     .channel('pets-changes')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'pets' }, async (payload) => {
                         console.log('Pet change:', payload.eventType);
                         await handleRealtimeUpdate('pets', payload);
                     })
                     .subscribe();
+                activeRealtimeChannels.push(petsChannel);
 
                 // Subscribe to products changes
-                supabaseClient
+                const productsChannel = supabaseClient
                     .channel('products-changes')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, async (payload) => {
                         console.log('Product change:', payload.eventType);
                         await handleRealtimeUpdate('products', payload);
                     })
                     .subscribe();
+                activeRealtimeChannels.push(productsChannel);
 
                 // Subscribe to rewards changes
-                supabaseClient
+                const rewardsChannel = supabaseClient
                     .channel('rewards-changes')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'rewards' }, async (payload) => {
                         console.log('Reward change:', payload.eventType);
                         await handleRealtimeUpdate('rewards', payload);
                     })
                     .subscribe();
+                activeRealtimeChannels.push(rewardsChannel);
 
                 // Subscribe to ride_along_packages changes
-                supabaseClient
+                const ridealongsChannel = supabaseClient
                     .channel('ridealongs-changes')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_along_packages' }, async (payload) => {
                         console.log('Ride-along change:', payload.eventType);
                         await handleRealtimeUpdate('ride_along_packages', payload);
                     })
                     .subscribe();
+                activeRealtimeChannels.push(ridealongsChannel);
 
                 // Subscribe to profiles/customers changes (for admin)
-                supabaseClient
+                const profilesChannel = supabaseClient
                     .channel('profiles-changes')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, async (payload) => {
                         console.log('Profile change:', payload.eventType);
                     await handleRealtimeUpdate('profiles', payload);
                 })
                 .subscribe();
+                activeRealtimeChannels.push(profilesChannel);
 
             // Subscribe to services changes
-            supabaseClient
+            const servicesChannel = supabaseClient
                 .channel('services-changes')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'services' }, async (payload) => {
                     console.log('Service change:', payload.eventType);
                     await handleRealtimeUpdate('services', payload);
                 })
                 .subscribe();
+            activeRealtimeChannels.push(servicesChannel);
 
             // Subscribe to reward_redemptions changes
-            supabaseClient
+            const redemptionsChannel = supabaseClient
                 .channel('redemptions-changes')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'reward_redemptions' }, async (payload) => {
                     console.log('Redemption change:', payload.eventType);
                     await handleRealtimeUpdate('reward_redemptions', payload);
                 })
                 .subscribe();
+            activeRealtimeChannels.push(redemptionsChannel);
 
             // Subscribe to ride_along_inquiries changes
             supabaseClient
@@ -2714,6 +2759,10 @@
 
         async function handleSignOut() {
             showLoading();
+            
+            // Clean up realtime subscriptions to prevent memory leaks
+            cleanupRealtimeSubscriptions();
+            
             await supabaseClient.auth.signOut();
             state.currentUser = null;
             state.session = null;
@@ -5144,8 +5193,8 @@
                         <div class="flex items-start gap-2">
                             <span class="material-symbols-outlined text-amber-600 text-lg flex-shrink-0">warning</span>
                             <div class="text-sm">
-                                ${petNotes ? `<p class="text-amber-800 dark:text-amber-200"><span class="font-bold">Pet:</span> ${petNotes}</p>` : ''}
-                                ${customerNotes ? `<p class="text-amber-700 dark:text-amber-300 ${petNotes ? 'mt-1' : ''}"><span class="font-bold">Note:</span> ${customerNotes}</p>` : ''}
+                                ${petNotes ? `<p class="text-amber-800 dark:text-amber-200"><span class="font-bold">Pet:</span> ${escapeHtml(petNotes)}</p>` : ''}
+                                ${customerNotes ? `<p class="text-amber-700 dark:text-amber-300 ${petNotes ? 'mt-1' : ''}"><span class="font-bold">Note:</span> ${escapeHtml(customerNotes)}</p>` : ''}
                             </div>
                         </div>
                     </div>
@@ -5209,8 +5258,8 @@
                     <div class="flex items-start gap-2">
                         <span class="material-symbols-outlined text-amber-600 text-base flex-shrink-0">warning</span>
                         <div class="text-xs">
-                            ${petNotes ? `<p class="text-amber-800 dark:text-amber-200"><span class="font-bold">Pet:</span> ${petNotes}</p>` : ''}
-                            ${customerNotes ? `<p class="text-amber-700 dark:text-amber-300 ${petNotes ? 'mt-0.5' : ''}"><span class="font-bold">Note:</span> ${customerNotes}</p>` : ''}
+                            ${petNotes ? `<p class="text-amber-800 dark:text-amber-200"><span class="font-bold">Pet:</span> ${escapeHtml(petNotes)}</p>` : ''}
+                            ${customerNotes ? `<p class="text-amber-700 dark:text-amber-300 ${petNotes ? 'mt-0.5' : ''}"><span class="font-bold">Note:</span> ${escapeHtml(customerNotes)}</p>` : ''}
                         </div>
                     </div>
                 </div>
@@ -5263,7 +5312,7 @@
                 ${apt.status === 'completed' && apt.groomer_notes ? `
                     <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                         <p class="text-xs text-slate-500 font-medium mb-1">Groomer Notes:</p>
-                        <p class="text-sm text-slate-600 dark:text-slate-400">${apt.groomer_notes}</p>
+                        <p class="text-sm text-slate-600 dark:text-slate-400">${escapeHtml(apt.groomer_notes)}</p>
                     </div>
                 ` : ''}
             </div>`; 
@@ -5894,8 +5943,8 @@
                         <div class="flex items-start gap-2">
                             <span class="material-symbols-outlined text-amber-600 text-base flex-shrink-0">warning</span>
                             <div class="text-xs">
-                                ${petNotes ? `<p class="text-amber-800 dark:text-amber-200"><span class="font-bold">Pet:</span> ${petNotes}</p>` : ''}
-                                ${customerNotes ? `<p class="text-amber-700 dark:text-amber-300 ${petNotes ? 'mt-0.5' : ''}"><span class="font-bold">Note:</span> ${customerNotes}</p>` : ''}
+                                ${petNotes ? `<p class="text-amber-800 dark:text-amber-200"><span class="font-bold">Pet:</span> ${escapeHtml(petNotes)}</p>` : ''}
+                                ${customerNotes ? `<p class="text-amber-700 dark:text-amber-300 ${petNotes ? 'mt-0.5' : ''}"><span class="font-bold">Note:</span> ${escapeHtml(customerNotes)}</p>` : ''}
                             </div>
                         </div>
                     </div>
@@ -6176,7 +6225,7 @@
                                     <span class="material-symbols-outlined text-amber-500">note</span>
                                     <div>
                                         <p class="text-sm font-bold text-amber-700 dark:text-amber-300 mb-1">Customer Notes</p>
-                                        <p class="text-sm text-amber-800 dark:text-amber-200">${apt.customer_notes}</p>
+                                        <p class="text-sm text-amber-800 dark:text-amber-200">${escapeHtml(apt.customer_notes)}</p>
                                     </div>
                                 </div>
                             </div>
@@ -6188,7 +6237,7 @@
                                     <span class="material-symbols-outlined text-blue-500">edit_note</span>
                                     <div>
                                         <p class="text-sm font-bold text-blue-700 dark:text-blue-300 mb-1">Your Notes</p>
-                                        <p class="text-sm text-blue-800 dark:text-blue-200">${apt.groomer_notes}</p>
+                                        <p class="text-sm text-blue-800 dark:text-blue-200">${escapeHtml(apt.groomer_notes)}</p>
                                     </div>
                                 </div>
                             </div>
@@ -12381,7 +12430,7 @@
                 return `<div class="flex justify-between items-start mb-8"><div><h1 class="text-3xl font-bold mb-2 dark:text-white">My Pets</h1><p class="text-text-sub-light dark:text-text-sub-dark">Manage your furry family</p></div><button onclick="openEditModal('pet', {})" class="bg-primary text-white font-bold px-4 py-2 rounded-lg flex items-center gap-2"><span class="material-symbols-outlined">add</span>Add Pet</button></div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">${pets.length > 0 ? pets.map((pet, i) => `<div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-6"><div class="flex gap-4"><div class="relative group">
                     <div class="w-32 h-32 rounded-2xl bg-cover bg-center border-2 border-primary/20 shadow-lg" style="background-image: url('${pet.photo_url || 'https://via.placeholder.com/150'}')"></div>
-                </div><div class="flex-1"><div class="flex justify-between"><div><h3 class="text-xl font-bold dark:text-white">${pet.name}</h3><p class="text-text-sub-light dark:text-text-sub-dark">${pet.breed || 'Unknown breed'}</p></div><button onclick="openEditModal('pet', ${i})" class="p-2 hover:bg-background-light dark:hover:bg-background-dark rounded-lg text-text-sub-light hover:text-primary"><span class="material-symbols-outlined">edit</span></button></div><span class="inline-block mt-2 px-3 py-1 bg-background-light dark:bg-background-dark rounded-full text-sm dark:text-white">${pet.weight || '?'} lbs</span></div></div>${pet.grooming_notes ? `<div class="mt-4 p-3 bg-background-light dark:bg-background-dark rounded-lg text-sm text-text-sub-light dark:text-text-sub-dark"><strong>Notes:</strong> ${pet.grooming_notes}</div>` : ''}</div>`).join('') : '<div class="col-span-2 text-center py-12 bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark"><span class="material-symbols-outlined text-6xl text-text-sub-light mb-4">pets</span><p class="text-text-sub-light dark:text-text-sub-dark">No pets added yet</p><button onclick="openEditModal(\'pet\', {})" class="mt-4 bg-primary text-white font-bold px-4 py-2 rounded-lg">Add Your First Pet</button></div>'}</div>`;
+                </div><div class="flex-1"><div class="flex justify-between"><div><h3 class="text-xl font-bold dark:text-white">${pet.name}</h3><p class="text-text-sub-light dark:text-text-sub-dark">${pet.breed || 'Unknown breed'}</p></div><button onclick="openEditModal('pet', ${i})" class="p-2 hover:bg-background-light dark:hover:bg-background-dark rounded-lg text-text-sub-light hover:text-primary"><span class="material-symbols-outlined">edit</span></button></div><span class="inline-block mt-2 px-3 py-1 bg-background-light dark:bg-background-dark rounded-full text-sm dark:text-white">${pet.weight || '?'} lbs</span></div></div>${pet.grooming_notes ? `<div class="mt-4 p-3 bg-background-light dark:bg-background-dark rounded-lg text-sm text-text-sub-light dark:text-text-sub-dark"><strong>Notes:</strong> ${escapeHtml(pet.grooming_notes)}</div>` : ''}</div>`).join('') : '<div class="col-span-2 text-center py-12 bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark"><span class="material-symbols-outlined text-6xl text-text-sub-light mb-4">pets</span><p class="text-text-sub-light dark:text-text-sub-dark">No pets added yet</p><button onclick="openEditModal(\'pet\', {})" class="mt-4 bg-primary text-white font-bold px-4 py-2 rounded-lg">Add Your First Pet</button></div>'}</div>`;
             }
 
             if (state.currentTab === 'appointments') {
