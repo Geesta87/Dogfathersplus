@@ -28,7 +28,7 @@
     <!-- Preconnect for performance -->
     <link href="https://fonts.googleapis.com" rel="preconnect"/>
     <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <!-- Supabase Client Library -->
@@ -39,38 +39,84 @@
             theme: {
                 extend: {
                     colors: {
-                        "primary": "#13a4ec",
-                        "admin-primary": "#c9a962",
-                        "admin-accent": "#2a9d8f",
-                        "admin-bg": "#f8f6f3",
-                        "admin-sidebar": "#fdfcfa",
-                        "background-light": "#f6f7f8",
-                        "background-dark": "#0d1117",
+                        "primary": "#8B5CF6",
+                        "admin-primary": "#8B5CF6",
+                        "admin-accent": "#A78BFA",
+                        "admin-bg": "#F5F3FF",
+                        "admin-sidebar": "#F5F3FF",
+                        "background-light": "#F5F3FF",
+                        "background-dark": "#1a1625",
                         "surface-light": "#ffffff",
-                        "surface-dark": "#161b22",
-                        "text-main-light": "#0d171b",
-                        "text-main-dark": "#f0f6fc",
-                        "text-sub-light": "#4c809a",
-                        "text-sub-dark": "#8b949e",
-                        "border-light": "#cfdfe7",
-                        "border-dark": "#30363d",
-                        // Groomer Tech Purple Theme
-                        "groomer-primary": "#2a7a77",
-                        "tech-purple": "#8b5cf6",
-                        "tech-magenta": "#d946ef",
-                        "groomer-bg": "#f9f7f6",
-                        "groomer-dark": "#1a1d23",
+                        "surface-dark": "#231d2e",
+                        "text-main-light": "#1f1f33",
+                        "text-main-dark": "#f5f5ff",
+                        "text-sub-light": "#6b6b8a",
+                        "text-sub-dark": "#a8a8c0",
+                        "border-light": "#e2e0eb",
+                        "border-dark": "#3d3650",
+                        "groomer-primary": "#8B5CF6",
+                        "tech-purple": "#8B5CF6",
+                        "tech-magenta": "#A78BFA",
+                        "groomer-bg": "#F5F3FF",
+                        "groomer-dark": "#1a1625",
+                        "neumorphic-light": "#ffffff",
+                        "neumorphic-shadow": "#d8d5e6",
                     },
-                    fontFamily: { "display": ["Manrope", "sans-serif"] },
+                    fontFamily: { "display": ["Spline Sans", "sans-serif"] },
+                    boxShadow: {
+                        'neumorphic-out': '8px 8px 16px #d8d5e6, -8px -8px 16px #ffffff',
+                        'neumorphic-in': 'inset 6px 6px 12px #d8d5e6, inset -6px -6px 12px #ffffff',
+                        'neumorphic-sm-out': '4px 4px 8px #d8d5e6, -4px -4px 8px #ffffff',
+                        'neumorphic-sm-in': 'inset 3px 3px 6px #d8d5e6, inset -3px -3px 6px #ffffff',
+                        'neumorphic-btn': '6px 6px 12px #d8d5e6, -6px -6px 12px #ffffff',
+                    },
                 },
             },
         }
     </script>
     <style>
+        body { font-family: 'Spline Sans', sans-serif; }
         .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400; }
         .fill-1 { font-variation-settings: 'FILL' 1; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Neumorphic Styles */
+        .neumorphic-card {
+            box-shadow: 8px 8px 16px #d1d1e9, -8px -8px 16px #ffffff;
+        }
+        .neumorphic-inset {
+            box-shadow: inset 6px 6px 12px #d1d1e9, inset -6px -6px 12px #ffffff;
+        }
+        .neumorphic-button {
+            box-shadow: 6px 6px 12px #d1d1e9, -6px -6px 12px #ffffff;
+            transition: all 0.2s ease;
+        }
+        .neumorphic-button:active {
+            box-shadow: inset 4px 4px 8px #d1d1e9, inset -4px -4px 8px #ffffff;
+            transform: scale(0.98);
+        }
+        .neumorphic-sm {
+            box-shadow: 4px 4px 8px #d1d1e9, -4px -4px 8px #ffffff;
+        }
+        
+        /* Dark mode neumorphic */
+        .dark .neumorphic-card {
+            box-shadow: 8px 8px 16px #0f0a14, -8px -8px 16px #231a2e;
+        }
+        .dark .neumorphic-inset {
+            box-shadow: inset 6px 6px 12px #0f0a14, inset -6px -6px 12px #231a2e;
+        }
+        .dark .neumorphic-button {
+            box-shadow: 6px 6px 12px #0f0a14, -6px -6px 12px #231a2e;
+        }
+        .dark .neumorphic-button:active {
+            box-shadow: inset 4px 4px 8px #0f0a14, inset -4px -4px 8px #231a2e;
+        }
+        .dark .neumorphic-sm {
+            box-shadow: 4px 4px 8px #0f0a14, -4px -4px 8px #231a2e;
+        }
+        
         /* Toast animations */
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
@@ -84,36 +130,36 @@
         /* Better touch targets */
         .touch-target { min-height: 44px; min-width: 44px; }
         
-        /* Groomer Portal Glass & Gradient Styles */
+        /* Glass & Gradient Styles */
         .glass-card {
             background: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.4);
         }
         .dark .glass-card {
-            background: rgba(42, 47, 55, 0.8);
+            background: rgba(30, 21, 41, 0.8);
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
         .groomer-gradient-bg {
-            background-color: #f9f7f6;
+            background-color: #f0eff5;
             background-image: 
-                radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.12) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(217, 70, 239, 0.1) 0px, transparent 50%),
-                radial-gradient(at 50% 50%, rgba(42, 122, 119, 0.05) 0px, transparent 50%);
+                radial-gradient(at 0% 0%, rgba(127, 25, 230, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.06) 0px, transparent 50%),
+                radial-gradient(at 50% 50%, rgba(127, 25, 230, 0.03) 0px, transparent 50%);
         }
         .dark .groomer-gradient-bg {
-            background-color: #1a1d23;
+            background-color: #191121;
             background-image: 
-                radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(217, 70, 239, 0.12) 0px, transparent 50%);
+                radial-gradient(at 0% 0%, rgba(127, 25, 230, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.12) 0px, transparent 50%);
         }
         .soft-lift {
-            box-shadow: 0 8px 24px -8px rgba(139, 92, 246, 0.15);
+            box-shadow: 0 8px 24px -8px rgba(127, 25, 230, 0.15);
             transition: all 0.3s ease;
         }
         .soft-lift:hover {
             transform: translateY(-2px);
-            box-shadow: 0 12px 28px -6px rgba(139, 92, 246, 0.22);
+            box-shadow: 0 12px 28px -6px rgba(127, 25, 230, 0.22);
         }
         
         /* Mobile Modal Animations */
@@ -272,7 +318,7 @@
                             <input type="text" id="config-key" value="${SUPABASE_ANON_KEY.includes('placeholder') ? '' : SUPABASE_ANON_KEY}" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." 
                                 class="w-full h-12 px-4 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary outline-none font-mono text-xs">
                         </div>
-                        <button onclick="saveConfig()" class="w-full h-12 bg-primary hover:bg-sky-600 text-white font-bold rounded-lg transition-colors mt-4">
+                        <button onclick="saveConfig()" class="w-full h-12 bg-primary hover:bg-primary text-white font-bold rounded-lg transition-colors mt-4">
                             Save & Reload
                         </button>
                         <button onclick="document.getElementById('config-modal').remove()" class="w-full h-10 text-slate-500 hover:text-slate-700 font-medium">
@@ -939,7 +985,7 @@
         
         // Default travel fee tiers (will be loaded from database)
         let travelFeeTiers = [
-            { tier_order: 1, min_distance_miles: 0, max_distance_miles: 5, fee_amount: 0, label: 'In Your Area', color_class: 'text-emerald-600', icon: 'star' },
+            { tier_order: 1, min_distance_miles: 0, max_distance_miles: 5, fee_amount: 0, label: 'In Your Area', color_class: 'text-primary', icon: 'star' },
             { tier_order: 2, min_distance_miles: 5, max_distance_miles: 10, fee_amount: 10, label: 'Nearby', color_class: 'text-blue-600', icon: 'near_me' },
             { tier_order: 3, min_distance_miles: 10, max_distance_miles: 15, fee_amount: 20, label: 'Moderate Distance', color_class: 'text-amber-600', icon: 'directions_car' },
             { tier_order: 4, min_distance_miles: 15, max_distance_miles: 25, fee_amount: 35, label: 'Extended Area', color_class: 'text-orange-600', icon: 'route' },
@@ -3878,7 +3924,7 @@
             const totalSteps = 3;
             
             return `
-            <div class="min-h-screen bg-gradient-to-br from-primary/5 via-background-light to-sky-50 dark:from-background-dark dark:via-background-dark dark:to-slate-900 flex flex-col">
+            <div class="min-h-screen bg-gradient-to-br from-primary/5 via-background-light to-purple-50 dark:from-background-dark dark:via-background-dark dark:to-slate-900 flex flex-col">
                 <!-- Header -->
                 <header class="p-4 flex justify-between items-center">
                     <div class="flex items-center gap-2">
@@ -3895,7 +3941,7 @@
                         <span class="text-sm font-medium text-primary">${Math.round((step/totalSteps)*100)}% Complete</span>
                     </div>
                     <div class="h-2 bg-border-light dark:bg-border-dark rounded-full overflow-hidden">
-                        <div class="h-full bg-gradient-to-r from-primary to-sky-400 rounded-full transition-all duration-500" style="width: ${(step/totalSteps)*100}%"></div>
+                        <div class="h-full bg-gradient-to-r from-primary to-purple-400 rounded-full transition-all duration-500" style="width: ${(step/totalSteps)*100}%"></div>
                     </div>
                 </div>
 
@@ -3950,7 +3996,7 @@
                     </div>
 
                     <div class="pt-4">
-                        <button type="submit" class="w-full h-12 bg-primary hover:bg-sky-600 text-white font-bold rounded-lg flex items-center justify-center gap-2 touch-target transition-all">
+                        <button type="submit" class="w-full h-12 bg-primary hover:bg-primary text-white font-bold rounded-lg flex items-center justify-center gap-2 touch-target transition-all">
                             Continue <span class="material-symbols-outlined">arrow_forward</span>
                         </button>
                     </div>
@@ -4070,7 +4116,7 @@
                         <button type="button" onclick="prevOnboardingStep()" class="flex-1 h-12 border border-border-light dark:border-border-dark rounded-lg font-bold hover:bg-background-light dark:hover:bg-background-dark dark:text-white touch-target transition-all">
                             <span class="material-symbols-outlined align-middle">arrow_back</span> Back
                         </button>
-                        <button type="submit" class="flex-1 h-12 bg-primary hover:bg-sky-600 text-white font-bold rounded-lg flex items-center justify-center gap-2 touch-target transition-all">
+                        <button type="submit" class="flex-1 h-12 bg-primary hover:bg-primary text-white font-bold rounded-lg flex items-center justify-center gap-2 touch-target transition-all">
                             Continue <span class="material-symbols-outlined">arrow_forward</span>
                         </button>
                     </div>
@@ -4196,7 +4242,7 @@
                     <p class="text-sm"><strong class="text-primary">🎁 Welcome Gift:</strong> <span class="text-text-sub-light dark:text-text-sub-dark">You've earned <strong>50 bonus points</strong> for completing your profile!</span></p>
                 </div>
 
-                <button onclick="completeOnboarding()" class="w-full h-14 bg-primary hover:bg-sky-600 text-white font-bold rounded-lg flex items-center justify-center gap-2 touch-target transition-all text-lg">
+                <button onclick="completeOnboarding()" class="w-full h-14 bg-primary hover:bg-primary text-white font-bold rounded-lg flex items-center justify-center gap-2 touch-target transition-all text-lg">
                     Go to Dashboard <span class="material-symbols-outlined">arrow_forward</span>
                 </button>
             </div>`;
@@ -4351,10 +4397,10 @@
         function renderGroomerLogin() {
             return `
             <div class="flex flex-1 w-full min-h-screen">
-                <div class="hidden lg:flex lg:w-1/2 relative bg-emerald-600 items-center justify-center overflow-hidden">
+                <div class="hidden lg:flex lg:w-1/2 relative bg-primary items-center justify-center overflow-hidden">
                     <div class="absolute inset-0 z-0">
                         <img alt="Dog grooming professional" class="w-full h-full object-cover opacity-40" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBAgB_Ncu0Jwq7NoOkvrWM3LGmNdBpAvJUbF63k_Xj9ezgydcIjvE6ICw5DsWJPlgZ5OAkQu_V81UIU9qbm1qZ6jJvuGb7NSlCZ9l2elEVA1AdGbc2gqs-Qcflihvblt2dmv7_bhd6nC-BDxrA3AuKq663UGylWq-VkgYnjpJKcbP_6mU7YoSnvb5-bzJQReNiTzDYO5B_lEB1sPJQGHUr_CvYOx9sErYMiLLlVrM1DPw9IAGvTFteiACwuGtOkYAjnJShJTBJnZh45"/>
-                        <div class="absolute inset-0 bg-gradient-to-t from-emerald-900/80 via-emerald-800/40 to-transparent"></div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-violet-900/80 via-violet-800/40 to-transparent"></div>
                     </div>
                     <div class="relative z-10 text-center text-white px-12">
                         <div class="w-24 h-24 mx-auto mb-6 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center">
@@ -4371,8 +4417,8 @@
                                 <img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-cover"/>
                             </div>
                             <div>
-                                <h1 class="text-2xl font-black dark:text-white">Dogfathers<span class="text-emerald-600">plus</span></h1>
-                                <p class="text-sm text-emerald-600 font-semibold">Groomer Login</p>
+                                <h1 class="text-2xl font-black dark:text-white">Dogfathers<span class="text-primary">plus</span></h1>
+                                <p class="text-sm text-primary font-semibold">Groomer Login</p>
                             </div>
                         </div>
                         
@@ -4386,7 +4432,7 @@
                                     <div class="relative">
                                         <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-sub-light">mail</span>
                                         <input id="groomer-email" type="email" required placeholder="groomer@dogfathersplus.com" 
-                                            class="w-full h-12 pl-11 pr-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white"/>
+                                            class="w-full h-12 pl-11 pr-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark focus:ring-2 focus:ring-primary outline-none dark:text-white"/>
                                     </div>
                                 </div>
                                 <div>
@@ -4394,15 +4440,15 @@
                                     <div class="relative">
                                         <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-sub-light">lock</span>
                                         <input id="groomer-password" type="password" required placeholder="••••••••" 
-                                            class="w-full h-12 pl-11 pr-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white"/>
+                                            class="w-full h-12 pl-11 pr-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark focus:ring-2 focus:ring-primary outline-none dark:text-white"/>
                                     </div>
                                 </div>
-                                <button type="submit" class="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg flex items-center justify-center gap-2 transition-colors">
+                                <button type="submit" class="w-full h-12 bg-primary hover:bg-violet-700 text-white font-bold rounded-lg flex items-center justify-center gap-2 transition-colors">
                                     <span class="material-symbols-outlined">login</span>
                                     Sign In as Groomer
                                 </button>
                                 <div class="text-center mt-3">
-                                    <a href="#" onclick="openForgotPassword(document.getElementById('groomer-email')?.value || ''); return false;" class="text-sm text-emerald-600 hover:text-emerald-700 hover:underline">Forgot password?</a>
+                                    <a href="#" onclick="openForgotPassword(document.getElementById('groomer-email')?.value || ''); return false;" class="text-sm text-primary hover:text-violet-700 hover:underline">Forgot password?</a>
                                 </div>
                             </form>
                             
@@ -4749,7 +4795,7 @@
             
             return `
                 <!-- #1 HERO SECTION - Gradient Banner with Time-based Greeting -->
-                <div class="relative overflow-hidden rounded-3xl mb-6 bg-gradient-to-br from-groomer-primary via-teal-500 to-emerald-400 p-6 lg:p-8 text-white shadow-xl shadow-groomer-primary/20">
+                <div class="relative overflow-hidden rounded-3xl mb-6 bg-gradient-to-br from-primary via-purple-500 to-purple-400 p-6 lg:p-8 text-white shadow-xl shadow-groomer-primary/20">
                     <!-- Background Pattern -->
                     <div class="absolute inset-0 opacity-10">
                         <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -4857,16 +4903,16 @@
                     </div>
                     
                     <!-- Completed Card - Green Gradient when has completions -->
-                    <div onclick="document.getElementById('completed-section')?.scrollIntoView({behavior: 'smooth'})" class="relative overflow-hidden rounded-2xl min-w-[160px] sm:min-w-[200px] lg:min-w-0 flex-shrink-0 snap-start cursor-pointer active:scale-95 transition-all hover:shadow-lg ${todayCompletedCount > 0 ? 'bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-500/30' : 'glass-card'}">
+                    <div onclick="document.getElementById('completed-section')?.scrollIntoView({behavior: 'smooth'})" class="relative overflow-hidden rounded-2xl min-w-[160px] sm:min-w-[200px] lg:min-w-0 flex-shrink-0 snap-start cursor-pointer active:scale-95 transition-all hover:shadow-lg ${todayCompletedCount > 0 ? 'bg-gradient-to-br from-primary to-purple-500 text-white shadow-lg shadow-primary/20' : 'glass-card'}">
                         ${todayCompletedCount > 0 ? `
                             <div class="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
                         ` : ''}
                         <div class="relative p-4 sm:p-5">
                             <div class="flex items-center justify-between mb-3">
-                                <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl ${todayCompletedCount > 0 ? 'bg-white/20' : 'bg-emerald-100 dark:bg-emerald-900/30'} flex items-center justify-center">
-                                    <span class="material-symbols-outlined ${todayCompletedCount > 0 ? 'text-white' : 'text-emerald-600'} text-xl sm:text-2xl">verified</span>
+                                <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl ${todayCompletedCount > 0 ? 'bg-white/20' : 'bg-violet-100 dark:bg-violet-900/30'} flex items-center justify-center">
+                                    <span class="material-symbols-outlined ${todayCompletedCount > 0 ? 'text-white' : 'text-primary'} text-xl sm:text-2xl">verified</span>
                                 </div>
-                                <span class="px-2 py-0.5 ${todayCompletedCount > 0 ? 'bg-white/20' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600'} text-[9px] sm:text-[10px] font-bold uppercase rounded-full">
+                                <span class="px-2 py-0.5 ${todayCompletedCount > 0 ? 'bg-white/20' : 'bg-violet-100 dark:bg-violet-900/30 text-primary'} text-[9px] sm:text-[10px] font-bold uppercase rounded-full">
                                     ${todayCompletedCount > 0 ? `$${todayEarningsAmount.toFixed(0)}` : 'Today'}
                                 </span>
                             </div>
@@ -5328,9 +5374,9 @@
                     
                     <!-- #5 COMPLETED COLUMN - Enhanced Header -->
                     <div class="space-y-4">
-                        <div class="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-emerald-500/10 to-transparent border-l-4 border-emerald-500">
+                        <div class="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-violet-500/10 to-transparent border-l-4 border-primary">
                             <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center">
+                                <div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
                                     <span class="material-symbols-outlined text-white text-lg">verified</span>
                                 </div>
                                 <div>
@@ -5338,15 +5384,15 @@
                                     <p class="text-[10px] text-slate-500">Finished grooms</p>
                                 </div>
                             </div>
-                            <span class="px-2.5 py-1 ${todayCompletedCount > 0 ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'} text-xs font-bold rounded-full">
+                            <span class="px-2.5 py-1 ${todayCompletedCount > 0 ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'} text-xs font-bold rounded-full">
                                 ${todayCompletedCount > 0 ? '$' + todayEarningsAmount.toFixed(0) : totalCompletedCount}
                             </span>
                         </div>
                         
                         <div class="space-y-3">
                             ${todayCompletedAppts.length > 0 ? `
-                                <p class="text-[10px] font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
-                                    <span class="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                                <p class="text-[10px] font-bold text-primary uppercase tracking-wider flex items-center gap-1">
+                                    <span class="w-2 h-2 bg-primary rounded-full"></span>
                                     Today's Grooms (${todayCompletedCount})
                                 </p>
                             ` : totalCompletedCount > 0 ? `
@@ -5359,30 +5405,30 @@
                             ${(todayCompletedAppts.length > 0 ? todayCompletedAppts.slice(0, 5) : completedAppts.slice(0, 5)).map(apt => {
                                 return `
                                 <!-- #6 RICHER COMPLETED CARD -->
-                                <div onclick="openAppointmentDetail('${apt.id}')" class="glass-card rounded-2xl overflow-hidden cursor-pointer hover:shadow-lg transition-all border-l-4 border-emerald-500 group">
+                                <div onclick="openAppointmentDetail('${apt.id}')" class="glass-card rounded-2xl overflow-hidden cursor-pointer hover:shadow-lg transition-all border-l-4 border-primary group">
                                     <div class="p-4">
                                         <div class="flex items-center justify-between">
                                             <div class="flex items-center gap-3">
                                                 <div class="relative">
-                                                    <div class="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 overflow-hidden flex items-center justify-center">
-                                                        ${apt.petPhoto ? `<img src="${apt.petPhoto}" class="w-full h-full object-cover"/>` : `<span class="material-symbols-outlined text-emerald-500 text-xl">pets</span>`}
+                                                    <div class="w-12 h-12 rounded-xl bg-violet-50 dark:bg-violet-900/20 overflow-hidden flex items-center justify-center">
+                                                        ${apt.petPhoto ? `<img src="${apt.petPhoto}" class="w-full h-full object-cover"/>` : `<span class="material-symbols-outlined text-primary text-xl">pets</span>`}
                                                     </div>
-                                                    <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg">
+                                                    <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center shadow-lg">
                                                         <span class="material-symbols-outlined text-white text-xs">check</span>
                                                     </div>
                                                 </div>
                                                 <div>
-                                                    <button onclick="event.stopPropagation(); openPetProfile('${apt.pet_id}', ${JSON.stringify({name: apt.petName, breed: apt.petBreed, weight: apt.petWeight, photo_url: apt.petPhoto, grooming_notes: apt.petNotes, owner_name: apt.customerName, owner_phone: apt.customerPhone, owner_address: apt.customerAddress}).replace(/"/g, '&quot;')})" class="font-bold text-slate-900 dark:text-white hover:text-emerald-600 transition-colors text-left">${apt.petName}</button>
+                                                    <button onclick="event.stopPropagation(); openPetProfile('${apt.pet_id}', ${JSON.stringify({name: apt.petName, breed: apt.petBreed, weight: apt.petWeight, photo_url: apt.petPhoto, grooming_notes: apt.petNotes, owner_name: apt.customerName, owner_phone: apt.customerPhone, owner_address: apt.customerAddress}).replace(/"/g, '&quot;')})" class="font-bold text-slate-900 dark:text-white hover:text-primary transition-colors text-left">${apt.petName}</button>
                                                     <p class="text-xs text-slate-500">${apt.serviceName || 'Grooming'}</p>
                                                 </div>
                                             </div>
                                             <div class="text-right">
-                                                <p class="text-sm font-bold text-emerald-600">$${apt.total_price || '0'}</p>
+                                                <p class="text-sm font-bold text-primary">$${apt.total_price || '0'}</p>
                                                 <p class="text-[10px] text-slate-400">${apt.completed_at ? new Date(apt.completed_at).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'}) : ''}</p>
                                             </div>
                                         </div>
                                         <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                                            <span class="text-xs font-medium text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                            <span class="text-xs font-medium text-primary bg-violet-100 dark:bg-violet-900/30 px-2 py-0.5 rounded-full flex items-center gap-1">
                                                 <span class="material-symbols-outlined text-xs">check_circle</span>
                                                 Complete
                                             </span>
@@ -5396,7 +5442,7 @@
                             ${totalCompletedCount === 0 ? `
                                 <!-- #4 BETTER EMPTY STATE - Completed -->
                                 <div class="glass-card rounded-2xl p-8 text-center border-2 border-dashed border-slate-200 dark:border-slate-700">
-                                    <div class="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-full flex items-center justify-center">
+                                    <div class="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-primary/10 to-purple-100 dark:from-primary/20 dark:to-purple-900/30 rounded-full flex items-center justify-center">
                                         <span class="text-5xl">🏆</span>
                                     </div>
                                     <h4 class="font-bold text-slate-700 dark:text-slate-300 mb-1">Your Trophy Case</h4>
@@ -5408,7 +5454,7 @@
                             ` : ''}
                             
                             ${totalCompletedCount > 5 ? `
-                                <button onclick="setGroomerTab('history')" class="w-full py-2.5 glass-card rounded-xl text-sm text-emerald-600 font-bold hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors flex items-center justify-center gap-1">
+                                <button onclick="setGroomerTab('history')" class="w-full py-2.5 glass-card rounded-xl text-sm text-primary font-bold hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors flex items-center justify-center gap-1">
                                     View All ${totalCompletedCount} Completed
                                     <span class="material-symbols-outlined text-lg">arrow_forward</span>
                                 </button>
@@ -5501,7 +5547,7 @@
                         <span class="material-symbols-outlined text-slate-400 text-lg">person</span>
                         <span class="font-medium dark:text-white flex-1 truncate">${apt.customerName}</span>
                         ${phoneClean ? `
-                            <a href="tel:${phoneClean}" class="p-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors touch-target" title="Call">
+                            <a href="tel:${phoneClean}" class="p-2 bg-violet-100 dark:bg-violet-900/30 text-primary dark:text-violet-400 rounded-lg hover:bg-violet-200 dark:hover:bg-violet-900/50 transition-colors touch-target" title="Call">
                                 <span class="material-symbols-outlined text-lg">call</span>
                             </a>
                             <a href="sms:${phoneClean}" class="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors touch-target" title="Text">
@@ -5511,7 +5557,7 @@
                     </div>
                     
                     <!-- Complete Button -->
-                    <button onclick="openCompleteAppointmentModal('${apt.id}')" class="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors shadow-lg shadow-emerald-500/30 touch-target">
+                    <button onclick="openCompleteAppointmentModal('${apt.id}')" class="w-full py-3.5 bg-primary hover:bg-violet-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors shadow-lg shadow-primary/20 touch-target">
                         <span class="material-symbols-outlined">check_circle</span>
                         Complete Appointment
                     </button>
@@ -5590,7 +5636,7 @@
                         <span class="material-symbols-outlined text-lg">visibility</span>
                         Details
                     </button>
-                    <button onclick="startGroomingAppointment('${apt.id}')" class="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md touch-target">
+                    <button onclick="startGroomingAppointment('${apt.id}')" class="flex-1 py-2.5 bg-primary hover:bg-violet-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md touch-target">
                         <span class="material-symbols-outlined text-lg">play_arrow</span>
                         Start
                     </button>
@@ -5759,7 +5805,7 @@
                         <p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Upcoming</p>
                     </div>
                     <div class="glass-card rounded-xl p-4 text-center">
-                        <p class="text-3xl font-bold text-emerald-500">$${stats.revenue.toFixed(0)}</p>
+                        <p class="text-3xl font-bold text-primary">$${stats.revenue.toFixed(0)}</p>
                         <p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Revenue</p>
                     </div>
                 </div>
@@ -6036,15 +6082,15 @@
                                 
                                 return `
                                 <button onclick="selectCalendarDate('${dateStr}')" 
-                                    class="p-4 border-r border-b border-slate-100 dark:border-slate-700 last:border-r-0 flex flex-col items-center justify-start gap-2 transition-all hover:bg-slate-50 dark:hover:bg-slate-800 ${isSelected ? 'bg-emerald-50 dark:bg-emerald-900/20 ring-2 ring-emerald-500 ring-inset' : ''} ${isTodayDate ? 'bg-emerald-50/50 dark:bg-emerald-900/10' : ''} ${isPast && !isTodayDate ? 'opacity-50' : ''}">
-                                    <span class="text-2xl font-bold ${isTodayDate ? 'text-emerald-600 dark:text-emerald-400' : isSelected ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-700 dark:text-slate-300'}">${dayNum}</span>
+                                    class="p-4 border-r border-b border-slate-100 dark:border-slate-700 last:border-r-0 flex flex-col items-center justify-start gap-2 transition-all hover:bg-slate-50 dark:hover:bg-slate-800 ${isSelected ? 'bg-violet-50 dark:bg-violet-900/20 ring-2 ring-primary ring-inset' : ''} ${isTodayDate ? 'bg-violet-50/50 dark:bg-violet-900/10' : ''} ${isPast && !isTodayDate ? 'opacity-50' : ''}">
+                                    <span class="text-2xl font-bold ${isTodayDate ? 'text-primary dark:text-violet-400' : isSelected ? 'text-violet-700 dark:text-violet-300' : 'text-slate-700 dark:text-slate-300'}">${dayNum}</span>
                                     ${count > 0 ? `
                                         <div class="flex flex-col items-center gap-1">
                                             <div class="flex items-center gap-1">
                                                 ${hasInProgress ? `<span class="w-2.5 h-2.5 rounded-full bg-purple-500 animate-pulse"></span>` : ''}
-                                                ${hasConfirmed ? `<span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>` : ''}
+                                                ${hasConfirmed ? `<span class="w-2.5 h-2.5 rounded-full bg-primary"></span>` : ''}
                                             </div>
-                                            <span class="text-xs font-semibold ${isTodayDate || isSelected ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}">${count} appt${count !== 1 ? 's' : ''}</span>
+                                            <span class="text-xs font-semibold ${isTodayDate || isSelected ? 'text-primary dark:text-violet-400' : 'text-slate-500 dark:text-slate-400'}">${count} appt${count !== 1 ? 's' : ''}</span>
                                         </div>
                                     ` : `<span class="text-xs text-slate-400 dark:text-slate-500">-</span>`}
                                 </button>
@@ -6147,12 +6193,12 @@
                                 
                                 return `
                                 <button onclick="selectCalendarDate('${dateStr}')" 
-                                    class="p-2 border-r border-b border-slate-100 dark:border-slate-700 last:border-r-0 flex flex-col items-center justify-center gap-1 transition-all hover:bg-slate-50 dark:hover:bg-slate-800 ${isSelected ? 'bg-emerald-50 dark:bg-emerald-900/20 ring-2 ring-emerald-500 ring-inset' : ''} ${isTodayDate ? 'bg-emerald-50/50 dark:bg-emerald-900/10' : ''} ${isPast && !isTodayDate ? 'opacity-40' : ''}">
-                                    <span class="text-sm font-bold ${isTodayDate ? 'text-emerald-600 dark:text-emerald-400' : isSelected ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-700 dark:text-slate-300'}">${dayNum}</span>
+                                    class="p-2 border-r border-b border-slate-100 dark:border-slate-700 last:border-r-0 flex flex-col items-center justify-center gap-1 transition-all hover:bg-slate-50 dark:hover:bg-slate-800 ${isSelected ? 'bg-violet-50 dark:bg-violet-900/20 ring-2 ring-primary ring-inset' : ''} ${isTodayDate ? 'bg-violet-50/50 dark:bg-violet-900/10' : ''} ${isPast && !isTodayDate ? 'opacity-40' : ''}">
+                                    <span class="text-sm font-bold ${isTodayDate ? 'text-primary dark:text-violet-400' : isSelected ? 'text-violet-700 dark:text-violet-300' : 'text-slate-700 dark:text-slate-300'}">${dayNum}</span>
                                     ${count > 0 ? `
                                         <div class="flex items-center gap-0.5">
                                             ${hasInProgress ? `<span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>` : ''}
-                                            ${hasConfirmed ? `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>` : ''}
+                                            ${hasConfirmed ? `<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>` : ''}
                                             <span class="text-[10px] font-bold text-slate-500">${count}</span>
                                         </div>
                                     ` : ''}
@@ -6182,7 +6228,7 @@
                 pending: 'border-l-amber-500',
                 confirmed: 'border-l-blue-500',
                 in_progress: 'border-l-purple-500',
-                completed: 'border-l-emerald-500',
+                completed: 'border-l-primary',
                 cancelled: 'border-l-red-500'
             };
             
@@ -6251,12 +6297,12 @@
                 <div class="flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700">
                     <div class="flex items-center gap-1">
                         ${mapsUrl ? `
-                        <a href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()" class="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-colors touch-target" title="Navigate">
+                        <a href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()" class="p-2 text-slate-500 hover:text-primary hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-lg transition-colors touch-target" title="Navigate">
                             <span class="material-symbols-outlined text-lg">directions</span>
                         </a>
                         ` : ''}
                         ${phoneClean ? `
-                        <a href="tel:${phoneClean}" onclick="event.stopPropagation()" class="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-colors touch-target" title="Call">
+                        <a href="tel:${phoneClean}" onclick="event.stopPropagation()" class="p-2 text-slate-500 hover:text-primary hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-lg transition-colors touch-target" title="Call">
                             <span class="material-symbols-outlined text-lg">call</span>
                         </a>
                         <a href="sms:${phoneClean}" onclick="event.stopPropagation()" class="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors touch-target" title="Text">
@@ -6265,12 +6311,12 @@
                         ` : ''}
                     </div>
                     ${(apt.status === 'confirmed' || apt.status === 'pending') ? `
-                    <button onclick="event.stopPropagation(); startGroomingAppointment('${apt.id}')" class="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold rounded-lg transition-colors touch-target flex items-center gap-1">
+                    <button onclick="event.stopPropagation(); startGroomingAppointment('${apt.id}')" class="px-4 py-1.5 bg-primary hover:bg-violet-600 text-white text-sm font-bold rounded-lg transition-colors touch-target flex items-center gap-1">
                         <span class="material-symbols-outlined text-sm">play_arrow</span>
                         Start
                     </button>
                     ` : apt.status === 'in_progress' ? `
-                    <button onclick="event.stopPropagation(); openCompleteAppointmentModal('${apt.id}')" class="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold rounded-lg transition-colors touch-target flex items-center gap-1">
+                    <button onclick="event.stopPropagation(); openCompleteAppointmentModal('${apt.id}')" class="px-4 py-1.5 bg-primary hover:bg-violet-600 text-white text-sm font-bold rounded-lg transition-colors touch-target flex items-center gap-1">
                         <span class="material-symbols-outlined text-sm">check_circle</span>
                         Complete
                     </button>
@@ -6325,14 +6371,14 @@
                     ${appointments.length > 0 ? appointments.map(apt => {
                         const statusColors = {
                             pending: 'border-amber-300 bg-amber-50 dark:bg-amber-900/20',
-                            confirmed: 'border-emerald-300 bg-emerald-50 dark:bg-emerald-900/20',
+                            confirmed: 'border-violet-300 bg-violet-50 dark:bg-violet-900/20',
                             in_progress: 'border-purple-400 bg-purple-50 dark:bg-purple-900/20 ring-2 ring-purple-400',
                             completed: 'border-slate-200 bg-slate-50 dark:bg-slate-800/50 opacity-60',
                             cancelled: 'border-red-200 bg-red-50 dark:bg-red-900/20 opacity-50'
                         };
                         const statusBadges = {
                             pending: 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300',
-                            confirmed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300',
+                            confirmed: 'bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300',
                             in_progress: 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300',
                             completed: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
                             cancelled: 'bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-300'
@@ -6355,7 +6401,7 @@
                                 </span>
                             </div>
                             <div class="flex items-center justify-between text-sm">
-                                <span class="font-bold text-emerald-600 dark:text-emerald-400">${formatTime(apt.start_time)}</span>
+                                <span class="font-bold text-primary dark:text-violet-400">${formatTime(apt.start_time)}</span>
                                 <span class="text-slate-500 dark:text-slate-400 flex items-center gap-1">
                                     <span class="material-symbols-outlined text-sm">person</span>
                                     ${apt.customerName || 'Customer'}
@@ -6377,7 +6423,7 @@
         function renderAppointmentDetailModal(apt) {
             const statusColors = {
                 pending: 'bg-amber-500',
-                confirmed: 'bg-emerald-500',
+                confirmed: 'bg-primary',
                 in_progress: 'bg-purple-500',
                 completed: 'bg-slate-500',
                 cancelled: 'bg-red-500'
@@ -6440,14 +6486,14 @@
                         <div class="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-3">
-                                    <span class="material-symbols-outlined text-emerald-500">content_cut</span>
+                                    <span class="material-symbols-outlined text-primary">content_cut</span>
                                     <div>
                                         <p class="font-bold text-slate-900 dark:text-white">${apt.serviceName || 'Grooming'}</p>
                                         <p class="text-sm text-slate-500 dark:text-slate-400">$${apt.total_price || apt.servicePrice || '0'}</p>
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <p class="font-bold text-emerald-600 dark:text-emerald-400">${formatTime(apt.start_time)}</p>
+                                    <p class="font-bold text-primary dark:text-violet-400">${formatTime(apt.start_time)}</p>
                                     <p class="text-sm text-slate-500 dark:text-slate-400">${formatDate(apt.appointment_date)}</p>
                                 </div>
                             </div>
@@ -6543,8 +6589,8 @@
                                 </button>
                             ` : apt.status === 'in_progress' ? `
                                 <div class="space-y-3">
-                                    <textarea id="modal-groomer-notes-${apt.id}" placeholder="Add notes about the groom (optional)..." class="w-full h-24 px-4 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border-0 focus:ring-2 focus:ring-emerald-500 text-sm resize-none dark:text-white"></textarea>
-                                    <button onclick="groomerCompleteAppointmentFromModal('${apt.id}')" class="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl flex items-center justify-center gap-3 transition-all shadow-lg shadow-emerald-500/20 text-lg">
+                                    <textarea id="modal-groomer-notes-${apt.id}" placeholder="Add notes about the groom (optional)..." class="w-full h-24 px-4 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border-0 focus:ring-2 focus:ring-primary text-sm resize-none dark:text-white"></textarea>
+                                    <button onclick="groomerCompleteAppointmentFromModal('${apt.id}')" class="w-full py-4 bg-primary hover:bg-violet-600 text-white font-bold rounded-2xl flex items-center justify-center gap-3 transition-all shadow-lg shadow-violet-500/20 text-lg">
                                         <span class="material-symbols-outlined text-2xl">check_circle</span>
                                         Complete & Award Points
                                     </button>
@@ -6658,7 +6704,7 @@
                                         <span class="material-symbols-outlined text-lg">delete</span>
                                     </button>
                                 </div>
-                                <p class="text-center text-sm text-emerald-600 dark:text-emerald-400 mt-2 font-medium">
+                                <p class="text-center text-sm text-primary dark:text-violet-400 mt-2 font-medium">
                                     ✓ Photo captured! Ready to start.
                                 </p>
                             ` : `
@@ -6680,7 +6726,7 @@
                         <button onclick="skipBeforePhotoAndStart()" class="flex-1 py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                             Skip Photo
                         </button>
-                        <button onclick="startWithBeforePhoto()" class="flex-1 py-3 px-4 rounded-xl ${hasPhoto ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-blue-500 hover:bg-blue-600'} text-white font-bold transition-colors flex items-center justify-center gap-2 shadow-lg ${hasPhoto ? 'shadow-emerald-500/30' : 'shadow-blue-500/30'}">
+                        <button onclick="startWithBeforePhoto()" class="flex-1 py-3 px-4 rounded-xl ${hasPhoto ? 'bg-primary hover:bg-violet-600' : 'bg-blue-500 hover:bg-blue-600'} text-white font-bold transition-colors flex items-center justify-center gap-2 shadow-lg ${hasPhoto ? 'shadow-primary/20' : 'shadow-blue-500/30'}">
                             <span class="material-symbols-outlined">${hasPhoto ? 'check_circle' : 'play_arrow'}</span>
                             ${hasPhoto ? 'Start with Photo' : 'Start Now'}
                         </button>
@@ -6709,7 +6755,7 @@
             <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onclick="closeCompleteAppointmentModal()">
                 <div class="bg-white dark:bg-surface-dark rounded-3xl w-full max-w-md shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
                     <!-- Header -->
-                    <div class="bg-gradient-to-r from-emerald-500 to-teal-500 p-6 text-white">
+                    <div class="bg-gradient-to-r from-primary to-purple-500 p-6 text-white">
                         <div class="flex items-center justify-between mb-4">
                             <h2 class="text-xl font-bold">Complete Appointment</h2>
                             <button onclick="closeCompleteAppointmentModal()" class="p-2 hover:bg-white/20 rounded-full transition-colors">
@@ -6743,13 +6789,13 @@
                                         <span class="material-symbols-outlined text-lg">delete</span>
                                     </button>
                                 </div>
-                                <p class="text-center text-sm text-emerald-600 dark:text-emerald-400 mt-2 font-medium">
+                                <p class="text-center text-sm text-primary dark:text-violet-400 mt-2 font-medium">
                                     ✓ After photo captured!
                                 </p>
                             ` : `
-                                <button onclick="capturePhoto('after')" class="w-full aspect-[3/2] rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/50 flex flex-col items-center justify-center gap-2 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all cursor-pointer touch-target">
-                                    <div class="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-                                        <span class="material-symbols-outlined text-2xl text-emerald-500">photo_camera</span>
+                                <button onclick="capturePhoto('after')" class="w-full aspect-[3/2] rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/50 flex flex-col items-center justify-center gap-2 hover:border-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all cursor-pointer touch-target">
+                                    <div class="w-12 h-12 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
+                                        <span class="material-symbols-outlined text-2xl text-primary">photo_camera</span>
                                     </div>
                                     <p class="font-medium text-slate-600 dark:text-slate-400 text-sm">Tap to capture after photo</p>
                                 </button>
@@ -6757,8 +6803,8 @@
                         </div>
                         
                         <!-- Confirmation Checkbox -->
-                        <label class="flex items-start gap-4 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800 cursor-pointer">
-                            <input type="checkbox" id="completion-confirmed" class="mt-0.5 h-5 w-5 rounded border-emerald-300 text-emerald-500 focus:ring-emerald-500"/>
+                        <label class="flex items-start gap-4 p-4 bg-violet-50 dark:bg-violet-900/20 rounded-xl border border-violet-200 dark:border-violet-800 cursor-pointer">
+                            <input type="checkbox" id="completion-confirmed" class="mt-0.5 h-5 w-5 rounded border-violet-300 text-primary focus:ring-primary"/>
                             <div>
                                 <p class="font-bold text-slate-900 dark:text-white">Grooming Completed</p>
                                 <p class="text-sm text-slate-500 dark:text-slate-400">I confirm this grooming session has been completed successfully</p>
@@ -6774,7 +6820,7 @@
                             <textarea 
                                 id="completion-notes" 
                                 rows="3" 
-                                class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none"
+                                class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary focus:border-primary resize-none"
                                 placeholder="Any observations about this grooming session..."
                             ></textarea>
                         </div>
@@ -6785,7 +6831,7 @@
                         <button onclick="closeCompleteAppointmentModal()" class="flex-1 py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                             Cancel
                         </button>
-                        <button onclick="submitAppointmentCompletion()" class="flex-1 py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30">
+                        <button onclick="submitAppointmentCompletion()" class="flex-1 py-3 px-4 rounded-xl bg-primary hover:bg-violet-600 text-white font-bold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-primary/20">
                             <span class="material-symbols-outlined">check_circle</span>
                             Mark Complete
                         </button>
@@ -6855,16 +6901,16 @@
                                 const endTime = avail?.end_time?.slice(0, 5) || '18:00';
                                 
                                 return `
-                                <div class="flex items-center justify-between p-3 rounded-xl ${isWorking ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-slate-50 dark:bg-slate-800/50'}">
+                                <div class="flex items-center justify-between p-3 rounded-xl ${isWorking ? 'bg-violet-50 dark:bg-violet-900/20' : 'bg-slate-50 dark:bg-slate-800/50'}">
                                     <div class="flex items-center gap-3">
-                                        <div class="w-8 h-8 rounded-lg ${isWorking ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'} flex items-center justify-center">
+                                        <div class="w-8 h-8 rounded-lg ${isWorking ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-600'} flex items-center justify-center">
                                             <span class="material-symbols-outlined text-white text-sm">${isWorking ? 'check' : 'close'}</span>
                                         </div>
                                         <span class="font-semibold text-slate-900 dark:text-white w-24">${day}</span>
                                     </div>
                                     <div class="text-right">
                                         ${isWorking ? `
-                                            <span class="text-emerald-700 dark:text-emerald-400 font-medium">${formatTime12(startTime)} - ${formatTime12(endTime)}</span>
+                                            <span class="text-violet-700 dark:text-violet-400 font-medium">${formatTime12(startTime)} - ${formatTime12(endTime)}</span>
                                         ` : `
                                             <span class="text-slate-400 dark:text-slate-500 font-medium">Day Off</span>
                                         `}
@@ -6933,16 +6979,16 @@
                         ${approvedRequests.length > 0 ? `
                         <div>
                             <h3 class="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                <span class="material-symbols-outlined text-emerald-500 text-lg">check_circle</span>
+                                <span class="material-symbols-outlined text-primary text-lg">check_circle</span>
                                 Approved Time Off (${approvedRequests.length})
                             </h3>
                             <div class="space-y-3">
                                 ${approvedRequests.map(r => `
-                                <div class="p-4 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20">
+                                <div class="p-4 rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/20">
                                     <div class="flex items-center gap-2 mb-1">
-                                        <span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400">event_available</span>
+                                        <span class="material-symbols-outlined text-primary dark:text-violet-400">event_available</span>
                                         <span class="font-bold text-slate-900 dark:text-white">${formatDateRange(r.start_date, r.end_date)}</span>
-                                        <span class="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-xs font-bold rounded-full">Approved</span>
+                                        <span class="px-2 py-0.5 bg-violet-100 dark:bg-violet-900/50 text-violet-700 dark:text-violet-300 text-xs font-bold rounded-full">Approved</span>
                                     </div>
                                     ${r.reason ? `<p class="text-sm text-slate-600 dark:text-slate-400 ml-7">${r.reason}</p>` : ''}
                                 </div>
@@ -7081,7 +7127,7 @@
                             ${dayNames.map((day, idx) => {
                                 const avail = state.editingAvailability[idx];
                                 return `
-                                <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 ${avail.is_available ? 'bg-emerald-50/50 dark:bg-emerald-900/10' : 'bg-slate-50 dark:bg-slate-800/50'}">
+                                <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 ${avail.is_available ? 'bg-violet-50/50 dark:bg-violet-900/10' : 'bg-slate-50 dark:bg-slate-800/50'}">
                                     <div class="flex items-center gap-4">
                                         <label class="flex items-center gap-2 cursor-pointer min-w-[120px]">
                                             <input type="checkbox" ${avail.is_available ? 'checked' : ''} onchange="toggleAvailabilityDay(${idx})" class="w-5 h-5 rounded border-slate-300 text-groomer-primary focus:ring-groomer-primary cursor-pointer">
@@ -7338,7 +7384,7 @@
                         </div>
                         <div class="flex-1 overflow-y-auto">
                             <!-- Admin Conversation (always shown) -->
-                            <button onclick="openConversation('admin')" class="w-full p-4 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border-b border-slate-100 dark:border-slate-800 ${state.activeConversation === 'admin' ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''}">
+                            <button onclick="openConversation('admin')" class="w-full p-4 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border-b border-slate-100 dark:border-slate-800 ${state.activeConversation === 'admin' ? 'bg-violet-50 dark:bg-violet-900/20' : ''}">
                                 <div class="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                                     <span class="material-symbols-outlined text-blue-600">admin_panel_settings</span>
                                 </div>
@@ -7373,8 +7419,8 @@
                             <!-- Input -->
                             <div class="p-4 border-t border-slate-100 dark:border-slate-800">
                                 <form onsubmit="sendGroomerMessage(event)" class="flex gap-3">
-                                    <input type="text" id="message-input" placeholder="Type a message to admin..." class="flex-1 h-12 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 border-0 focus:ring-2 focus:ring-emerald-500" autocomplete="off"/>
-                                    <button type="submit" class="h-12 px-6 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-colors flex items-center gap-2">
+                                    <input type="text" id="message-input" placeholder="Type a message to admin..." class="flex-1 h-12 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 border-0 focus:ring-2 focus:ring-primary" autocomplete="off"/>
+                                    <button type="submit" class="h-12 px-6 bg-primary text-white font-bold rounded-xl hover:bg-primary transition-colors flex items-center gap-2">
                                         <span class="material-symbols-outlined">send</span>
                                     </button>
                                 </form>
@@ -7426,9 +7472,9 @@
                 const time = new Date(m.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
                 return `
                     <div class="flex ${isMe ? 'justify-end' : 'justify-start'}">
-                        <div class="max-w-[70%] ${isMe ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white'} rounded-2xl px-4 py-3">
+                        <div class="max-w-[70%] ${isMe ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white'} rounded-2xl px-4 py-3">
                             <p class="text-sm">${m.message}</p>
-                            <p class="text-[10px] ${isMe ? 'text-emerald-200' : 'text-slate-400'} mt-1">${time}</p>
+                            <p class="text-[10px] ${isMe ? 'text-violet-200' : 'text-slate-400'} mt-1">${time}</p>
                         </div>
                     </div>
                 `;
@@ -7837,8 +7883,8 @@
                     <!-- Header: Time & Status -->
                     <div class="flex items-center justify-between mb-4">
                         <div class="flex items-center gap-3">
-                            <div class="w-14 h-14 rounded-xl ${apt.status === 'in_progress' ? 'bg-purple-100 dark:bg-purple-900/30' : 'bg-emerald-100 dark:bg-emerald-900/30'} flex items-center justify-center">
-                                <span class="material-symbols-outlined text-2xl ${apt.status === 'in_progress' ? 'text-purple-600' : 'text-emerald-600'}">${apt.status === 'in_progress' ? 'timer' : 'schedule'}</span>
+                            <div class="w-14 h-14 rounded-xl ${apt.status === 'in_progress' ? 'bg-purple-100 dark:bg-purple-900/30' : 'bg-violet-100 dark:bg-violet-900/30'} flex items-center justify-center">
+                                <span class="material-symbols-outlined text-2xl ${apt.status === 'in_progress' ? 'text-purple-600' : 'text-primary'}">${apt.status === 'in_progress' ? 'timer' : 'schedule'}</span>
                             </div>
                             <div>
                                 <p class="text-lg font-bold dark:text-white">${formatTime(apt.start_time)}</p>
@@ -7864,7 +7910,7 @@
                             <h4 class="text-xs font-semibold text-slate-400 uppercase mb-2">Customer</h4>
                             <p class="font-bold dark:text-white">${apt.customerName}</p>
                             ${apt.customerPhone ? `
-                                <a href="tel:${apt.customerPhone}" class="flex items-center gap-1 text-sm text-emerald-600 hover:underline mt-1">
+                                <a href="tel:${apt.customerPhone}" class="flex items-center gap-1 text-sm text-primary hover:underline mt-1">
                                     <span class="material-symbols-outlined text-sm">call</span>${apt.customerPhone}
                                 </a>
                             ` : ''}
@@ -7893,7 +7939,7 @@
                                 <p class="text-sm text-slate-500">${apt.serviceDuration || 60} min • $${apt.total_price || apt.servicePrice || '0'}</p>
                             </div>
                         </div>
-                        <a href="${mapsUrl}" target="_blank" class="flex items-center gap-3 text-emerald-600 hover:text-emerald-700">
+                        <a href="${mapsUrl}" target="_blank" class="flex items-center gap-3 text-primary hover:text-violet-700">
                             <span class="material-symbols-outlined">directions</span>
                             <div>
                                 <p class="font-semibold">${fullAddress}</p>
@@ -7935,7 +7981,7 @@
                                 <textarea id="groomer-notes-${apt.id}" placeholder="Add notes (optional): e.g., found tick, recommend shorter cut next time..." 
                                     class="w-full h-20 px-4 py-3 rounded-lg bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark text-sm resize-none"></textarea>
                                 <button onclick="openCompleteAppointmentModal('${apt.id}')" 
-                                    class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg flex items-center justify-center gap-2 transition-colors">
+                                    class="w-full py-3 bg-primary hover:bg-violet-700 text-white font-bold rounded-lg flex items-center justify-center gap-2 transition-colors">
                                     <span class="material-symbols-outlined">check_circle</span>
                                     Complete & Award Points
                                 </button>
@@ -7943,7 +7989,7 @@
                         ` : `
                             <!-- Mark Complete for pending (edge case - should go through start first) -->
                             <button onclick="startGroomingAppointment('${apt.id}')" 
-                                class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg flex items-center justify-center gap-2 transition-colors">
+                                class="w-full py-3 bg-primary hover:bg-violet-700 text-white font-bold rounded-lg flex items-center justify-center gap-2 transition-colors">
                                 <span class="material-symbols-outlined">check_circle</span>
                                 Mark as Completed
                             </button>
@@ -7983,14 +8029,14 @@
                 <div class="p-6">
                     <!-- Header -->
                     <div class="flex items-start gap-4 mb-4">
-                        <div class="w-16 h-16 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-emerald-500/25">
+                        <div class="w-16 h-16 rounded-xl bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-primary/25">
                             ${initials}
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 mb-1 flex-wrap">
                                 <h3 class="text-lg font-bold text-slate-900 dark:text-white truncate">${escapeHtml(g.full_name) || 'Groomer'}</h3>
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${g.is_active !== false ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}">
-                                    <span class="w-1.5 h-1.5 rounded-full ${g.is_active !== false ? 'bg-emerald-500' : 'bg-slate-400'}"></span>
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${g.is_active !== false ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}">
+                                    <span class="w-1.5 h-1.5 rounded-full ${g.is_active !== false ? 'bg-primary' : 'bg-slate-400'}"></span>
                                     ${g.is_active !== false ? 'Active' : 'Inactive'}
                                 </span>
                                 ${hasNoAvailability && g.is_active !== false ? `
@@ -8036,7 +8082,7 @@
                             <p class="text-xs text-slate-500 dark:text-slate-400">Appointments</p>
                         </div>
                         <div class="text-center">
-                            <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">$${(g.revenueThisMonth || 0).toFixed(0)}</p>
+                            <p class="text-2xl font-bold text-primary dark:text-violet-400">$${(g.revenueThisMonth || 0).toFixed(0)}</p>
                             <p class="text-xs text-slate-500 dark:text-slate-400">Revenue</p>
                         </div>
                     </div>
@@ -8058,7 +8104,7 @@
                     <button onclick="openGroomerScheduleModal('${g.id}')" class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 hover:border-primary hover:text-primary transition-all">
                         <span class="material-symbols-outlined text-lg">calendar_today</span>Schedule
                     </button>
-                    <button onclick="toggleGroomerActive('${g.id}', ${g.is_active !== false})" class="flex items-center justify-center px-3 py-2.5 bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-lg text-sm font-medium ${g.is_active !== false ? 'text-red-600 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-900/20' : 'text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'} transition-all" title="${g.is_active !== false ? 'Deactivate' : 'Reactivate'}">
+                    <button onclick="toggleGroomerActive('${g.id}', ${g.is_active !== false})" class="flex items-center justify-center px-3 py-2.5 bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-lg text-sm font-medium ${g.is_active !== false ? 'text-red-600 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-900/20' : 'text-primary hover:border-violet-300 hover:bg-violet-50 dark:hover:bg-violet-900/20'} transition-all" title="${g.is_active !== false ? 'Deactivate' : 'Reactivate'}">
                         <span class="material-symbols-outlined text-lg">${g.is_active !== false ? 'person_off' : 'person_add'}</span>
                     </button>
                 </div>
@@ -8074,8 +8120,8 @@
                 <div class="bg-white dark:bg-surface-dark rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
                     <div class="p-6 border-b border-slate-200 dark:border-border-dark flex justify-between items-center sticky top-0 bg-white dark:bg-surface-dark z-10">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center">
-                                <span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400">person_add</span>
+                            <div class="w-10 h-10 bg-violet-100 dark:bg-violet-900/30 rounded-xl flex items-center justify-center">
+                                <span class="material-symbols-outlined text-primary dark:text-violet-400">person_add</span>
                             </div>
                             <div>
                                 <h2 class="text-xl font-bold text-slate-900 dark:text-white">Add New Groomer</h2>
@@ -8092,7 +8138,7 @@
                         <div>
                             <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Full Name *</label>
                             <input type="text" id="groomer-name" required
-                                class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all"
+                                class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
                                 placeholder="Rosa Martinez">
                         </div>
                         
@@ -8100,7 +8146,7 @@
                         <div>
                             <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Email * <span class="font-normal text-slate-400">(used for login)</span></label>
                             <input type="email" id="groomer-email-input" required
-                                class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all"
+                                class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
                                 placeholder="rosa@dogfathersplus.com">
                         </div>
                         
@@ -8109,7 +8155,7 @@
                             <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Password * <span class="font-normal text-slate-400">(share with groomer)</span></label>
                             <div class="relative">
                                 <input type="password" id="groomer-password-input" required minlength="6"
-                                    class="w-full px-4 py-3 pr-12 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all"
+                                    class="w-full px-4 py-3 pr-12 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
                                     placeholder="••••••••">
                                 <button type="button" onclick="toggleGroomerPasswordVisibility()" class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600">
                                     <span class="material-symbols-outlined" id="groomer-password-toggle">visibility</span>
@@ -8125,7 +8171,7 @@
                         <div>
                             <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Phone Number</label>
                             <input type="tel" id="groomer-phone-input"
-                                class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all"
+                                class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
                                 placeholder="(555) 123-4567">
                         </div>
                         
@@ -8133,7 +8179,7 @@
                         <div>
                             <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Hired Date</label>
                             <input type="date" id="groomer-hired-date"
-                                class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all"
+                                class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
                                 value="${new Date().toISOString().split('T')[0]}">
                         </div>
                         
@@ -8142,8 +8188,8 @@
                             <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Specialties</label>
                             <div class="grid grid-cols-2 gap-2">
                                 ${GROOMER_SPECIALTIES.map(s => `
-                                    <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-border-dark hover:border-emerald-300 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 cursor-pointer transition-all">
-                                        <input type="checkbox" name="groomer-specialty" value="${s.id}" class="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
+                                    <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-border-dark hover:border-violet-300 hover:bg-violet-50/50 dark:hover:bg-violet-900/20 cursor-pointer transition-all">
+                                        <input type="checkbox" name="groomer-specialty" value="${s.id}" class="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary">
                                         <span class="text-sm text-slate-700 dark:text-slate-300">${s.icon} ${s.label}</span>
                                     </label>
                                 `).join('')}
@@ -8154,12 +8200,12 @@
                         <div>
                             <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Admin Notes <span class="font-normal text-slate-400">(internal only)</span></label>
                             <textarea id="groomer-admin-notes" rows="2"
-                                class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all resize-none"
+                                class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all resize-none"
                                 placeholder="Available Mon-Fri, prefers morning shifts..."></textarea>
                         </div>
                         
                         <!-- Submit Button -->
-                        <button type="submit" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-600/25">
+                        <button type="submit" class="w-full py-3.5 bg-primary hover:bg-violet-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-violet-600/25">
                             <span class="material-symbols-outlined">person_add</span>
                             Add Groomer
                         </button>
@@ -9151,9 +9197,9 @@
                 const isSelected = state.adminScheduleSelectedDate === dateStr;
                 
                 calendarDays += `
-                    <button onclick="selectAdminScheduleDate('${dateStr}')" class="aspect-square min-h-[44px] flex flex-col items-center justify-center rounded-xl transition-all hover:bg-emerald-50 dark:hover:bg-emerald-900/20 active:scale-95 ${isSelected ? 'ring-2 ring-emerald-500 bg-emerald-50 dark:bg-emerald-900/30' : ''} ${isToday ? 'bg-emerald-600 text-white hover:bg-emerald-700' : count > 0 ? 'bg-emerald-100 dark:bg-emerald-900/30' : ''}">
+                    <button onclick="selectAdminScheduleDate('${dateStr}')" class="aspect-square min-h-[44px] flex flex-col items-center justify-center rounded-xl transition-all hover:bg-violet-50 dark:hover:bg-violet-900/20 active:scale-95 ${isSelected ? 'ring-2 ring-primary bg-violet-50 dark:bg-violet-900/30' : ''} ${isToday ? 'bg-primary text-white hover:bg-violet-700' : count > 0 ? 'bg-violet-100 dark:bg-violet-900/30' : ''}">
                         <span class="text-sm font-bold ${isToday ? 'text-white' : ''}">${day}</span>
-                        ${count > 0 ? `<span class="text-[10px] ${isToday ? 'text-emerald-200' : 'text-emerald-600 dark:text-emerald-400'}">(${count})</span>` : ''}
+                        ${count > 0 ? `<span class="text-[10px] ${isToday ? 'text-violet-200' : 'text-primary dark:text-violet-400'}">(${count})</span>` : ''}
                     </button>
                 `;
             }
@@ -9166,7 +9212,7 @@
                     <!-- Header -->
                     <div class="p-6 border-b border-slate-200 dark:border-border-dark flex justify-between items-center">
                         <div class="flex items-center gap-3">
-                            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold">
+                            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center text-white font-bold">
                                 ${(g.full_name || 'G').split(' ').map(n => n.charAt(0)).join('').toUpperCase().slice(0, 2)}
                             </div>
                             <div>
@@ -9211,17 +9257,17 @@
                                 </div>
                                 
                                 <!-- Month Summary -->
-                                <div class="grid grid-cols-3 gap-4 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl mt-4">
+                                <div class="grid grid-cols-3 gap-4 p-4 bg-gradient-to-r from-primary/5 to-purple-50 dark:from-primary/10 dark:to-purple-900/20 rounded-xl mt-4">
                                     <div class="text-center">
                                         <p class="text-2xl font-bold text-slate-900 dark:text-white">${monthAppts.length}</p>
                                         <p class="text-xs text-slate-500 dark:text-slate-400">Total Appts</p>
                                     </div>
                                     <div class="text-center">
-                                        <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">${completedMonth}</p>
+                                        <p class="text-2xl font-bold text-primary dark:text-violet-400">${completedMonth}</p>
                                         <p class="text-xs text-slate-500 dark:text-slate-400">Completed</p>
                                     </div>
                                     <div class="text-center">
-                                        <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">$${revenueMonth.toFixed(0)}</p>
+                                        <p class="text-2xl font-bold text-primary dark:text-violet-400">$${revenueMonth.toFixed(0)}</p>
                                         <p class="text-xs text-slate-500 dark:text-slate-400">Revenue</p>
                                     </div>
                                 </div>
@@ -9240,7 +9286,7 @@
                                             ${selectedDateAppts.map(a => `
                                                 <div class="p-3 bg-white dark:bg-surface-dark rounded-lg border border-slate-200 dark:border-slate-700">
                                                     <div class="flex items-center justify-between mb-2">
-                                                        <span class="font-bold text-emerald-600 dark:text-emerald-400">${formatTime(a.start_time)}</span>
+                                                        <span class="font-bold text-primary dark:text-violet-400">${formatTime(a.start_time)}</span>
                                                         <span class="px-2 py-0.5 rounded-full text-xs font-bold ${
                                                             a.status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300' :
                                                             a.status === 'confirmed' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300' :
@@ -9669,7 +9715,7 @@
                                     <span class="material-symbols-outlined text-sm">admin_panel_settings</span>
                                     Admin Login
                                 </button>
-                                <button onclick="state.showGroomerLogin = true; render();" class="px-3 py-1.5 text-xs font-medium border border-emerald-200 dark:border-emerald-800 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 transition-colors">
+                                <button onclick="state.showGroomerLogin = true; render();" class="px-3 py-1.5 text-xs font-medium border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-900/30 text-primary dark:text-violet-400 flex items-center gap-1.5 transition-colors">
                                     <span class="material-symbols-outlined text-sm">content_cut</span>
                                     Groomer Login
                                 </button>
@@ -9721,7 +9767,7 @@
                                 </label>
                                 <a href="#" onclick="openForgotPassword(document.getElementById('auth-email')?.value || ''); return false;" class="text-sm text-primary hover:underline">Forgot password?</a>
                             </div>` : ''}
-                            <button type="submit" class="mt-4 w-full h-12 bg-primary hover:bg-sky-600 text-white font-bold rounded-lg shadow-lg shadow-primary/20 flex items-center justify-center gap-2 touch-target transition-all active:scale-[0.98]">
+                            <button type="submit" class="mt-4 w-full h-12 bg-primary hover:bg-primary text-white font-bold rounded-lg shadow-lg shadow-primary/20 flex items-center justify-center gap-2 touch-target transition-all active:scale-[0.98]">
                                 <span id="auth-btn-text">${state.authTab === 'login' ? 'Sign In' : 'Create Account'}</span>
                                 <span class="material-symbols-outlined">arrow_forward</span>
                             </button>
@@ -9738,7 +9784,7 @@
                                     <span class="material-symbols-outlined text-sm">admin_panel_settings</span>
                                     Admin
                                 </button>
-                                <button onclick="state.showGroomerLogin = true; render();" class="flex-1 px-3 py-2 text-xs font-medium border border-emerald-200 dark:border-emerald-800 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1.5 transition-colors">
+                                <button onclick="state.showGroomerLogin = true; render();" class="flex-1 px-3 py-2 text-xs font-medium border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-900/30 text-primary dark:text-violet-400 flex items-center justify-center gap-1.5 transition-colors">
                                     <span class="material-symbols-outlined text-sm">content_cut</span>
                                     Groomer
                                 </button>
@@ -10098,7 +10144,7 @@
                             Enter the email address associated with your account and we'll send you a link to reset your password.
                         </p>
                         
-                        <button type="submit" class="w-full py-3.5 bg-primary hover:bg-sky-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/25">
+                        <button type="submit" class="w-full py-3.5 bg-primary hover:bg-primary text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/25">
                             <span class="material-symbols-outlined">send</span>
                             Send Reset Link
                         </button>
@@ -10143,7 +10189,7 @@
                             Password must be at least 6 characters long.
                         </p>
                         
-                        <button type="submit" class="w-full py-3.5 bg-primary hover:bg-sky-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/25">
+                        <button type="submit" class="w-full py-3.5 bg-primary hover:bg-primary text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/25">
                             <span class="material-symbols-outlined">check</span>
                             Update Password
                         </button>
@@ -10162,8 +10208,8 @@
                     <div class="p-6 border-b border-slate-200 dark:border-border-dark">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center">
-                                    <span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400">password</span>
+                                <div class="w-10 h-10 bg-violet-100 dark:bg-violet-900/30 rounded-xl flex items-center justify-center">
+                                    <span class="material-symbols-outlined text-primary dark:text-violet-400">password</span>
                                 </div>
                                 <div>
                                     <h2 class="text-xl font-bold text-slate-900 dark:text-white">Change Password</h2>
@@ -10180,14 +10226,14 @@
                         <div>
                             <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">New Password</label>
                             <input type="password" id="change-new-password" required minlength="6"
-                                class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all"
+                                class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
                                 placeholder="••••••••">
                         </div>
                         
                         <div>
                             <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Confirm New Password</label>
                             <input type="password" id="change-confirm-password" required minlength="6"
-                                class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all"
+                                class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
                                 placeholder="••••••••">
                         </div>
                         
@@ -10195,7 +10241,7 @@
                             Password must be at least 6 characters long.
                         </p>
                         
-                        <button type="submit" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-600/25">
+                        <button type="submit" class="w-full py-3.5 bg-primary hover:bg-violet-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-violet-600/25">
                             <span class="material-symbols-outlined">check</span>
                             Update Password
                         </button>
@@ -10469,7 +10515,7 @@
                             <button onclick="closeGroomingServiceModal()" class="px-6 py-3 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold transition-colors">
                                 Cancel
                             </button>
-                            <button onclick="saveGroomingService()" class="px-6 py-3 rounded-xl bg-primary hover:bg-sky-600 text-white font-bold transition-colors flex items-center gap-2">
+                            <button onclick="saveGroomingService()" class="px-6 py-3 rounded-xl bg-primary hover:bg-primary text-white font-bold transition-colors flex items-center gap-2">
                                 <span class="material-symbols-outlined text-lg">${modal.isEdit ? 'check' : 'add'}</span>
                                 ${modal.isEdit ? 'Save Changes' : 'Create Service'}
                             </button>
@@ -10630,7 +10676,7 @@
 
                 <div class="flex gap-3 pt-4">
                     ${pkg.id ? `<button type="button" onclick="confirmDeleteRideAlong('${pkg.id}', '${pkg.name}')" class="px-4 h-12 border border-red-300 text-red-600 rounded-lg font-bold hover:bg-red-50 transition-colors">Delete</button>` : ''}
-                    <button type="submit" class="flex-1 h-12 bg-primary hover:bg-sky-600 text-white font-bold rounded-lg transition-colors">
+                    <button type="submit" class="flex-1 h-12 bg-primary hover:bg-primary text-white font-bold rounded-lg transition-colors">
                         ${pkg.id ? 'Save Changes' : 'Add Package'}
                     </button>
                 </div>
@@ -10698,7 +10744,7 @@
                 </div>
 
                 <div class="pt-4">
-                    <button type="submit" class="w-full h-12 bg-primary hover:bg-sky-600 text-white font-bold rounded-lg transition-colors">
+                    <button type="submit" class="w-full h-12 bg-primary hover:bg-primary text-white font-bold rounded-lg transition-colors">
                         Save Course Settings
                     </button>
                 </div>
@@ -10973,7 +11019,7 @@
 
                 <div class="flex gap-3 pt-4">
                     ${pet.id ? `<button type="button" onclick="confirmDeletePet('${pet.id}', '${pet.name}')" class="px-4 h-12 border border-red-300 text-red-600 rounded-lg font-bold hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">Delete</button>` : ''}
-                    <button type="submit" class="flex-1 h-12 bg-primary hover:bg-sky-600 text-white font-bold rounded-lg transition-colors">
+                    <button type="submit" class="flex-1 h-12 bg-primary hover:bg-primary text-white font-bold rounded-lg transition-colors">
                         ${pet.id ? 'Save Changes' : 'Add Pet'}
                     </button>
                 </div>
@@ -11015,7 +11061,7 @@
                 </div>
 
                 <div class="pt-4">
-                    <button type="submit" class="w-full h-12 bg-primary hover:bg-sky-600 text-white font-bold rounded-lg transition-colors">
+                    <button type="submit" class="w-full h-12 bg-primary hover:bg-primary text-white font-bold rounded-lg transition-colors">
                         Save Changes
                     </button>
                 </div>
@@ -11045,7 +11091,7 @@
 
                 <div class="flex gap-3 pt-4">
                     ${reward.id ? `<button type="button" onclick="confirmDeleteReward('${reward.id}', '${reward.name}')" class="px-4 h-12 border border-red-300 text-red-600 rounded-lg font-bold hover:bg-red-50 transition-colors">Delete</button>` : ''}
-                    <button type="submit" class="flex-1 h-12 bg-primary hover:bg-sky-600 text-white font-bold rounded-lg transition-colors">
+                    <button type="submit" class="flex-1 h-12 bg-primary hover:bg-primary text-white font-bold rounded-lg transition-colors">
                         ${reward.id ? 'Save Changes' : 'Add Reward'}
                     </button>
                 </div>
@@ -11110,7 +11156,7 @@
 
                 <div class="flex gap-3 pt-4">
                     ${product.id ? `<button type="button" onclick="confirmDeleteProduct('${product.id}', '${(product.name || '').replace(/'/g, "\\'")}')" class="px-4 h-12 border border-red-300 text-red-600 rounded-lg font-bold hover:bg-red-50 transition-colors">Delete</button>` : ''}
-                    <button type="submit" class="flex-1 h-12 bg-primary hover:bg-sky-600 text-white font-bold rounded-lg transition-colors">
+                    <button type="submit" class="flex-1 h-12 bg-primary hover:bg-primary text-white font-bold rounded-lg transition-colors">
                         ${product.id ? 'Save Changes' : 'Add Product'}
                     </button>
                 </div>
@@ -11181,7 +11227,7 @@
 
                 <div class="flex gap-3 pt-4">
                     <button type="button" onclick="closeEditModal()" class="flex-1 h-12 border border-border-light dark:border-border-dark rounded-lg font-bold hover:bg-background-light dark:hover:bg-background-dark dark:text-white transition-colors">Cancel</button>
-                    <button type="submit" class="flex-1 h-12 bg-primary hover:bg-sky-600 text-white font-bold rounded-lg transition-colors">
+                    <button type="submit" class="flex-1 h-12 bg-primary hover:bg-primary text-white font-bold rounded-lg transition-colors">
                         Update
                     </button>
                 </div>
@@ -11936,7 +11982,7 @@
                                 <p class="text-xs text-slate-500 font-medium">Points</p>
                             </div>
                             <div class="text-center p-4 bg-admin-accent/5 rounded-xl border border-admin-accent/20">
-                                <p class="text-2xl font-bold text-admin-accent">${customerAppts.length}</p>
+                                <p class="text-2xl font-bold text-primary">${customerAppts.length}</p>
                                 <p class="text-xs text-slate-500 font-medium">Total Visits</p>
                             </div>
                             <div class="text-center p-4 bg-green-50 rounded-xl border border-green-200">
@@ -11984,7 +12030,7 @@
                                             <p class="text-sm font-medium text-slate-900 dark:text-white">${apt.petName || 'Pet'} - ${apt.serviceName || 'Grooming'}</p>
                                             <p class="text-xs text-slate-500">${apt.groomerName || 'Unassigned'}</p>
                                         </div>
-                                        <span class="px-2 py-1 text-xs font-bold rounded-full ${apt.status === 'completed' ? 'bg-green-100 text-green-700' : apt.status === 'confirmed' ? 'bg-teal-100 text-teal-700' : apt.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}">${apt.status}</span>
+                                        <span class="px-2 py-1 text-xs font-bold rounded-full ${apt.status === 'completed' ? 'bg-green-100 text-green-700' : apt.status === 'confirmed' ? 'bg-purple-100 text-primary' : apt.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}">${apt.status}</span>
                                         <p class="text-sm font-bold text-slate-700 dark:text-slate-300">$${(apt.total_price || apt.base_price || 0).toFixed(0)}</p>
                                     </div>
                                 `).join('') : '<p class="text-sm text-slate-400">No appointments yet</p>'}
@@ -11997,7 +12043,7 @@
                         <button onclick="closeCustomerDetailModal()" class="px-4 py-2 text-sm font-bold text-slate-600 hover:text-slate-800 transition-colors">
                             Close
                         </button>
-                        <button onclick="closeCustomerDetailModal(); openAdminAddAppointment();" class="px-5 py-2.5 bg-admin-accent hover:bg-teal-600 text-white font-bold text-sm rounded-xl transition-colors flex items-center gap-2">
+                        <button onclick="closeCustomerDetailModal(); openAdminAddAppointment();" class="px-5 py-2.5 bg-admin-accent hover:bg-primary text-white font-bold text-sm rounded-xl transition-colors flex items-center gap-2">
                             <span class="material-symbols-outlined text-sm">calendar_add_on</span>Book Appointment
                         </button>
                     </div>
@@ -12030,7 +12076,7 @@
             
             const statusColors = {
                 pending: 'bg-amber-100 text-amber-700 border-amber-200',
-                confirmed: 'bg-teal-100 text-teal-700 border-teal-200',
+                confirmed: 'bg-purple-100 text-primary border-primary200',
                 in_progress: 'bg-purple-100 text-purple-700 border-purple-200',
                 completed: 'bg-green-100 text-green-700 border-green-200',
                 cancelled: 'bg-red-100 text-red-700 border-red-200',
@@ -12110,7 +12156,7 @@
                         <div class="p-4 bg-admin-accent/5 border border-admin-accent/20 rounded-xl">
                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 rounded-full bg-admin-accent/20 flex items-center justify-center">
-                                    <span class="material-symbols-outlined text-admin-accent">badge</span>
+                                    <span class="material-symbols-outlined text-primary">badge</span>
                                 </div>
                                 <div class="flex-1">
                                     <p class="text-xs font-bold text-slate-500 uppercase">Assigned Groomer</p>
@@ -12162,7 +12208,7 @@
                                 ${apt.after_photo_url ? `
                                 <div class="relative">
                                     <img src="${apt.after_photo_url}" class="w-full aspect-[4/3] object-cover rounded-xl border border-slate-200 dark:border-slate-700" alt="After"/>
-                                    <span class="absolute bottom-2 left-2 px-2 py-1 bg-emerald-500/80 text-white text-xs font-bold rounded">After</span>
+                                    <span class="absolute bottom-2 left-2 px-2 py-1 bg-primary/80 text-white text-xs font-bold rounded">After</span>
                                 </div>
                                 ` : `
                                 <div class="w-full aspect-[4/3] bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center border border-slate-200 dark:border-slate-700">
@@ -12188,7 +12234,7 @@
                                 <option value="completed">Completed</option>
                                 <option value="cancelled">Cancelled</option>
                             </select>
-                            <button onclick="closeQuickViewAppointment(); setTab('appointments');" class="px-4 py-2 bg-admin-accent hover:bg-teal-600 text-white font-bold text-sm rounded-lg transition-colors flex items-center gap-2">
+                            <button onclick="closeQuickViewAppointment(); setTab('appointments');" class="px-4 py-2 bg-admin-accent hover:bg-primary text-white font-bold text-sm rounded-lg transition-colors flex items-center gap-2">
                                 <span class="material-symbols-outlined text-sm">open_in_new</span>Full View
                             </button>
                         </div>
@@ -12373,7 +12419,7 @@
 
             // PWA Install Banner (only shown when install is available)
             const installBanner = state.showInstallPrompt && !state.isPWA ? `
-            <div class="fixed bottom-20 lg:bottom-4 left-4 right-4 lg:left-auto lg:right-4 lg:w-80 z-50 bg-gradient-to-r from-primary to-sky-600 text-white p-4 rounded-2xl shadow-2xl shadow-primary/30 flex items-center gap-3 safe-bottom">
+            <div class="fixed bottom-20 lg:bottom-4 left-4 right-4 lg:left-auto lg:right-4 lg:w-80 z-50 bg-gradient-to-r from-primary to-purple-500 text-white p-4 rounded-2xl shadow-2xl shadow-primary/20 flex items-center gap-3 safe-bottom">
                 <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
                     <span class="material-symbols-outlined text-2xl">install_mobile</span>
                 </div>
@@ -12495,7 +12541,7 @@
             if (state.currentTab === 'dashboard') {
                 return `
                 <!-- #1 HERO SECTION - Prominent Book Now + Phone + Countdown -->
-                <div class="relative overflow-hidden rounded-3xl mb-6 bg-gradient-to-br from-primary via-sky-500 to-cyan-400 p-6 lg:p-8 text-white shadow-xl shadow-primary/20">
+                <div class="relative overflow-hidden rounded-3xl mb-6 bg-gradient-to-br from-primary via-purple-500 to-purple-400 p-6 lg:p-8 text-white shadow-xl shadow-primary/20">
                     <!-- Background Pattern -->
                     <div class="absolute inset-0 opacity-10">
                         <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -12621,7 +12667,7 @@
                             <p class="text-xs text-text-sub-light dark:text-text-sub-dark">Upcoming</p>
                         </div>
                     </div>
-                    <button onclick="setTab('rewards')" class="bg-gradient-to-br from-primary to-sky-600 text-white rounded-xl p-4 flex items-center gap-3 hover:shadow-lg transition-all text-left">
+                    <button onclick="setTab('rewards')" class="bg-gradient-to-br from-primary to-purple-500 text-white rounded-xl p-4 flex items-center gap-3 hover:shadow-lg transition-all text-left">
                         <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
                             <span class="material-symbols-outlined">loyalty</span>
                         </div>
@@ -12825,7 +12871,7 @@
                                 ${apt.after_photo_url ? `
                                 <div class="relative">
                                     <img src="${apt.after_photo_url}" class="w-full aspect-[4/3] object-cover rounded-xl" alt="After grooming"/>
-                                    <span class="absolute bottom-2 left-2 px-2 py-1 bg-emerald-500 text-white text-xs font-bold rounded">After ✨</span>
+                                    <span class="absolute bottom-2 left-2 px-2 py-1 bg-primary text-white text-xs font-bold rounded">After ✨</span>
                                 </div>
                                 ` : ''}
                             </div>
@@ -12854,7 +12900,7 @@
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">${rewards.map(r => {
                     const pts = r.points_required || r.points || 0;
                     const canRedeem = loyaltyPoints >= pts;
-                    return `<div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-5"><div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4"><span class="material-symbols-outlined text-primary">redeem</span></div><h4 class="font-bold mb-1 dark:text-white">${r.name}</h4><p class="text-sm text-text-sub-light dark:text-text-sub-dark mb-4">${r.description || ''}</p><div class="flex justify-between items-center"><span class="font-bold text-primary">${pts} pts</span><button onclick="redeemReward('${r.id}', '${(r.name || '').replace(/'/g, "\\'")}', ${pts})" class="px-3 py-1.5 text-sm font-bold rounded-lg ${canRedeem ? 'bg-primary text-white hover:bg-sky-600' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}" ${!canRedeem ? 'disabled' : ''}>Redeem</button></div></div>`;
+                    return `<div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-5"><div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4"><span class="material-symbols-outlined text-primary">redeem</span></div><h4 class="font-bold mb-1 dark:text-white">${r.name}</h4><p class="text-sm text-text-sub-light dark:text-text-sub-dark mb-4">${r.description || ''}</p><div class="flex justify-between items-center"><span class="font-bold text-primary">${pts} pts</span><button onclick="redeemReward('${r.id}', '${(r.name || '').replace(/'/g, "\\'")}', ${pts})" class="px-3 py-1.5 text-sm font-bold rounded-lg ${canRedeem ? 'bg-primary text-white hover:bg-primary' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}" ${!canRedeem ? 'disabled' : ''}>Redeem</button></div></div>`;
                 }).join('')}</div>`;
             }
 
@@ -12866,7 +12912,7 @@
                     <div class="flex min-h-[280px] flex-col gap-4 bg-cover bg-center bg-no-repeat rounded-2xl items-start justify-end px-6 pb-8 shadow-md relative overflow-hidden mb-6" style="background-image: linear-gradient(rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.6) 100%), url('https://lh3.googleusercontent.com/aida-public/AB6AXuA-l9fQMzQ46NScwNxTOmvji96VyFtz0DEvfpIZPoEI2n98qWiqORYpMz7mP_SVLo7HdvDLy8EJTaPankBpfjSozf9kya8F5CF_NPLPoOIRnWnInstxdoCboZDO_Jh-HX8KlgRqD-iK-4O4hhgEOQCOpjBMqmREQEtYekCqzViyHxE6z6Puj8og0W3QwDAaug3ho0OLzxE_vW35ZF38i4Fc9u2Yk5igndj6fupyo-gv5B9oOXhPOqrpa8qscpgF9auQBUCmE-vGwUYy');">
                         <div class="absolute top-4 left-4 z-10"><img src="${LOGO_ACADEMY}" alt="Dogfathersplus Academy" class="h-16 w-auto drop-shadow-lg"/></div>
                         <div class="flex flex-col gap-2 text-left z-10 max-w-2xl"><h1 class="text-white text-3xl font-black leading-tight">Curated Grooming Essentials</h1><p class="text-white/90 text-sm">Handpicked by the Dogfathers Team.</p></div>
-                        <button class="flex items-center gap-2 rounded-lg h-11 px-5 bg-primary hover:bg-sky-400 text-white text-sm font-bold shadow-lg z-10 mt-2">Explore Deals <span class="material-symbols-outlined text-sm">arrow_forward</span></button>
+                        <button class="flex items-center gap-2 rounded-lg h-11 px-5 bg-primary hover:bg-purple-500 text-white text-sm font-bold shadow-lg z-10 mt-2">Explore Deals <span class="material-symbols-outlined text-sm">arrow_forward</span></button>
                     </div>
                     <div class="flex flex-col md:flex-row justify-between gap-4 py-3 sticky top-16 lg:top-0 z-30 bg-background-light/95 backdrop-blur-sm mb-6">
                         <div class="flex w-full md:w-80 items-center rounded-lg bg-white border border-border-light px-3 h-11 shadow-sm"><span class="material-symbols-outlined text-text-sub-light">search</span><input class="w-full bg-transparent border-none focus:ring-0 text-sm px-2 placeholder:text-text-sub-light" placeholder="Search products..."/></div>
@@ -12889,7 +12935,7 @@
                             </div>
                             <div class="flex flex-col gap-6 lg:w-1/2">
                                 <div><h1 class="text-4xl md:text-5xl font-black leading-tight">Ride-Along Experiences</h1><p class="text-text-sub-light mt-2">Learn hands-on from professional groomers. Shadow, practice, and master the art of mobile dog grooming.</p></div>
-                                <button class="w-fit px-6 h-12 bg-primary hover:bg-sky-500 text-white font-bold rounded-lg flex items-center gap-2"><span class="material-symbols-outlined">school</span>Start Learning</button>
+                                <button class="w-fit px-6 h-12 bg-primary hover:bg-primary text-white font-bold rounded-lg flex items-center gap-2"><span class="material-symbols-outlined">school</span>Start Learning</button>
                             </div>
                         </div>
                     </section>
@@ -13033,7 +13079,7 @@
                             <div class="flex items-start gap-2">
                                 <span class="material-symbols-outlined text-primary text-lg mt-0.5">info</span>
                                 <div>
-                                    <p class="text-sm font-semibold text-primary dark:text-sky-400">What's included:</p>
+                                    <p class="text-sm font-semibold text-primary dark:text-purple-400">What's included:</p>
                                     <p class="text-sm text-text-sub-light dark:text-text-sub-dark" id="service-desc-text">${initialDescription}</p>
                                 </div>
                             </div>
@@ -13124,7 +13170,7 @@
                                         <span class="material-symbols-outlined text-lg">call</span>
                                         Call
                                     </a>
-                                    <a href="sms:6268636926" class="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-lg transition-colors">
+                                    <a href="sms:6268636926" class="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-primary hover:bg-violet-600 text-white text-sm font-semibold rounded-lg transition-colors">
                                         <span class="material-symbols-outlined text-lg">chat</span>
                                         Text
                                     </a>
@@ -13146,7 +13192,7 @@
                                 <span class="material-symbols-outlined text-lg">call</span>
                                 Call Us
                             </a>
-                            <a href="sms:6268636926" class="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-lg transition-colors">
+                            <a href="sms:6268636926" class="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-primary hover:bg-violet-600 text-white text-sm font-semibold rounded-lg transition-colors">
                                 <span class="material-symbols-outlined text-lg">chat</span>
                                 Text Us
                             </a>
@@ -13199,7 +13245,7 @@
                                     <span class="material-symbols-outlined text-lg">call</span>
                                     Call
                                 </a>
-                                <a href="sms:6268636926" class="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-lg transition-colors">
+                                <a href="sms:6268636926" class="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-primary hover:bg-violet-600 text-white text-sm font-semibold rounded-lg transition-colors">
                                     <span class="material-symbols-outlined text-lg">chat</span>
                                     Text
                                 </a>
@@ -13217,9 +13263,9 @@
                 html += `
                     <div>
                         <div class="flex items-center gap-2 mb-3">
-                            <span class="material-symbols-outlined text-emerald-600 fill-1">location_on</span>
-                            <span class="font-semibold text-emerald-700 dark:text-emerald-400">Groomer In Your Area</span>
-                            <span class="text-xs text-emerald-600 dark:text-emerald-500 ml-1">(recommended)</span>
+                            <span class="material-symbols-outlined text-primary fill-1">location_on</span>
+                            <span class="font-semibold text-violet-700 dark:text-violet-400">Groomer In Your Area</span>
+                            <span class="text-xs text-primary dark:text-primary ml-1">(recommended)</span>
                         </div>
                         <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                             ${validBest.slice(0, 8).map(s => renderSlotCard(s, selectedSlot)).join('')}
@@ -13233,7 +13279,7 @@
                 html += `
                     <div>
                         <div class="flex items-center gap-2 mb-3">
-                            <span class="material-symbols-outlined text-sky-500">calendar_today</span>
+                            <span class="material-symbols-outlined text-primary">calendar_today</span>
                             <span class="font-semibold text-slate-700 dark:text-slate-300">Open Availability</span>
                             <span class="text-xs text-slate-500 dark:text-slate-400 ml-1">(flexible scheduling)</span>
                         </div>
@@ -13502,7 +13548,7 @@
                                             <span class="material-symbols-outlined text-xl">call</span>
                                             Call Us
                                         </a>
-                                        <a href="sms:6268636926" class="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl transition-colors">
+                                        <a href="sms:6268636926" class="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary hover:bg-violet-600 text-white font-semibold rounded-xl transition-colors">
                                             <span class="material-symbols-outlined text-xl">chat</span>
                                             Text Us
                                         </a>
@@ -13547,7 +13593,7 @@
                         }
                     } else {
                         // All good - show success
-                        addressStatus.className = 'mt-1 text-xs text-emerald-600 dark:text-emerald-400';
+                        addressStatus.className = 'mt-1 text-xs text-primary dark:text-violet-400';
                         const zipDisplay = returnedZip || zip || '';
                         if (addressStatusText) addressStatusText.textContent = `✓ Found: ${detectedArea}${zipDisplay ? ' (' + zipDisplay + ')' : ''}`;
                     }
@@ -13865,7 +13911,7 @@
                     </div>
                     <div class="flex gap-3">
                         <button onclick="exportDashboardData()" class="flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-amber-200 rounded-xl text-slate-700 font-bold hover:bg-amber-50 hover:border-amber-300 transition-all text-sm shadow-sm"><span class="material-symbols-outlined text-lg">download</span>Export</button>
-                        <button onclick="openAdminAddAppointment()" class="flex items-center justify-center gap-2 px-5 py-2.5 bg-admin-accent hover:bg-teal-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-admin-accent/25 text-sm"><span class="material-symbols-outlined text-lg">add</span>New Booking</button>
+                        <button onclick="openAdminAddAppointment()" class="flex items-center justify-center gap-2 px-5 py-2.5 bg-admin-accent hover:bg-primary text-white rounded-xl font-bold transition-all shadow-lg shadow-admin-accent/25 text-sm"><span class="material-symbols-outlined text-lg">add</span>New Booking</button>
                     </div>
                 </div>
 
@@ -13881,9 +13927,9 @@
                     <div class="group p-6 rounded-2xl bg-white border border-amber-100 shadow-sm hover:shadow-lg hover:border-admin-primary/30 transition-all">
                         <div class="flex items-center justify-between mb-4">
                             <div><p class="text-admin-primary text-xs font-bold uppercase tracking-wider">Active Bookings</p><h3 class="text-3xl font-bold text-slate-900 mt-1">${todayAppts.length}</h3></div>
-                            <div class="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center text-admin-accent group-hover:scale-110 transition-transform"><span class="material-symbols-outlined text-2xl">calendar_today</span></div>
+                            <div class="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center text-primary group-hover:scale-110 transition-transform"><span class="material-symbols-outlined text-2xl">calendar_today</span></div>
                         </div>
-                        <div class="flex items-center gap-2 text-sm"><span class="flex items-center gap-1 font-bold text-admin-accent bg-teal-100 px-2.5 py-1 rounded-lg"><span class="material-symbols-outlined text-sm">arrow_upward</span>+${confirmedCount}</span><span class="text-slate-400">confirmed</span></div>
+                        <div class="flex items-center gap-2 text-sm"><span class="flex items-center gap-1 font-bold text-primary bg-purple-100 px-2.5 py-1 rounded-lg"><span class="material-symbols-outlined text-sm">arrow_upward</span>+${confirmedCount}</span><span class="text-slate-400">confirmed</span></div>
                     </div>
                     <div class="group p-6 rounded-2xl bg-white border border-amber-100 shadow-sm hover:shadow-lg hover:border-admin-primary/30 transition-all">
                         <div class="flex items-center justify-between mb-4">
@@ -13894,10 +13940,10 @@
                     </div>
                     <div class="group p-6 rounded-2xl bg-admin-accent text-white shadow-lg hover:shadow-xl transition-all">
                         <div class="flex items-center justify-between mb-4">
-                            <div><p class="text-teal-100 text-xs font-bold uppercase tracking-wider">Loyalty Points</p><h3 class="text-3xl font-bold mt-1">${(state.allCustomers.reduce((sum, c) => sum + (c.loyalty_points || 0), 0) / 1000).toFixed(1)}k</h3></div>
+                            <div><p class="text-purple-100 text-xs font-bold uppercase tracking-wider">Loyalty Points</p><h3 class="text-3xl font-bold mt-1">${(state.allCustomers.reduce((sum, c) => sum + (c.loyalty_points || 0), 0) / 1000).toFixed(1)}k</h3></div>
                             <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform"><span class="material-symbols-outlined text-2xl">favorite</span></div>
                         </div>
-                        <div class="flex items-center gap-2 text-sm"><span class="text-teal-100">Total Issued</span></div>
+                        <div class="flex items-center gap-2 text-sm"><span class="text-purple-100">Total Issued</span></div>
                     </div>
                 </div>
 
@@ -13930,7 +13976,7 @@
                                     return todayAppts.length > 0 ? todayAppts.slice(0, 6).map(a => `
                                     <div class="flex items-center gap-4 px-6 py-4 hover:bg-amber-50/50 transition-colors">
                                         <div class="text-sm font-bold text-slate-400 w-16">${formatTime(a.start_time)}</div>
-                                        <div class="flex-1 flex items-center gap-3 px-4 py-3 rounded-xl border-l-4 ${a.status === 'confirmed' ? 'bg-teal-50 border-admin-accent' : a.status === 'pending' ? 'bg-amber-50 border-admin-primary' : a.status === 'in_progress' ? 'bg-purple-50 border-purple-500' : a.status === 'completed' ? 'bg-green-50 border-green-500' : 'bg-slate-50 border-slate-300'}">
+                                        <div class="flex-1 flex items-center gap-3 px-4 py-3 rounded-xl border-l-4 ${a.status === 'confirmed' ? 'bg-purple-50 border-admin-accent' : a.status === 'pending' ? 'bg-amber-50 border-admin-primary' : a.status === 'in_progress' ? 'bg-purple-50 border-purple-500' : a.status === 'completed' ? 'bg-green-50 border-green-500' : 'bg-slate-50 border-slate-300'}">
                                             <div class="w-10 h-10 rounded-full bg-white shadow-sm overflow-hidden flex items-center justify-center">
                                                 ${a.petPhoto ? `<img src="${a.petPhoto}" class="w-full h-full object-cover"/>` : `<span class="material-symbols-outlined text-slate-400">pets</span>`}
                                             </div>
@@ -13965,7 +14011,7 @@
                                     <div class="p-3 text-center border-r border-slate-100 last:border-r-0 ${day.isToday ? 'bg-admin-primary/5' : ''}">
                                         <p class="text-xs font-bold text-slate-400 uppercase">${day.dayName}</p>
                                         <p class="text-lg font-bold ${day.isToday ? 'text-admin-primary' : 'text-slate-700'}">${day.dayNum}</p>
-                                        <p class="text-xs ${day.count > 0 ? 'text-admin-accent font-bold' : 'text-slate-400'}">${day.count} appt${day.count !== 1 ? 's' : ''}</p>
+                                        <p class="text-xs ${day.count > 0 ? 'text-primary font-bold' : 'text-slate-400'}">${day.count} appt${day.count !== 1 ? 's' : ''}</p>
                                     </div>
                                 `).join('')}
                             </div>
@@ -13982,7 +14028,7 @@
                                             <p class="text-sm font-bold text-slate-900 truncate">${a.petName || 'Pet'}</p>
                                             <p class="text-xs text-slate-500">${formatTime(a.start_time)} • ${a.serviceName || 'Grooming'}</p>
                                         </div>
-                                        <span class="px-2 py-0.5 text-xs font-bold rounded-full ${a.status === 'confirmed' ? 'bg-teal-100 text-teal-700' : a.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}">${a.status}</span>
+                                        <span class="px-2 py-0.5 text-xs font-bold rounded-full ${a.status === 'confirmed' ? 'bg-purple-100 text-primary' : a.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}">${a.status}</span>
                                         <button onclick="openQuickViewAppointment('${a.id}')" class="p-1.5 text-slate-400 hover:text-admin-primary hover:bg-amber-50 rounded-lg transition-all" title="Quick View">
                                             <span class="material-symbols-outlined text-lg">visibility</span>
                                         </button>
@@ -14010,9 +14056,9 @@
                                         if (day.empty) return `<div class="aspect-square min-h-[40px]"></div>`;
                                         return `
                                         <button onclick="${day.count > 0 ? `selectDashboardDate('${day.dateStr}')` : ''}" 
-                                            class="aspect-square min-h-[40px] flex flex-col items-center justify-center rounded-lg text-sm active:scale-95 ${day.isToday ? 'bg-admin-primary text-white font-bold' : day.count > 0 ? 'bg-admin-accent/10 text-admin-accent font-medium cursor-pointer hover:bg-admin-accent/20' : 'text-slate-600 hover:bg-slate-50'} transition-all">
+                                            class="aspect-square min-h-[40px] flex flex-col items-center justify-center rounded-lg text-sm active:scale-95 ${day.isToday ? 'bg-admin-primary text-white font-bold' : day.count > 0 ? 'bg-admin-accent/10 text-primary font-medium cursor-pointer hover:bg-admin-accent/20' : 'text-slate-600 hover:bg-slate-50'} transition-all">
                                             <span>${day.day}</span>
-                                            ${day.count > 0 ? `<span class="text-[10px] ${day.isToday ? 'text-white/80' : 'text-admin-accent'}">${day.count}</span>` : ''}
+                                            ${day.count > 0 ? `<span class="text-[10px] ${day.isToday ? 'text-white/80' : 'text-primary'}">${day.count}</span>` : ''}
                                         </button>`;
                                     }).join('')}
                                 </div>
@@ -14114,7 +14160,7 @@
                                 <h1 class="text-2xl font-extrabold text-slate-900">Appointments</h1>
                                 <p class="text-slate-500 text-sm">Manage your grooming schedule and bookings</p>
                             </div>
-                            <button onclick="openAdminAddAppointment()" class="flex items-center gap-2 bg-primary hover:bg-sky-600 text-white px-5 py-2.5 rounded-lg shadow-sm transition-all">
+                            <button onclick="openAdminAddAppointment()" class="flex items-center gap-2 bg-primary hover:bg-primary text-white px-5 py-2.5 rounded-lg shadow-sm transition-all">
                                 <span class="material-symbols-outlined text-lg">add</span>
                                 <span class="text-sm font-bold">New Appointment</span>
                             </button>
@@ -14247,7 +14293,7 @@
                                                 <option value="completed" ${a.status === 'completed' ? 'selected' : ''}>Completed</option>
                                                 <option value="cancelled" ${a.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
                                             </select>
-                                            <select onchange="assignGroomer('${a.id}', this.value)" class="flex-1 px-3 py-2 rounded-lg text-sm border ${a.assigned_groomer_id ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600'} cursor-pointer touch-target">
+                                            <select onchange="assignGroomer('${a.id}', this.value)" class="flex-1 px-3 py-2 rounded-lg text-sm border ${a.assigned_groomer_id ? 'border-violet-200 bg-violet-50 text-violet-700' : 'border-slate-200 bg-white text-slate-600'} cursor-pointer touch-target">
                                                 <option value="">Assign</option>
                                                 ${state.groomers.filter(g => g.is_active !== false).map(g => `<option value="${g.id}" ${a.assigned_groomer_id === g.id ? 'selected' : ''}>${g.full_name}</option>`).join('')}
                                             </select>
@@ -14298,11 +14344,11 @@
                                                 </td>
                                                 <td class="px-6 py-4">
                                                     <select onchange="assignGroomer('${a.id}', this.value)" 
-                                                        class="text-sm px-3 py-1.5 rounded-lg border ${a.assigned_groomer_id ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600'} cursor-pointer focus:ring-2 focus:ring-emerald-500 outline-none">
+                                                        class="text-sm px-3 py-1.5 rounded-lg border ${a.assigned_groomer_id ? 'border-violet-200 bg-violet-50 text-violet-700' : 'border-slate-200 bg-white text-slate-600'} cursor-pointer focus:ring-2 focus:ring-primary outline-none">
                                                         <option value="">Assign Groomer</option>
                                                         ${state.groomers.filter(g => g.is_active !== false).map(g => `<option value="${g.id}" ${a.assigned_groomer_id === g.id ? 'selected' : ''}>${g.full_name}</option>`).join('')}
                                                     </select>
-                                                    ${a.groomerName ? `<p class="text-xs text-emerald-600 mt-1 truncate">✓ ${a.groomerName}</p>` : ''}
+                                                    ${a.groomerName ? `<p class="text-xs text-primary mt-1 truncate">✓ ${a.groomerName}</p>` : ''}
                                                 </td>
                                                 <td class="px-6 py-4">
                                                     <select onchange="updateAppointmentStatus('${a.id}', this.value)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${statusStyles[a.status] || statusStyles.pending} border cursor-pointer bg-transparent">
@@ -14530,7 +14576,7 @@
                                     <button onclick="openCustomerDetailModal('${customer.id}')" class="p-2 text-slate-400 hover:text-admin-primary hover:bg-admin-primary/10 rounded-lg transition-all" title="View Details">
                                         <span class="material-symbols-outlined">visibility</span>
                                     </button>
-                                    <button onclick="openAdminAddAppointment(); state.adminSelectedCustomer = '${customer.id}';" class="p-2 text-slate-400 hover:text-admin-accent hover:bg-admin-accent/10 rounded-lg transition-all" title="Book Appointment">
+                                    <button onclick="openAdminAddAppointment(); state.adminSelectedCustomer = '${customer.id}';" class="p-2 text-slate-400 hover:text-primary hover:bg-admin-accent/10 rounded-lg transition-all" title="Book Appointment">
                                         <span class="material-symbols-outlined">calendar_add_on</span>
                                     </button>
                                 </div>
@@ -14577,20 +14623,20 @@
                         <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white">Team Management</h1>
                         <p class="text-slate-500 dark:text-slate-400 mt-1">Manage your grooming team, schedules, and time off</p>
                     </div>
-                    <button onclick="openAddGroomerModal()" class="flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-600/25 text-sm">
+                    <button onclick="openAddGroomerModal()" class="flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-violet-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-violet-600/25 text-sm">
                         <span class="material-symbols-outlined text-lg">person_add</span>Add Groomer
                     </button>
                 </div>
                 
                 <!-- Sub-tabs -->
                 <div class="flex items-center gap-2 mb-6 border-b border-slate-200 dark:border-slate-700">
-                    <button onclick="state.adminGroomersSubTab = 'team'; loadAllGroomerAvailability(); render();" class="px-4 py-3 text-sm font-bold border-b-2 transition-all ${subTab === 'team' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}">
+                    <button onclick="state.adminGroomersSubTab = 'team'; loadAllGroomerAvailability(); render();" class="px-4 py-3 text-sm font-bold border-b-2 transition-all ${subTab === 'team' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'}">
                         <span class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-lg">group</span>
                             Team (${activeGroomers.length})
                         </span>
                     </button>
-                    <button onclick="state.adminGroomersSubTab = 'timeoff'; loadPendingTimeOffRequests(); render();" class="px-4 py-3 text-sm font-bold border-b-2 transition-all ${subTab === 'timeoff' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'} flex items-center gap-2">
+                    <button onclick="state.adminGroomersSubTab = 'timeoff'; loadPendingTimeOffRequests(); render();" class="px-4 py-3 text-sm font-bold border-b-2 transition-all ${subTab === 'timeoff' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'} flex items-center gap-2">
                         <span class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-lg">beach_access</span>
                             Time Off Requests
@@ -14608,8 +14654,8 @@
                                 <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Active Groomers</p>
                                 <p class="text-3xl font-bold text-slate-900 dark:text-white mt-1">${activeGroomers.length}</p>
                             </div>
-                            <div class="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
-                                <span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-2xl">badge</span>
+                            <div class="w-12 h-12 rounded-xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-primary dark:text-violet-400 text-2xl">badge</span>
                             </div>
                         </div>
                     </div>
@@ -14666,7 +14712,7 @@
                     <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-2">No ${state.groomerFilter === 'inactive' ? 'Inactive ' : ''}Groomers</h3>
                     <p class="text-slate-500 dark:text-slate-400 mb-6">${state.groomerFilter === 'inactive' ? 'All your groomers are currently active.' : 'Add your first groomer to start managing your team.'}</p>
                     ${state.groomerFilter !== 'inactive' ? `
-                    <button onclick="openAddGroomerModal()" class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all">
+                    <button onclick="openAddGroomerModal()" class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-violet-700 text-white rounded-xl font-bold transition-all">
                         <span class="material-symbols-outlined">person_add</span>Add First Groomer
                     </button>` : ''}
                 </div>
@@ -14705,7 +14751,7 @@
                 ${loyaltySubTab === 'rewards' ? `
                     <!-- Rewards Management -->
                     <div class="flex justify-end mb-6">
-                        <button onclick="openEditModal('reward', {})" class="flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-sky-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-primary/25 text-sm"><span class="material-symbols-outlined text-lg">add</span>Add Reward</button>
+                        <button onclick="openEditModal('reward', {})" class="flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white rounded-xl font-bold transition-all shadow-lg shadow-primary/25 text-sm"><span class="material-symbols-outlined text-lg">add</span>Add Reward</button>
                     </div>
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         ${data.rewards.map((r, i) => `
@@ -14737,7 +14783,7 @@
                                             </div>
                                         </div>
                                         <div class="flex gap-2">
-                                            <button onclick="fulfillRedemption('${r.id}')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm">Fulfill</button>
+                                            <button onclick="fulfillRedemption('${r.id}')" class="px-4 py-2 bg-primary hover:bg-violet-700 text-white font-bold rounded-lg text-sm">Fulfill</button>
                                             <button onclick="cancelRedemption('${r.id}', prompt('Reason for cancellation:'))" class="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-bold rounded-lg text-sm">Cancel & Refund</button>
                                         </div>
                                     </div>
@@ -14883,7 +14929,7 @@
                             <h2 class="text-xl font-bold text-slate-900 dark:text-white">Grooming Services</h2>
                             <p class="text-sm text-slate-500">Manage the services customers can book</p>
                         </div>
-                        <button onclick="openGroomingServiceModal()" class="flex items-center gap-2 bg-primary hover:bg-sky-600 text-white px-4 py-2 rounded-lg text-sm font-bold">
+                        <button onclick="openGroomingServiceModal()" class="flex items-center gap-2 bg-primary hover:bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold">
                             <span class="material-symbols-outlined text-lg">add</span>Add Service
                         </button>
                     </div>
@@ -14946,7 +14992,7 @@
                                                     </div>
                                                     <p class="text-slate-500 dark:text-slate-400 font-medium mb-2">No grooming services yet</p>
                                                     <p class="text-sm text-slate-400 mb-4">Add your first service to start accepting bookings</p>
-                                                    <button onclick="openGroomingServiceModal()" class="flex items-center gap-2 bg-primary hover:bg-sky-600 text-white px-4 py-2 rounded-lg text-sm font-bold">
+                                                    <button onclick="openGroomingServiceModal()" class="flex items-center gap-2 bg-primary hover:bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold">
                                                         <span class="material-symbols-outlined text-lg">add</span>Add First Service
                                                     </button>
                                                 </div>
@@ -14985,7 +15031,7 @@
                             <button onclick="state.productFilter = 'active'; render();" class="px-4 py-2 rounded-lg ${state.productFilter === 'active' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'} text-sm font-medium">Active (${activeProducts.length})</button>
                             <button onclick="state.productFilter = 'inactive'; render();" class="px-4 py-2 rounded-lg ${state.productFilter === 'inactive' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'} text-sm font-medium">Inactive (${inactiveProducts.length})</button>
                         </div>
-                        <button onclick="openEditModal('product', {})" class="flex items-center gap-2 bg-primary hover:bg-sky-600 text-white px-4 py-2 rounded-lg text-sm font-bold">
+                        <button onclick="openEditModal('product', {})" class="flex items-center gap-2 bg-primary hover:bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold">
                             <span class="material-symbols-outlined text-lg">add</span>Add Product
                         </button>
                     </div>
@@ -15021,7 +15067,7 @@
                 ` : servicesSubTab === 'ridealongs' ? `
                     <!-- Ride-Alongs Content -->
                     <div class="flex justify-end mb-6">
-                        <button onclick="openEditModal('ridealong', {})" class="flex items-center gap-2 bg-primary hover:bg-sky-600 text-white px-4 py-2 rounded-lg text-sm font-bold">
+                        <button onclick="openEditModal('ridealong', {})" class="flex items-center gap-2 bg-primary hover:bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold">
                             <span class="material-symbols-outlined text-lg">add</span>Add Package
                         </button>
                     </div>
@@ -15051,7 +15097,7 @@
                                 </div>
                                 <div class="p-4 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
                                     <button onclick="confirmDeleteRideAlong('${pkg.id}', '${(pkg.name || '').replace(/'/g, "\\'")}')" class="text-xs font-bold text-red-500 hover:text-red-600 flex items-center gap-1"><span class="material-symbols-outlined text-sm">delete</span>Delete</button>
-                                    <button onclick="openEditModal('ridealong', ${i})" class="text-xs font-bold text-primary hover:text-sky-600 flex items-center gap-1"><span class="material-symbols-outlined text-sm">edit</span>Edit</button>
+                                    <button onclick="openEditModal('ridealong', ${i})" class="text-xs font-bold text-primary hover:text-purple-600 flex items-center gap-1"><span class="material-symbols-outlined text-sm">edit</span>Edit</button>
                                 </div>
                             </div>`;
                         }).join('')}
@@ -15090,10 +15136,10 @@
                             </div>
                         </div>
                         <div class="mt-6 flex items-center gap-4">
-                            <a href="https://www.skool.com/dogfathersplus" target="_blank" class="flex items-center gap-2 text-primary hover:text-sky-600 font-bold text-sm">
+                            <a href="https://www.skool.com/dogfathersplus" target="_blank" class="flex items-center gap-2 text-primary hover:text-purple-600 font-bold text-sm">
                                 <span class="material-symbols-outlined text-lg">open_in_new</span>Open Skool Community
                             </a>
-                            <button onclick="saveEducationSettings()" class="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-sky-600 text-white font-bold text-sm rounded-lg">
+                            <button onclick="saveEducationSettings()" class="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white font-bold text-sm rounded-lg">
                                 <span class="material-symbols-outlined text-lg">save</span>Save Changes
                             </button>
                         </div>
@@ -15300,7 +15346,7 @@
                 booking_confirmed: 'text-green-500 bg-green-100 dark:bg-green-900/30',
                 booking_cancelled: 'text-red-500 bg-red-100 dark:bg-red-900/30',
                 appointment_started: 'text-purple-500 bg-purple-100 dark:bg-purple-900/30',
-                appointment_completed: 'text-emerald-500 bg-emerald-100 dark:bg-emerald-900/30',
+                appointment_completed: 'text-primary bg-violet-100 dark:bg-violet-900/30',
                 groomer_assigned: 'text-blue-500 bg-blue-100 dark:bg-blue-900/30',
                 points_earned: 'text-amber-500 bg-amber-100 dark:bg-amber-900/30',
                 reward_redeemed: 'text-pink-500 bg-pink-100 dark:bg-pink-900/30',
@@ -15618,8 +15664,8 @@
                 <div class="bg-white dark:bg-surface-dark rounded-2xl w-full max-w-lg max-h-[90vh] overflow-hidden shadow-2xl" onclick="event.stopPropagation()">
                     <div class="p-5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-                                <span class="material-symbols-outlined text-emerald-600">edit_calendar</span>
+                            <div class="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-primary">edit_calendar</span>
                             </div>
                             <div>
                                 <h2 class="text-xl font-bold text-slate-900 dark:text-white">Edit Schedule</h2>
@@ -15636,20 +15682,20 @@
                             ${dayNames.map((day, idx) => {
                                 const avail = state.editingAvailability[idx];
                                 return `
-                                <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 ${avail.is_available ? 'bg-emerald-50/50 dark:bg-emerald-900/10' : 'bg-slate-50 dark:bg-slate-800/50'}">
+                                <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 ${avail.is_available ? 'bg-violet-50/50 dark:bg-violet-900/10' : 'bg-slate-50 dark:bg-slate-800/50'}">
                                     <div class="flex items-center gap-4">
                                         <label class="flex items-center gap-2 cursor-pointer min-w-[120px]">
-                                            <input type="checkbox" ${avail.is_available ? 'checked' : ''} onchange="toggleAdminAvailabilityDay(${idx})" class="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer">
+                                            <input type="checkbox" ${avail.is_available ? 'checked' : ''} onchange="toggleAdminAvailabilityDay(${idx})" class="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary cursor-pointer">
                                             <span class="font-semibold text-slate-900 dark:text-white">${day}</span>
                                         </label>
                                         
                                         ${avail.is_available ? `
                                         <div class="flex items-center gap-2 flex-1">
-                                            <select onchange="updateAdminAvailabilityTime(${idx}, 'start_time', this.value)" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium focus:ring-2 focus:ring-emerald-500">
+                                            <select onchange="updateAdminAvailabilityTime(${idx}, 'start_time', this.value)" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium focus:ring-2 focus:ring-primary">
                                                 ${timeOptions.map(t => `<option value="${t}" ${avail.start_time === t ? 'selected' : ''}>${formatTime12(t)}</option>`).join('')}
                                             </select>
                                             <span class="text-slate-400">to</span>
-                                            <select onchange="updateAdminAvailabilityTime(${idx}, 'end_time', this.value)" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium focus:ring-2 focus:ring-emerald-500">
+                                            <select onchange="updateAdminAvailabilityTime(${idx}, 'end_time', this.value)" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium focus:ring-2 focus:ring-primary">
                                                 ${timeOptions.map(t => `<option value="${t}" ${avail.end_time === t ? 'selected' : ''}>${formatTime12(t)}</option>`).join('')}
                                             </select>
                                         </div>
@@ -15667,7 +15713,7 @@
                         <button onclick="closeAdminAvailabilityEditor()" class="px-5 py-2.5 rounded-xl font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                             Cancel
                         </button>
-                        <button onclick="saveAdminGroomerAvailability()" class="px-5 py-2.5 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors flex items-center gap-2">
+                        <button onclick="saveAdminGroomerAvailability()" class="px-5 py-2.5 rounded-xl font-bold bg-primary hover:bg-violet-700 text-white transition-colors flex items-center gap-2">
                             <span class="material-symbols-outlined text-lg">save</span>
                             Save Changes
                         </button>
@@ -15746,7 +15792,7 @@
                                                     Deny
                                                 </span>
                                             </button>
-                                            <button onclick="adminApproveTimeOff('${req.id}')" class="px-4 py-2 rounded-lg font-bold text-sm text-white bg-emerald-600 hover:bg-emerald-700 transition-colors">
+                                            <button onclick="adminApproveTimeOff('${req.id}')" class="px-4 py-2 rounded-lg font-bold text-sm text-white bg-primary hover:bg-violet-700 transition-colors">
                                                 <span class="flex items-center gap-1">
                                                     <span class="material-symbols-outlined text-lg">check</span>
                                                     Approve
@@ -15760,8 +15806,8 @@
                         </div>
                         ` : `
                         <div class="text-center py-12">
-                            <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-                                <span class="material-symbols-outlined text-3xl text-emerald-600 dark:text-emerald-400">check_circle</span>
+                            <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-3xl text-primary dark:text-violet-400">check_circle</span>
                             </div>
                             <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-1">All Caught Up!</h3>
                             <p class="text-slate-500 dark:text-slate-400">No pending time off requests to review.</p>
@@ -15800,7 +15846,7 @@
                                 <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                                     <div class="flex items-center justify-between mb-3">
                                         <div class="flex items-center gap-3">
-                                            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm">
+                                            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center text-white font-bold text-sm">
                                                 ${(g.full_name || g.name || 'G').split(' ').map(n => n.charAt(0)).join('').toUpperCase().slice(0, 2)}
                                             </div>
                                             <div>
@@ -15812,7 +15858,7 @@
                                             <button onclick="openGroomerScheduleModal('${g.id}')" class="px-3 py-1.5 text-xs font-bold text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
                                                 Calendar
                                             </button>
-                                            <button onclick="openAdminAvailabilityEditor('${g.id}')" class="px-3 py-1.5 text-xs font-bold text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors">
+                                            <button onclick="openAdminAvailabilityEditor('${g.id}')" class="px-3 py-1.5 text-xs font-bold text-primary hover:bg-violet-50 dark:hover:bg-violet-900/20 rounded-lg transition-colors">
                                                 Edit Hours
                                             </button>
                                         </div>
@@ -15837,10 +15883,10 @@
                                             };
                                             
                                             return `
-                                            <div class="text-center p-2 rounded-lg ${isWorking ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-slate-200 dark:bg-slate-700'}">
-                                                <p class="text-xs font-bold ${isWorking ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-400'}">${day}</p>
+                                            <div class="text-center p-2 rounded-lg ${isWorking ? 'bg-violet-100 dark:bg-violet-900/30' : 'bg-slate-200 dark:bg-slate-700'}">
+                                                <p class="text-xs font-bold ${isWorking ? 'text-violet-700 dark:text-violet-300' : 'text-slate-400'}">${day}</p>
                                                 ${isWorking ? `
-                                                    <p class="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">${formatCompact(startTime)}-${formatCompact(endTime)}</p>
+                                                    <p class="text-[10px] text-primary dark:text-violet-400 mt-0.5">${formatCompact(startTime)}-${formatCompact(endTime)}</p>
                                                 ` : `
                                                     <p class="text-[10px] text-slate-400 mt-0.5">Off</p>
                                                 `}
@@ -16171,8 +16217,8 @@
                             
                             return `
                             <button onclick="openAdminConversation('${g.id}')" class="w-full p-4 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border-b border-slate-100 dark:border-slate-800 ${activeGroomer === g.id ? 'bg-primary/10' : ''}">
-                                <div class="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-                                    <span class="text-emerald-600 font-bold">${initials}</span>
+                                <div class="w-12 h-12 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
+                                    <span class="text-primary font-bold">${initials}</span>
                                 </div>
                                 <div class="flex-1 text-left min-w-0">
                                     <p class="font-bold dark:text-white truncate">${g.full_name || g.name || 'Groomer'}</p>
@@ -16212,8 +16258,8 @@
             return `
                 <!-- Header -->
                 <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-                        <span class="text-emerald-600 font-bold text-sm">${initials}</span>
+                    <div class="w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
+                        <span class="text-primary font-bold text-sm">${initials}</span>
                     </div>
                     <div>
                         <p class="font-bold dark:text-white">${groomerName}</p>
@@ -16248,7 +16294,7 @@
                 <div class="p-4 border-t border-slate-100 dark:border-slate-800">
                     <form onsubmit="sendAdminMessage(event, '${groomerId}')" class="flex gap-3">
                         <input type="text" id="admin-message-input" placeholder="Type a message..." class="flex-1 h-12 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 border-0 focus:ring-2 focus:ring-primary dark:text-white" autocomplete="off"/>
-                        <button type="submit" class="h-12 px-6 bg-primary text-white font-bold rounded-xl hover:bg-sky-600 transition-colors flex items-center gap-2">
+                        <button type="submit" class="h-12 px-6 bg-primary text-white font-bold rounded-xl hover:bg-primary transition-colors flex items-center gap-2">
                             <span class="material-symbols-outlined">send</span>
                         </button>
                     </form>
