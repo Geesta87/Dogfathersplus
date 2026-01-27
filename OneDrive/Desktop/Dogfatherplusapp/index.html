@@ -6867,24 +6867,30 @@
                     .delete()
                     .eq('groomer_id', groomerId);
                 
-                // Insert new availability records
+                // Insert new availability records - only for working days
                 const records = [];
                 for (let day = 0; day < 7; day++) {
                     const avail = state.editingAvailability[day];
-                    records.push({
-                        groomer_id: groomerId,
-                        day_of_week: day,
-                        is_available: avail.is_available,
-                        start_time: avail.is_available ? avail.start_time : null,
-                        end_time: avail.is_available ? avail.end_time : null
-                    });
+                    // Only insert record if groomer is working that day
+                    if (avail.is_available) {
+                        records.push({
+                            groomer_id: groomerId,
+                            day_of_week: day,
+                            is_available: true,
+                            start_time: avail.start_time,
+                            end_time: avail.end_time
+                        });
+                    }
                 }
                 
-                const { error } = await supabaseClient
-                    .from('groomer_availability')
-                    .insert(records);
-                
-                if (error) throw error;
+                // Only insert if there are working days
+                if (records.length > 0) {
+                    const { error } = await supabaseClient
+                        .from('groomer_availability')
+                        .insert(records);
+                    
+                    if (error) throw error;
+                }
                 
                 hideLoading();
                 showToast('Schedule saved successfully!', 'success');
