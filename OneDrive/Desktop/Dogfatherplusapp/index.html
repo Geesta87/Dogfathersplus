@@ -204,6 +204,20 @@
     </div>
     <script>
         // =============================================
+        // PRODUCTION LOGGING CONTROL
+        // =============================================
+        // Set to false in production to disable debug logs
+        const DEBUG_MODE = false; // Production mode - debug logs disabled
+        
+        // Production-safe logging wrapper
+        const logger = {
+            log: (...args) => DEBUG_MODE && console.log(...args),
+            warn: (...args) => console.warn(...args), // Warnings always show
+            error: (...args) => console.error(...args), // Errors always show
+            debug: (...args) => DEBUG_MODE && console.log('[DEBUG]', ...args)
+        };
+        
+        // =============================================
         // SUPABASE CONFIGURATION
         // =============================================
         const SUPABASE_URL = 'https://cxtxkyitvybmyflsjexr.supabase.co';
@@ -477,6 +491,201 @@
         
         // Shorthand alias for convenience
         const e = escapeHtml;
+        
+        // =============================================
+        // SECURITY: Login Rate Limiting
+        // =============================================
+        const LOGIN_RATE_LIMIT = {
+            maxAttempts: 5,           // Max failed attempts before lockout
+            lockoutMinutes: 15,       // Lockout duration in minutes
+            attempts: {},             // Track attempts by email
+        };
+        
+        // Check if login is rate limited
+        function isLoginRateLimited(email) {
+            const key = email.toLowerCase();
+            const record = LOGIN_RATE_LIMIT.attempts[key];
+            
+            if (!record) return { limited: false };
+            
+            // Check if lockout has expired
+            if (record.lockedUntil && Date.now() > record.lockedUntil) {
+                // Reset after lockout expires
+                delete LOGIN_RATE_LIMIT.attempts[key];
+                return { limited: false };
+            }
+            
+            // Check if currently locked out
+            if (record.lockedUntil && Date.now() < record.lockedUntil) {
+                const minutesLeft = Math.ceil((record.lockedUntil - Date.now()) / 60000);
+                return { 
+                    limited: true, 
+                    message: `Too many failed attempts. Please try again in ${minutesLeft} minute${minutesLeft > 1 ? 's' : ''}.`
+                };
+            }
+            
+            return { limited: false };
+        }
+        
+        // Record a failed login attempt
+        function recordFailedLogin(email) {
+            const key = email.toLowerCase();
+            
+            if (!LOGIN_RATE_LIMIT.attempts[key]) {
+                LOGIN_RATE_LIMIT.attempts[key] = { count: 0, firstAttempt: Date.now() };
+            }
+            
+            const record = LOGIN_RATE_LIMIT.attempts[key];
+            record.count++;
+            record.lastAttempt = Date.now();
+            
+            // Lock out if max attempts exceeded
+            if (record.count >= LOGIN_RATE_LIMIT.maxAttempts) {
+                record.lockedUntil = Date.now() + (LOGIN_RATE_LIMIT.lockoutMinutes * 60000);
+                console.log(`Login locked for ${key} until`, new Date(record.lockedUntil));
+            }
+            
+            return {
+                attemptsLeft: Math.max(0, LOGIN_RATE_LIMIT.maxAttempts - record.count),
+                isLocked: !!record.lockedUntil
+            };
+        }
+        
+        // Clear failed attempts on successful login
+        function clearFailedLogins(email) {
+            const key = email.toLowerCase();
+            delete LOGIN_RATE_LIMIT.attempts[key];
+        }
+        
+        // =============================================
+        // FORM VALIDATION UTILITIES
+        // =============================================
+        const FormValidator = {
+            // Validation rules
+            rules: {
+                required: (value, fieldName) => {
+                    if (!value || (typeof value === 'string' && !value.trim())) {
+                        return `${fieldName} is required`;
+                    }
+                    return null;
+                },
+                email: (value, fieldName) => {
+                    if (!value) return null; // Let required handle empty
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(value.trim())) {
+                        return `Please enter a valid email address`;
+                    }
+                    return null;
+                },
+                phone: (value, fieldName) => {
+                    if (!value) return null;
+                    const digitsOnly = value.replace(/\D/g, '');
+                    if (digitsOnly.length < 10) {
+                        return `Please enter a valid phone number (10 digits)`;
+                    }
+                    return null;
+                },
+                minLength: (min) => (value, fieldName) => {
+                    if (!value) return null;
+                    if (value.trim().length < min) {
+                        return `${fieldName} must be at least ${min} characters`;
+                    }
+                    return null;
+                },
+                maxLength: (max) => (value, fieldName) => {
+                    if (!value) return null;
+                    if (value.trim().length > max) {
+                        return `${fieldName} must be less than ${max} characters`;
+                    }
+                    return null;
+                },
+                range: (min, max) => (value, fieldName) => {
+                    if (!value) return null;
+                    const num = parseFloat(value);
+                    if (isNaN(num) || num < min || num > max) {
+                        return `${fieldName} must be between ${min} and ${max}`;
+                    }
+                    return null;
+                },
+                zipCode: (value, fieldName) => {
+                    if (!value) return null;
+                    const zipRegex = /^\d{5}(-\d{4})?$/;
+                    if (!zipRegex.test(value.trim())) {
+                        return `Please enter a valid ZIP code`;
+                    }
+                    return null;
+                }
+            },
+            
+            // Validate a single field
+            validateField: function(value, rules, fieldName) {
+                for (const rule of rules) {
+                    const error = rule(value, fieldName);
+                    if (error) return error;
+                }
+                return null;
+            },
+            
+            // Validate entire form
+            validateForm: function(fields) {
+                const errors = {};
+                let isValid = true;
+                
+                for (const [fieldName, config] of Object.entries(fields)) {
+                    const error = this.validateField(config.value, config.rules, config.label || fieldName);
+                    if (error) {
+                        errors[fieldName] = error;
+                        isValid = false;
+                    }
+                }
+                
+                return { isValid, errors };
+            },
+            
+            // Show validation error on a field
+            showFieldError: function(inputId, message) {
+                const input = document.getElementById(inputId);
+                if (!input) return;
+                
+                // Add error styling
+                input.classList.add('border-red-500', 'ring-red-500');
+                input.classList.remove('border-border-light', 'dark:border-border-dark');
+                
+                // Remove existing error message
+                const existingError = input.parentElement.querySelector('.field-error');
+                if (existingError) existingError.remove();
+                
+                // Add error message
+                const errorDiv = document.createElement('p');
+                errorDiv.className = 'field-error text-red-500 text-xs mt-1';
+                errorDiv.textContent = message;
+                input.parentElement.appendChild(errorDiv);
+            },
+            
+            // Clear validation error from a field
+            clearFieldError: function(inputId) {
+                const input = document.getElementById(inputId);
+                if (!input) return;
+                
+                // Remove error styling
+                input.classList.remove('border-red-500', 'ring-red-500');
+                input.classList.add('border-border-light', 'dark:border-border-dark');
+                
+                // Remove error message
+                const existingError = input.parentElement.querySelector('.field-error');
+                if (existingError) existingError.remove();
+            },
+            
+            // Show first error as toast (simpler approach)
+            showFirstError: function(errors) {
+                const firstError = Object.values(errors)[0];
+                if (firstError) {
+                    showToast(firstError, 'error');
+                    return true;
+                }
+                return false;
+            }
+        };
         
         // Format time string (HH:MM:SS or HH:MM) to 12-hour format in Pacific Time
         function formatTime(timeStr) {
@@ -1072,27 +1281,28 @@
         async function calculateAvailableSlotsJS(customerLat, customerLng, startDate, endDate) {
             console.log('calculateAvailableSlotsJS called with:', { customerLat, customerLng, startDate, endDate });
             
-            // 1. Get all active groomers with their availability
-            const { data: groomers, error: groomersError } = await supabaseClient
-                .from('profiles')
-                .select('id, full_name, home_latitude, home_longitude')
-                .eq('role', 'groomer')
-                .eq('is_active', true);
-            
-            console.log('Groomers found:', groomers?.length, groomers);
-            
-            if (groomersError || !groomers?.length) {
-                console.error('No groomers found:', groomersError);
-                return { bestAvailable: [], moreAvailable: [], error: true };
-            }
-            
-            // 2. Get groomer availability schedules
-            const { data: availability } = await supabaseClient
-                .from('groomer_availability')
-                .select('groomer_id, day_of_week, start_time, end_time, is_available')
-                .eq('is_available', true);
-            
-            console.log('Groomer availability records:', availability?.length, availability);
+            try {
+                // 1. Get all active groomers with their availability
+                const { data: groomers, error: groomersError } = await supabaseClient
+                    .from('profiles')
+                    .select('id, full_name, home_latitude, home_longitude')
+                    .eq('role', 'groomer')
+                    .eq('is_active', true);
+                
+                console.log('Groomers found:', groomers?.length, groomers);
+                
+                if (groomersError || !groomers?.length) {
+                    console.error('No groomers found:', groomersError);
+                    return { bestAvailable: [], moreAvailable: [], error: true };
+                }
+                
+                // 2. Get groomer availability schedules
+                const { data: availability } = await supabaseClient
+                    .from('groomer_availability')
+                    .select('groomer_id, day_of_week, start_time, end_time, is_available')
+                    .eq('is_available', true);
+                
+                console.log('Groomer availability records:', availability?.length, availability);
             
             // 3. Get time off requests
             const { data: timeOff } = await supabaseClient
@@ -1278,6 +1488,10 @@
             }
             
             return processAvailableSlots(allSlots, customerLat, customerLng);
+            } catch (err) {
+                console.error('Error calculating available slots:', err);
+                return { bestAvailable: [], moreAvailable: [], error: true };
+            }
         }
         
         // Legacy function for compatibility - redirects to new system
@@ -2220,6 +2434,13 @@
 
         // Groomer login handler
         async function handleGroomerLogin(email, password) {
+            // Check rate limiting before attempting login
+            const rateLimitCheck = isLoginRateLimited(email);
+            if (rateLimitCheck.limited) {
+                showToast(rateLimitCheck.message, 'error');
+                return;
+            }
+            
             showLoading();
             
             try {
@@ -2230,7 +2451,17 @@
                 
                 if (error) {
                     hideLoading();
-                    showToast(error.message, 'error');
+                    
+                    // Record failed attempt
+                    const result = recordFailedLogin(email);
+                    
+                    if (result.isLocked) {
+                        showToast(`Too many failed attempts. Account locked for ${LOGIN_RATE_LIMIT.lockoutMinutes} minutes.`, 'error');
+                    } else if (result.attemptsLeft <= 2) {
+                        showToast(`${error.message} (${result.attemptsLeft} attempts remaining)`, 'error');
+                    } else {
+                        showToast(error.message, 'error');
+                    }
                     return;
                 }
                 
@@ -2254,6 +2485,9 @@
                     showToast('Not authorized as groomer. Please use customer login.', 'error');
                     return;
                 }
+                
+                // Clear failed attempts on successful login
+                clearFailedLogins(email);
                 
                 // Set up groomer session
                 state.currentUser = {
@@ -2657,58 +2891,72 @@
         async function handleSignUp(email, password, fullName, phone) {
             showLoading();
             
-            const { data, error } = await supabaseClient.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: { 
-                        full_name: fullName,
-                        phone: phone
+            try {
+                const { data, error } = await supabaseClient.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        data: { 
+                            full_name: fullName,
+                            phone: phone
+                        }
                     }
+                });
+                
+                hideLoading();
+                
+                if (error) {
+                    showToast(error.message, 'error');
+                    return false;
                 }
-            });
-            
-            hideLoading();
-            
-            if (error) {
-                showToast(error.message, 'error');
+                
+                // Check if email confirmation is required
+                if (data.user && !data.session) {
+                    showToast('Check your email to confirm your account!', 'success');
+                    state.authTab = 'login';
+                    render();
+                } else if (data.session) {
+                    // Auto-confirmed - NEW USER, show onboarding
+                    // IMPORTANT: Set onboarding flags FIRST before setting currentUser
+                    // This prevents a flash of dashboard during the transition
+                    state.showOnboarding = true;
+                    state.onboardingStep = 1;
+                    
+                    state.session = data.session;
+                    
+                    // Set up basic user info
+                    state.currentUser = {
+                        id: data.user.id,
+                        email: data.user.email,
+                        name: fullName,
+                        phone: phone,
+                        role: 'customer',
+                        loyaltyPoints: 0
+                    };
+                    
+                    // Load public data (services, products, etc)
+                    await loadPublicData();
+                    
+                    showToast(`Welcome, ${fullName}! Let's set up your account.`, 'success');
+                    render();
+                }
+                return true;
+            } catch (err) {
+                hideLoading();
+                console.error('Sign up error:', err);
+                showToast('Sign up failed: ' + (err.message || 'Please try again'), 'error');
                 return false;
             }
-            
-            // Check if email confirmation is required
-            if (data.user && !data.session) {
-                showToast('Check your email to confirm your account!', 'success');
-                state.authTab = 'login';
-                render();
-            } else if (data.session) {
-                // Auto-confirmed - NEW USER, show onboarding
-                // IMPORTANT: Set onboarding flags FIRST before setting currentUser
-                // This prevents a flash of dashboard during the transition
-                state.showOnboarding = true;
-                state.onboardingStep = 1;
-                
-                state.session = data.session;
-                
-                // Set up basic user info
-                state.currentUser = {
-                    id: data.user.id,
-                    email: data.user.email,
-                    name: fullName,
-                    phone: phone,
-                    role: 'customer',
-                    loyaltyPoints: 0
-                };
-                
-                // Load public data (services, products, etc)
-                await loadPublicData();
-                
-                showToast(`Welcome, ${fullName}! Let's set up your account.`, 'success');
-                render();
-            }
-            return true;
         }
 
         async function handleSignIn(email, password) {
+            // Check rate limiting before attempting login
+            const rateLimitCheck = isLoginRateLimited(email);
+            if (rateLimitCheck.limited) {
+                showToast(rateLimitCheck.message, 'error');
+                return false;
+            }
+            
             showLoading();
             
             // Reset onboarding state - login should NEVER show onboarding
@@ -2722,9 +2970,22 @@
                 
                 if (error) {
                     hideLoading();
-                    showToast(error.message, 'error');
+                    
+                    // Record failed attempt
+                    const result = recordFailedLogin(email);
+                    
+                    if (result.isLocked) {
+                        showToast(`Too many failed attempts. Account locked for ${LOGIN_RATE_LIMIT.lockoutMinutes} minutes.`, 'error');
+                    } else if (result.attemptsLeft <= 2) {
+                        showToast(`${error.message} (${result.attemptsLeft} attempts remaining)`, 'error');
+                    } else {
+                        showToast(error.message, 'error');
+                    }
                     return false;
                 }
+                
+                // Clear failed attempts on successful login
+                clearFailedLogins(email);
                 
                 console.log('Sign in successful, loading profile...');
                 state.session = data.session;
@@ -2800,57 +3061,71 @@
             }
             
             showLoading();
-            const { data, error } = await supabaseClient
-                .from('pets')
-                .insert({
-                    owner_id: state.currentUser.id,
-                    name: petData.name,
-                    breed: petData.breed,
-                    weight: weight || null,
-                    gender: petData.gender,
-                    age_years: petData.age,
-                    color: petData.color,
-                    grooming_notes: petData.notes,
-                    photo_url: petData.photo,
-                    is_active: true  // IMPORTANT: Must be true to show up
-                })
-                .select()
-                .single();
-            
-            hideLoading();
-            
-            if (error) {
-                showToast('Failed to add pet: ' + error.message, 'error');
+            try {
+                const { data, error } = await supabaseClient
+                    .from('pets')
+                    .insert({
+                        owner_id: state.currentUser.id,
+                        name: petData.name,
+                        breed: petData.breed,
+                        weight: weight || null,
+                        gender: petData.gender,
+                        age_years: petData.age,
+                        color: petData.color,
+                        grooming_notes: petData.notes,
+                        photo_url: petData.photo,
+                        is_active: true  // IMPORTANT: Must be true to show up
+                    })
+                    .select()
+                    .single();
+                
+                hideLoading();
+                
+                if (error) {
+                    showToast('Failed to add pet: ' + error.message, 'error');
+                    return null;
+                }
+                
+                state.pets.push(data);
+                showToast(`${petData.name} added successfully!`, 'success');
+                render();
+                return data;
+            } catch (err) {
+                hideLoading();
+                console.error('Add pet error:', err);
+                showToast('Failed to add pet. Please try again.', 'error');
                 return null;
             }
-            
-            state.pets.push(data);
-            showToast(`${petData.name} added successfully!`, 'success');
-            render();
-            return data;
         }
 
         async function updatePet(petId, petData) {
             showLoading();
-            const { data, error } = await supabaseClient
-                .from('pets')
-                .update(petData)
-                .eq('id', petId)
-                .select()
-                .single();
-            
-            hideLoading();
-            
-            if (error) {
-                showToast('Failed to update pet', 'error');
+            try {
+                const { data, error } = await supabaseClient
+                    .from('pets')
+                    .update(petData)
+                    .eq('id', petId)
+                    .select()
+                    .single();
+                
+                hideLoading();
+                
+                if (error) {
+                    showToast('Failed to update pet', 'error');
+                    return null;
+                }
+                
+                const index = state.pets.findIndex(p => p.id === petId);
+                if (index !== -1) state.pets[index] = data;
+                showToast('Pet updated!', 'success');
+                render();
+                return data;
+            } catch (err) {
+                hideLoading();
+                console.error('Update pet error:', err);
+                showToast('Failed to update pet. Please try again.', 'error');
                 return null;
             }
-            
-            const index = state.pets.findIndex(p => p.id === petId);
-            if (index !== -1) state.pets[index] = data;
-            showToast('Pet updated!', 'success');
-            render();
-            return data;
         }
 
         // Safe pet deletion with appointment check
@@ -3123,35 +3398,41 @@
         async function cancelAppointment(appointmentId, reason = 'No reason provided') {
             showLoading();
             
-            // Direct database update (bypasses RPC functions that may not exist)
-            const { error } = await supabaseClient
-                .from('appointments')
-                .update({ 
-                    status: 'cancelled',
-                    cancelled_at: new Date().toISOString(),
-                    cancelled_by: state.currentUser.id,
-                    cancellation_reason: reason
-                })
-                .eq('id', appointmentId);
-            
-            hideLoading();
-            
-            if (error) {
-                showToast('Failed to cancel appointment: ' + error.message, 'error');
-                return;
+            try {
+                // Direct database update (bypasses RPC functions that may not exist)
+                const { error } = await supabaseClient
+                    .from('appointments')
+                    .update({ 
+                        status: 'cancelled',
+                        cancelled_at: new Date().toISOString(),
+                        cancelled_by: state.currentUser.id,
+                        cancellation_reason: reason
+                    })
+                    .eq('id', appointmentId);
+                
+                hideLoading();
+                
+                if (error) {
+                    showToast('Failed to cancel appointment: ' + error.message, 'error');
+                    return;
+                }
+                
+                // Reload appointments based on role
+                if (state.currentUser.role === 'admin') {
+                    await loadAdminData();
+                } else if (state.currentUser.role === 'groomer') {
+                    await loadGroomerData(state.currentUser.id);
+                } else {
+                    await loadCustomerData(state.currentUser.id);
+                }
+                
+                showToast('Appointment cancelled', 'info');
+                render();
+            } catch (err) {
+                hideLoading();
+                console.error('Cancel appointment error:', err);
+                showToast('Failed to cancel appointment. Please try again.', 'error');
             }
-            
-            // Reload appointments based on role
-            if (state.currentUser.role === 'admin') {
-                await loadAdminData();
-            } else if (state.currentUser.role === 'groomer') {
-                await loadGroomerData(state.currentUser.id);
-            } else {
-                await loadCustomerData(state.currentUser.id);
-            }
-            
-            showToast('Appointment cancelled', 'info');
-            render();
         }
 
         // Customer-facing cancel with confirmation and reason
@@ -8002,17 +8283,42 @@
             const city = cityEl?.value?.trim();
             const zip = zipEl?.value?.trim();
             
-            // Validation
-            if (!name) {
-                showToast('Customer name is required', 'error');
-                return;
-            }
-            if (!phone) {
-                showToast('Phone number is required', 'error');
-                return;
-            }
-            if (!address || !city) {
-                showToast('Address and city are required for scheduling', 'error');
+            // Standardized validation using FormValidator
+            const validation = FormValidator.validateForm({
+                name: { 
+                    value: name, 
+                    rules: [FormValidator.rules.required], 
+                    label: 'Customer name' 
+                },
+                phone: { 
+                    value: phone, 
+                    rules: [FormValidator.rules.required, FormValidator.rules.phone], 
+                    label: 'Phone number' 
+                },
+                email: { 
+                    value: email, 
+                    rules: [FormValidator.rules.email], 
+                    label: 'Email' 
+                },
+                address: { 
+                    value: address, 
+                    rules: [FormValidator.rules.required], 
+                    label: 'Address' 
+                },
+                city: { 
+                    value: city, 
+                    rules: [FormValidator.rules.required], 
+                    label: 'City' 
+                },
+                zip: { 
+                    value: zip, 
+                    rules: [FormValidator.rules.zipCode], 
+                    label: 'ZIP code' 
+                }
+            });
+            
+            if (!validation.isValid) {
+                FormValidator.showFirstError(validation.errors);
                 return;
             }
             
