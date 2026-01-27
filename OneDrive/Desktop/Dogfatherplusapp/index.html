@@ -2145,6 +2145,9 @@
                 // Load pending time off requests
                 await loadPendingTimeOffRequests();
                 
+                // Load all groomer availability (for "No Schedule" warnings)
+                await loadAllGroomerAvailability();
+                
                 // Load admin messages
                 await loadAdminMessages();
             } catch (err) {
@@ -7685,6 +7688,10 @@
                 return spec ? spec.label : s;
             });
             
+            // Check if groomer has availability set
+            const groomerAvail = state.allGroomerAvailability?.[g.id] || [];
+            const hasNoAvailability = groomerAvail.length === 0;
+            
             return `
             <div class="bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all ${g.is_active === false ? 'opacity-60' : ''}">
                 <div class="p-6">
@@ -7694,20 +7701,26 @@
                             ${initials}
                         </div>
                         <div class="flex-1 min-w-0">
-                            <div class="flex items-center gap-2 mb-1">
-                                <h3 class="text-lg font-bold text-slate-900 dark:text-white truncate">${g.full_name || 'Groomer'}</h3>
+                            <div class="flex items-center gap-2 mb-1 flex-wrap">
+                                <h3 class="text-lg font-bold text-slate-900 dark:text-white truncate">${escapeHtml(g.full_name) || 'Groomer'}</h3>
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${g.is_active !== false ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}">
                                     <span class="w-1.5 h-1.5 rounded-full ${g.is_active !== false ? 'bg-emerald-500' : 'bg-slate-400'}"></span>
                                     ${g.is_active !== false ? 'Active' : 'Inactive'}
                                 </span>
+                                ${hasNoAvailability && g.is_active !== false ? `
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" title="This groomer won't appear in booking until schedule is set">
+                                    <span class="material-symbols-outlined text-xs">warning</span>
+                                    No Schedule
+                                </span>
+                                ` : ''}
                             </div>
                             <div class="flex flex-col gap-1 text-sm text-slate-500 dark:text-slate-400">
                                 <a href="mailto:${g.email}" class="hover:text-primary flex items-center gap-1.5">
-                                    <span class="material-symbols-outlined text-sm">email</span>${g.email}
+                                    <span class="material-symbols-outlined text-sm">email</span>${escapeHtml(g.email)}
                                 </a>
                                 ${g.phone ? `
                                 <a href="tel:${g.phone}" class="hover:text-primary flex items-center gap-1.5">
-                                    <span class="material-symbols-outlined text-sm">phone</span>${g.phone}
+                                    <span class="material-symbols-outlined text-sm">phone</span>${escapeHtml(g.phone)}
                                 </a>` : ''}
                             </div>
                         </div>
@@ -14257,7 +14270,7 @@
                 
                 <!-- Sub-tabs -->
                 <div class="flex items-center gap-2 mb-6 border-b border-slate-200 dark:border-slate-700">
-                    <button onclick="state.adminGroomersSubTab = 'team'; render();" class="px-4 py-3 text-sm font-bold border-b-2 transition-all ${subTab === 'team' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}">
+                    <button onclick="state.adminGroomersSubTab = 'team'; loadAllGroomerAvailability(); render();" class="px-4 py-3 text-sm font-bold border-b-2 transition-all ${subTab === 'team' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}">
                         <span class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-lg">group</span>
                             Team (${activeGroomers.length})
@@ -15536,7 +15549,58 @@
         
         // Admin approve/deny time off
         async function adminApproveTimeOff(requestId) {
-            if (!confirm('Approve this time off request?')) return;
+            // Find the request details
+            const request = state.pendingTimeOffRequests.find(r => r.id === requestId);
+            if (!request) {
+                showToast('Request not found', 'error');
+                return;
+            }
+            
+            // Check for conflicting appointments during the time off period
+            try {
+                const { data: conflicts, error } = await supabaseClient
+                    .from('appointments')
+                    .select('id, appointment_date, start_time, status')
+                    .eq('assigned_groomer_id', request.groomer_id)
+                    .gte('appointment_date', request.start_date)
+                    .lte('appointment_date', request.end_date)
+                    .in('status', ['pending', 'confirmed']);
+                
+                if (error) {
+                    console.error('Error checking conflicts:', error);
+                }
+                
+                if (conflicts && conflicts.length > 0) {
+                    // Show detailed warning
+                    const groomerName = request.groomer?.full_name || 'This groomer';
+                    const dateRange = request.start_date === request.end_date 
+                        ? formatDate(request.start_date) 
+                        : `${formatDate(request.start_date)} - ${formatDate(request.end_date)}`;
+                    
+                    const appointmentList = conflicts.slice(0, 5).map(a => 
+                        `• ${formatDate(a.appointment_date)} at ${formatTime(a.start_time)}`
+                    ).join('\n');
+                    
+                    const moreText = conflicts.length > 5 ? `\n...and ${conflicts.length - 5} more` : '';
+                    
+                    const confirmed = confirm(
+                        `⚠️ WARNING: ${groomerName} has ${conflicts.length} appointment(s) during this time off period (${dateRange}):\n\n` +
+                        `${appointmentList}${moreText}\n\n` +
+                        `These appointments will need to be reassigned or cancelled.\n\n` +
+                        `Approve anyway?`
+                    );
+                    
+                    if (!confirmed) return;
+                } else {
+                    // No conflicts, just confirm
+                    if (!confirm('Approve this time off request?')) return;
+                }
+            } catch (err) {
+                console.error('Error checking for conflicts:', err);
+                // Proceed with normal confirmation if check fails
+                if (!confirm('Approve this time off request?')) return;
+            }
+            
             await reviewTimeOffRequest(requestId, true);
         }
         
