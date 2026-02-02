@@ -12345,7 +12345,7 @@
                         <button onclick="logout()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 touch-target"><span class="material-symbols-outlined">logout</span>Sign Out</button>
                     </div>
                 </aside>
-                <main class="flex-1 lg:ml-72 pt-16 lg:pt-0 pb-8 bg-background-light dark:bg-background-dark min-h-screen safe-bottom"><div class="${isFullWidth ? '' : 'p-6 lg:p-8 max-w-6xl mx-auto'}">${renderCustomerContent()}</div></main>
+                <main class="flex-1 lg:ml-72 pt-16 lg:pt-0 pb-8 bg-background-light dark:bg-background-dark min-h-screen safe-bottom overflow-x-hidden"><div class="${isFullWidth ? '' : 'p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto'}">${renderCustomerContent()}</div></main>
             </div>
             ${state.showBookingModal ? renderBookingModal() : ''}
             ${state.editModal ? renderEditModal() : ''}
@@ -12406,7 +12406,7 @@
             if (state.currentTab === 'dashboard') {
                 return `
                 <!-- #1 HERO SECTION - Prominent Book Now + Phone + Countdown -->
-                <div class="relative overflow-hidden rounded-3xl mb-6 bg-gradient-to-br from-primary via-sky-500 to-cyan-400 p-6 lg:p-8 text-white shadow-xl shadow-primary/20">
+                <div class="relative overflow-hidden rounded-2xl sm:rounded-3xl mb-4 sm:mb-6 bg-gradient-to-br from-primary via-sky-500 to-cyan-400 p-4 sm:p-6 lg:p-8 text-white shadow-xl shadow-primary/20">
                     <!-- Background Pattern -->
                     <div class="absolute inset-0 opacity-10">
                         <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -12424,14 +12424,15 @@
                     
                     <div class="relative z-10">
                         <!-- Top Row: Greeting & Phone -->
-                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 mb-3 sm:mb-4">
                             <div class="flex items-center gap-2">
-                                <span class="text-2xl">${greetingEmoji}</span>
-                                <h1 class="text-2xl sm:text-3xl font-extrabold">${timeGreeting}, ${user.name?.split(' ')[0] || 'there'}!</h1>
+                                <span class="text-xl sm:text-2xl">${greetingEmoji}</span>
+                                <h1 class="text-xl sm:text-2xl lg:text-3xl font-extrabold">${timeGreeting}, ${user.name?.split(' ')[0] || 'there'}!</h1>
                             </div>
-                            <a href="tel:${businessPhoneClean}" class="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-full transition-colors text-sm font-bold">
-                                <span class="material-symbols-outlined text-lg">call</span>
-                                ${businessPhone}
+                            <a href="tel:${businessPhoneClean}" class="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-3 sm:px-4 py-2 rounded-full transition-colors text-xs sm:text-sm font-bold self-start sm:self-auto">
+                                <span class="material-symbols-outlined text-base sm:text-lg">call</span>
+                                <span class="hidden sm:inline">${businessPhone}</span>
+                                <span class="sm:hidden">Call Us</span>
                             </a>
                         </div>
                         
@@ -12462,20 +12463,20 @@
                             </div>
                         ` : nextAppt ? `
                             <!-- NEXT APPOINTMENT COUNTDOWN -->
-                            <div class="bg-white/20 backdrop-blur-sm rounded-2xl p-4 mb-4">
-                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="bg-white/20 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 mb-3 sm:mb-4">
+                                <div class="flex flex-col gap-3">
                                     <div class="flex items-center gap-3">
-                                        <div class="w-12 h-12 rounded-xl bg-white/30 flex items-center justify-center">
-                                            <span class="material-symbols-outlined text-2xl">event</span>
+                                        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-white/30 flex items-center justify-center flex-shrink-0">
+                                            <span class="material-symbols-outlined text-xl sm:text-2xl">event</span>
                                         </div>
-                                        <div>
-                                            <p class="text-white/80 text-sm">Next appointment ${countdownText ? `• ${countdownText}` : ''}</p>
-                                            <p class="font-bold text-lg">${nextAppt.petName || 'Pet'} • ${nextAppt.serviceName || 'Grooming'}</p>
-                                            <p class="text-white/80 text-sm">${formatDate(nextAppt.appointment_date)} at ${formatTime(nextAppt.start_time)}</p>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-white/80 text-xs sm:text-sm">Next appointment ${countdownText ? `• ${countdownText}` : ''}</p>
+                                            <p class="font-bold text-base sm:text-lg truncate">${nextAppt.petName || 'Pet'} • ${nextAppt.serviceName || 'Grooming'}</p>
+                                            <p class="text-white/80 text-xs sm:text-sm">${formatDate(nextAppt.appointment_date)} at ${formatTime(nextAppt.start_time)}</p>
                                         </div>
                                     </div>
                                     <div class="flex gap-2">
-                                        <button onclick="confirmCancelAppointment('${nextAppt.id}')" class="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-bold transition-colors">
+                                        <button onclick="confirmCancelAppointment('${nextAppt.id}')" class="flex-1 sm:flex-initial px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-xs sm:text-sm font-bold transition-colors min-h-[40px]">
                                             Cancel
                                         </button>
                                     </div>
@@ -12487,15 +12488,16 @@
                         `}
                         
                         <!-- Primary CTA Buttons -->
-                        <div class="flex flex-col sm:flex-row gap-3">
-                            <button onclick="openBookingModal()" class="flex-1 bg-white text-primary font-bold px-6 py-4 rounded-xl hover:bg-white/90 flex items-center justify-center gap-2 shadow-lg shadow-black/10 transition-all hover:scale-[1.02]">
-                                <span class="material-symbols-outlined text-2xl">calendar_add_on</span>
-                                <span class="text-lg">Book Appointment</span>
+                        <div class="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                            <button onclick="openBookingModal()" class="flex-1 bg-white text-primary font-bold px-4 sm:px-6 py-3 sm:py-4 rounded-xl hover:bg-white/90 flex items-center justify-center gap-2 shadow-lg shadow-black/10 transition-all hover:scale-[1.02] min-h-[48px]">
+                                <span class="material-symbols-outlined text-xl sm:text-2xl">calendar_add_on</span>
+                                <span class="text-base sm:text-lg">Book Appointment</span>
                             </button>
                             ${nextAppt ? `
-                                <button onclick="setTab('appointments')" class="px-6 py-4 bg-white/20 hover:bg-white/30 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors">
+                                <button onclick="setTab('appointments')" class="px-4 sm:px-6 py-3 sm:py-4 bg-white/20 hover:bg-white/30 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors min-h-[48px]">
                                     <span class="material-symbols-outlined">visibility</span>
-                                    View Details
+                                    <span class="hidden sm:inline">View Details</span>
+                                    <span class="sm:hidden">Details</span>
                                 </button>
                             ` : ''}
                         </div>
@@ -12503,102 +12505,102 @@
                 </div>
                 
                 <!-- #6 CONDENSED STAT CARDS (4 cards including loyalty) -->
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                    <div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-4 flex items-center gap-3">
-                        <div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                            <span class="material-symbols-outlined text-primary">pets</span>
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                    <div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg sm:rounded-xl p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+                        <div class="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                            <span class="material-symbols-outlined text-primary text-lg sm:text-base">pets</span>
                         </div>
                         <div>
-                            <p class="text-2xl font-bold dark:text-white">${pets.length}</p>
-                            <p class="text-xs text-text-sub-light dark:text-text-sub-dark">Pets</p>
+                            <p class="text-lg sm:text-2xl font-bold dark:text-white">${pets.length}</p>
+                            <p class="text-[10px] sm:text-xs text-text-sub-light dark:text-text-sub-dark">Pets</p>
                         </div>
                     </div>
-                    <div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-4 flex items-center gap-3">
-                        <div class="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
-                            <span class="material-symbols-outlined text-green-600 dark:text-green-400">check_circle</span>
+                    <div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg sm:rounded-xl p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+                        <div class="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 dark:bg-green-900/30 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                            <span class="material-symbols-outlined text-green-600 dark:text-green-400 text-lg sm:text-base">check_circle</span>
                         </div>
                         <div>
-                            <p class="text-2xl font-bold dark:text-white">${completedAppointments.length}</p>
-                            <p class="text-xs text-text-sub-light dark:text-text-sub-dark">Grooms</p>
+                            <p class="text-lg sm:text-2xl font-bold dark:text-white">${completedAppointments.length}</p>
+                            <p class="text-[10px] sm:text-xs text-text-sub-light dark:text-text-sub-dark">Grooms</p>
                         </div>
                     </div>
-                    <div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-4 flex items-center gap-3">
-                        <div class="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
-                            <span class="material-symbols-outlined text-amber-600 dark:text-amber-400">calendar_month</span>
+                    <div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg sm:rounded-xl p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+                        <div class="w-8 h-8 sm:w-10 sm:h-10 bg-amber-100 dark:bg-amber-900/30 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                            <span class="material-symbols-outlined text-amber-600 dark:text-amber-400 text-lg sm:text-base">calendar_month</span>
                         </div>
                         <div>
-                            <p class="text-2xl font-bold dark:text-white">${upcomingAppointments.length}</p>
-                            <p class="text-xs text-text-sub-light dark:text-text-sub-dark">Upcoming</p>
+                            <p class="text-lg sm:text-2xl font-bold dark:text-white">${upcomingAppointments.length}</p>
+                            <p class="text-[10px] sm:text-xs text-text-sub-light dark:text-text-sub-dark">Upcoming</p>
                         </div>
                     </div>
-                    <button onclick="setTab('rewards')" class="bg-gradient-to-br from-primary to-sky-600 text-white rounded-xl p-4 flex items-center gap-3 hover:shadow-lg transition-all text-left">
-                        <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                            <span class="material-symbols-outlined">loyalty</span>
+                    <button onclick="setTab('rewards')" class="bg-gradient-to-br from-primary to-sky-600 text-white rounded-lg sm:rounded-xl p-3 sm:p-4 flex items-center gap-2 sm:gap-3 hover:shadow-lg transition-all text-left">
+                        <div class="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                            <span class="material-symbols-outlined text-lg sm:text-base">loyalty</span>
                         </div>
                         <div>
-                            <p class="text-2xl font-bold">${user.loyaltyPoints || 0}</p>
-                            <p class="text-xs text-white/80">Points</p>
+                            <p class="text-lg sm:text-2xl font-bold">${user.loyaltyPoints || 0}</p>
+                            <p class="text-[10px] sm:text-xs text-white/80">Points</p>
                         </div>
                     </button>
                 </div>
 
                 <!-- #7 MY PETS with "Last Groomed" Reminders -->
-                <div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-6 mb-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-bold flex items-center gap-2 dark:text-white">
-                            <span class="material-symbols-outlined text-primary">pets</span>My Pets
+                <div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg sm:rounded-xl p-4 sm:p-6 mb-4 sm:mb-6">
+                    <div class="flex justify-between items-center mb-3 sm:mb-4">
+                        <h3 class="text-base sm:text-lg font-bold flex items-center gap-2 dark:text-white">
+                            <span class="material-symbols-outlined text-primary text-lg sm:text-base">pets</span>My Pets
                         </h3>
                         <div class="flex gap-2">
-                            <button onclick="openEditModal('pet', {})" class="text-primary text-sm font-medium hover:underline flex items-center gap-1">
-                                <span class="material-symbols-outlined text-sm">add</span>Add Pet
+                            <button onclick="openEditModal('pet', {})" class="text-primary text-xs sm:text-sm font-medium hover:underline flex items-center gap-1">
+                                <span class="material-symbols-outlined text-xs sm:text-sm">add</span>Add Pet
                             </button>
                         </div>
                     </div>
                     
                     ${pets.length > 0 ? `
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                             ${pets.map(pet => {
                                 const lastGroom = getPetLastGroom(pet.id);
                                 const needsGroom = lastGroom && lastGroom.weeksSince >= 6;
                                 const hasUpcoming = upcomingAppointments.some(a => a.pet_id === pet.id);
                                 
                                 return `
-                                <div class="bg-background-light dark:bg-background-dark rounded-xl p-4 ${needsGroom && !hasUpcoming ? 'ring-2 ring-amber-400 ring-offset-2 dark:ring-offset-slate-900' : ''}">
-                                    <div class="flex items-start gap-4">
-                                        <div class="w-16 h-16 rounded-2xl bg-cover bg-center border-2 border-primary/20 shadow-md flex-shrink-0" style="background-image: url('${pet.photo_url || 'https://via.placeholder.com/150'}')"></div>
+                                <div class="bg-background-light dark:bg-background-dark rounded-lg sm:rounded-xl p-3 sm:p-4 ${needsGroom && !hasUpcoming ? 'ring-2 ring-amber-400 ring-offset-2 dark:ring-offset-slate-900' : ''}">
+                                    <div class="flex items-start gap-3 sm:gap-4">
+                                        <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-cover bg-center border-2 border-primary/20 shadow-md flex-shrink-0" style="background-image: url('${pet.photo_url || 'https://via.placeholder.com/150'}')"></div>
                                         <div class="flex-1 min-w-0">
                                             <div class="flex items-start justify-between">
-                                                <div>
-                                                    <p class="font-bold text-lg dark:text-white">${pet.name}</p>
-                                                    <p class="text-sm text-text-sub-light dark:text-text-sub-dark">${pet.breed || 'Unknown breed'} • ${pet.weight || '?'} lbs</p>
+                                                <div class="min-w-0">
+                                                    <p class="font-bold text-base sm:text-lg dark:text-white truncate">${pet.name}</p>
+                                                    <p class="text-xs sm:text-sm text-text-sub-light dark:text-text-sub-dark truncate">${pet.breed || 'Unknown breed'} • ${pet.weight || '?'} lbs</p>
                                                 </div>
                                             </div>
                                             
                                             <!-- Last Groomed Status -->
                                             <div class="mt-2">
                                                 ${hasUpcoming ? `
-                                                    <span class="inline-flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-full">
-                                                        <span class="material-symbols-outlined text-xs">event</span>
+                                                    <span class="inline-flex items-center gap-1 text-[10px] sm:text-xs font-medium text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 sm:py-1 rounded-full">
+                                                        <span class="material-symbols-outlined text-[10px] sm:text-xs">event</span>
                                                         Appointment scheduled
                                                     </span>
                                                 ` : lastGroom ? `
-                                                    <span class="inline-flex items-center gap-1 text-xs font-medium ${needsGroom ? 'text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30' : 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800'} px-2 py-1 rounded-full">
-                                                        <span class="material-symbols-outlined text-xs">${needsGroom ? 'warning' : 'schedule'}</span>
-                                                        ${needsGroom ? `Due for grooming (${lastGroom.weeksSince} weeks)` : `Groomed ${lastGroom.weeksSince} weeks ago`}
+                                                    <span class="inline-flex items-center gap-1 text-[10px] sm:text-xs font-medium ${needsGroom ? 'text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30' : 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800'} px-2 py-0.5 sm:py-1 rounded-full">
+                                                        <span class="material-symbols-outlined text-[10px] sm:text-xs">${needsGroom ? 'warning' : 'schedule'}</span>
+                                                        ${needsGroom ? `Due (${lastGroom.weeksSince}wks)` : `${lastGroom.weeksSince} weeks ago`}
                                                     </span>
                                                 ` : `
-                                                    <span class="inline-flex items-center gap-1 text-xs font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-full">
-                                                        <span class="material-symbols-outlined text-xs">info</span>
-                                                        No groom history
+                                                    <span class="inline-flex items-center gap-1 text-[10px] sm:text-xs font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 sm:py-1 rounded-full">
+                                                        <span class="material-symbols-outlined text-[10px] sm:text-xs">info</span>
+                                                        No history
                                                     </span>
                                                 `}
                                             </div>
                                             
                                             <!-- Quick Book Button for this pet -->
                                             ${!hasUpcoming ? `
-                                                <button onclick="openBookingModalForPet('${pet.id}')" class="mt-3 w-full py-2 bg-primary/10 hover:bg-primary/20 text-primary text-sm font-bold rounded-lg flex items-center justify-center gap-1 transition-colors">
-                                                    <span class="material-symbols-outlined text-sm">calendar_add_on</span>
-                                                    Book ${pet.name}'s Groom
+                                                <button onclick="openBookingModalForPet('${pet.id}')" class="mt-2 sm:mt-3 w-full py-2 bg-primary/10 hover:bg-primary/20 text-primary text-xs sm:text-sm font-bold rounded-lg flex items-center justify-center gap-1 transition-colors min-h-[36px]">
+                                                    <span class="material-symbols-outlined text-xs sm:text-sm">calendar_add_on</span>
+                                                    Book ${pet.name}
                                                 </button>
                                             ` : ''}
                                         </div>
@@ -12621,37 +12623,37 @@
                 </div>
                 
                 <!-- Quick Links Section -->
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <button onclick="setTab('ridealongs')" class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-4 hover:shadow-lg transition-all text-left group">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
-                                <span class="material-symbols-outlined text-purple-600 dark:text-purple-400">directions_car</span>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
+                    <button onclick="setTab('ridealongs')" class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg sm:rounded-xl p-3 sm:p-4 hover:shadow-lg transition-all text-left group">
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                            <div class="w-8 h-8 sm:w-10 sm:h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg sm:rounded-xl flex items-center justify-center">
+                                <span class="material-symbols-outlined text-purple-600 dark:text-purple-400 text-lg sm:text-base">directions_car</span>
                             </div>
                             <div>
-                                <p class="font-bold dark:text-white group-hover:text-primary transition-colors">Ride-Alongs</p>
-                                <p class="text-xs text-text-sub-light dark:text-text-sub-dark">Learn grooming skills</p>
+                                <p class="font-bold text-xs sm:text-base dark:text-white group-hover:text-primary transition-colors">Ride-Alongs</p>
+                                <p class="text-[10px] sm:text-xs text-text-sub-light dark:text-text-sub-dark hidden sm:block">Learn grooming skills</p>
                             </div>
                         </div>
                     </button>
-                    <button onclick="setTab('education')" class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-4 hover:shadow-lg transition-all text-left group">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-cyan-100 dark:bg-cyan-900/30 rounded-xl flex items-center justify-center">
-                                <span class="material-symbols-outlined text-cyan-600 dark:text-cyan-400">school</span>
+                    <button onclick="setTab('education')" class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg sm:rounded-xl p-3 sm:p-4 hover:shadow-lg transition-all text-left group">
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                            <div class="w-8 h-8 sm:w-10 sm:h-10 bg-cyan-100 dark:bg-cyan-900/30 rounded-lg sm:rounded-xl flex items-center justify-center">
+                                <span class="material-symbols-outlined text-cyan-600 dark:text-cyan-400 text-lg sm:text-base">school</span>
                             </div>
                             <div>
-                                <p class="font-bold dark:text-white group-hover:text-primary transition-colors">Academy</p>
-                                <p class="text-xs text-text-sub-light dark:text-text-sub-dark">Online courses</p>
+                                <p class="font-bold text-xs sm:text-base dark:text-white group-hover:text-primary transition-colors">Academy</p>
+                                <p class="text-[10px] sm:text-xs text-text-sub-light dark:text-text-sub-dark hidden sm:block">Online courses</p>
                             </div>
                         </div>
                     </button>
-                    <button onclick="setTab('store')" class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-4 hover:shadow-lg transition-all text-left group">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-rose-100 dark:bg-rose-900/30 rounded-xl flex items-center justify-center">
-                                <span class="material-symbols-outlined text-rose-600 dark:text-rose-400">storefront</span>
+                    <button onclick="setTab('store')" class="col-span-2 sm:col-span-1 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg sm:rounded-xl p-3 sm:p-4 hover:shadow-lg transition-all text-left group">
+                        <div class="flex flex-row items-center gap-3">
+                            <div class="w-8 h-8 sm:w-10 sm:h-10 bg-rose-100 dark:bg-rose-900/30 rounded-lg sm:rounded-xl flex items-center justify-center">
+                                <span class="material-symbols-outlined text-rose-600 dark:text-rose-400 text-lg sm:text-base">storefront</span>
                             </div>
                             <div>
-                                <p class="font-bold dark:text-white group-hover:text-primary transition-colors">Store</p>
-                                <p class="text-xs text-text-sub-light dark:text-text-sub-dark">Recommended products</p>
+                                <p class="font-bold text-xs sm:text-base dark:text-white group-hover:text-primary transition-colors">Store</p>
+                                <p class="text-[10px] sm:text-xs text-text-sub-light dark:text-text-sub-dark">Recommended products</p>
                             </div>
                         </div>
                     </button>
@@ -12662,10 +12664,10 @@
             if (state.currentTab === 'pets') {
                 // Store pets for editing
                 pets.forEach((pet, i) => { state.editItems['pet_' + i] = {...pet}; });
-                return `<div class="flex justify-between items-start mb-8"><div><h1 class="text-3xl font-bold mb-2 dark:text-white">My Pets</h1><p class="text-text-sub-light dark:text-text-sub-dark">Manage your furry family</p></div><button onclick="openEditModal('pet', {})" class="bg-primary text-white font-bold px-4 py-2 rounded-lg flex items-center gap-2"><span class="material-symbols-outlined">add</span>Add Pet</button></div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">${pets.length > 0 ? pets.map((pet, i) => `<div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-6"><div class="flex gap-4"><div class="relative group">
-                    <div class="w-32 h-32 rounded-2xl bg-cover bg-center border-2 border-primary/20 shadow-lg" style="background-image: url('${pet.photo_url || 'https://via.placeholder.com/150'}')"></div>
-                </div><div class="flex-1"><div class="flex justify-between"><div><h3 class="text-xl font-bold dark:text-white">${pet.name}</h3><p class="text-text-sub-light dark:text-text-sub-dark">${pet.breed || 'Unknown breed'}</p></div><button onclick="openEditModal('pet', ${i})" class="p-2 hover:bg-background-light dark:hover:bg-background-dark rounded-lg text-text-sub-light hover:text-primary"><span class="material-symbols-outlined">edit</span></button></div><span class="inline-block mt-2 px-3 py-1 bg-background-light dark:bg-background-dark rounded-full text-sm dark:text-white">${pet.weight || '?'} lbs</span></div></div>${pet.grooming_notes ? `<div class="mt-4 p-3 bg-background-light dark:bg-background-dark rounded-lg text-sm text-text-sub-light dark:text-text-sub-dark"><strong>Notes:</strong> ${pet.grooming_notes}</div>` : ''}</div>`).join('') : '<div class="col-span-2 text-center py-12 bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark"><span class="material-symbols-outlined text-6xl text-text-sub-light mb-4">pets</span><p class="text-text-sub-light dark:text-text-sub-dark">No pets added yet</p><button onclick="openEditModal(\'pet\', {})" class="mt-4 bg-primary text-white font-bold px-4 py-2 rounded-lg">Add Your First Pet</button></div>'}</div>`;
+                return `<div class="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6 sm:mb-8"><div><h1 class="text-2xl sm:text-3xl font-bold mb-2 dark:text-white">My Pets</h1><p class="text-text-sub-light dark:text-text-sub-dark text-sm sm:text-base">Manage your furry family</p></div><button onclick="openEditModal('pet', {})" class="bg-primary text-white font-bold px-4 py-2 rounded-lg flex items-center gap-2 text-sm sm:text-base"><span class="material-symbols-outlined">add</span>Add Pet</button></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">${pets.length > 0 ? pets.map((pet, i) => `<div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-4 sm:p-6"><div class="flex gap-3 sm:gap-4"><div class="relative group">
+                    <div class="w-20 h-20 sm:w-32 sm:h-32 rounded-xl sm:rounded-2xl bg-cover bg-center border-2 border-primary/20 shadow-lg flex-shrink-0" style="background-image: url('${pet.photo_url || 'https://via.placeholder.com/150'}')"></div>
+                </div><div class="flex-1 min-w-0"><div class="flex justify-between"><div class="min-w-0"><h3 class="text-lg sm:text-xl font-bold dark:text-white truncate">${pet.name}</h3><p class="text-text-sub-light dark:text-text-sub-dark text-sm truncate">${pet.breed || 'Unknown breed'}</p></div><button onclick="openEditModal('pet', ${i})" class="p-2 hover:bg-background-light dark:hover:bg-background-dark rounded-lg text-text-sub-light hover:text-primary flex-shrink-0"><span class="material-symbols-outlined">edit</span></button></div><span class="inline-block mt-2 px-3 py-1 bg-background-light dark:bg-background-dark rounded-full text-xs sm:text-sm dark:text-white">${pet.weight || '?'} lbs</span></div></div>${pet.grooming_notes ? `<div class="mt-3 sm:mt-4 p-3 bg-background-light dark:bg-background-dark rounded-lg text-xs sm:text-sm text-text-sub-light dark:text-text-sub-dark"><strong>Notes:</strong> ${pet.grooming_notes}</div>` : ''}</div>`).join('') : '<div class="col-span-2 text-center py-8 sm:py-12 bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark"><span class="material-symbols-outlined text-5xl sm:text-6xl text-text-sub-light mb-4">pets</span><p class="text-text-sub-light dark:text-text-sub-dark">No pets added yet</p><button onclick="openEditModal(\'pet\', {})" class="mt-4 bg-primary text-white font-bold px-4 py-2 rounded-lg">Add Your First Pet</button></div>'}</div>`;
             }
 
             if (state.currentTab === 'appointments') {
@@ -12906,18 +12908,18 @@
             const firstService = services.length > 0 ? services.filter(s => !s.is_addon)[0] : null;
             const initialDescription = firstService?.description || 'Complete grooming service tailored to your pet\'s needs.';
             
-            return `<div class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onclick="closeBookingModal()">
-                <div class="bg-surface-light dark:bg-surface-dark rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
-                    <div class="p-6 border-b border-border-light dark:border-border-dark flex justify-between items-center">
+            return `<div class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-2 sm:p-4" onclick="closeBookingModal()">
+                <div class="bg-surface-light dark:bg-surface-dark rounded-xl sm:rounded-2xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+                    <div class="p-4 sm:p-6 border-b border-border-light dark:border-border-dark flex justify-between items-center sticky top-0 bg-surface-light dark:bg-surface-dark z-10">
                         <div>
-                            <h2 class="text-2xl font-bold dark:text-white">Book Appointment</h2>
-                            <p class="text-sm text-text-sub-light dark:text-text-sub-dark">Schedule your pet's next grooming session</p>
+                            <h2 class="text-xl sm:text-2xl font-bold dark:text-white">Book Appointment</h2>
+                            <p class="text-xs sm:text-sm text-text-sub-light dark:text-text-sub-dark">Schedule your pet's next grooming</p>
                         </div>
                         <button onclick="closeBookingModal()" class="p-2 hover:bg-background-light dark:hover:bg-background-dark rounded-lg">
                             <span class="material-symbols-outlined dark:text-white">close</span>
                         </button>
                     </div>
-                    <form id="booking-form" class="p-6 space-y-5">
+                    <form id="booking-form" class="p-4 sm:p-6 space-y-4 sm:space-y-5">
                         ${!hasRealServices ? '<div class="p-3 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg text-amber-800 dark:text-amber-200 text-sm mb-2"><span class="font-semibold">Note:</span> Services not loaded from database. Please contact admin to set up services.</div>' : ''}
                         
                         <!-- Pet & Service Selection -->
@@ -13462,7 +13464,7 @@
                     </div>
                     
                     <div class="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-amber-50/50 to-transparent pointer-events-none z-0 lg:top-[65px]"></div>
-                    <div class="flex-1 overflow-y-auto p-4 lg:p-8 pt-20 lg:pt-6 pb-8 z-10 relative safe-bottom scroll-smooth">
+                    <div class="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-8 pt-20 lg:pt-6 pb-8 z-10 relative safe-bottom scroll-smooth">
                         <div class="max-w-[1600px] mx-auto space-y-8">${renderAdminContent()}</div>
                     </div>
                 </main>
@@ -13492,47 +13494,47 @@
             if (state.currentTab === 'dashboard') {
                 return `
                 <!-- Header -->
-                <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
+                <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6 pb-2">
                     <div>
-                        <p class="text-admin-primary text-sm font-bold uppercase tracking-widest mb-2">Premium Management</p>
-                        <h1 class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">Welcome back, ${state.currentUser.name.split(' ')[0]}</h1>
-                        <p class="text-slate-500 text-base font-medium mt-2 flex items-center gap-2"><span class="material-symbols-outlined text-lg text-admin-primary">calendar_today</span>Your schedule is looking great today</p>
+                        <p class="text-admin-primary text-xs sm:text-sm font-bold uppercase tracking-widest mb-1 sm:mb-2">Premium Management</p>
+                        <h1 class="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">Welcome back, ${state.currentUser.name.split(' ')[0]}</h1>
+                        <p class="text-slate-500 text-sm sm:text-base font-medium mt-1 sm:mt-2 flex items-center gap-2"><span class="material-symbols-outlined text-base sm:text-lg text-admin-primary">calendar_today</span>Your schedule is looking great today</p>
                     </div>
-                    <div class="flex gap-3">
-                        <button onclick="exportDashboardData()" class="flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-amber-200 rounded-xl text-slate-700 font-bold hover:bg-amber-50 hover:border-amber-300 transition-all text-sm shadow-sm"><span class="material-symbols-outlined text-lg">download</span>Export</button>
-                        <button onclick="openAdminAddAppointment()" class="flex items-center justify-center gap-2 px-5 py-2.5 bg-admin-accent hover:bg-teal-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-admin-accent/25 text-sm"><span class="material-symbols-outlined text-lg">add</span>New Booking</button>
+                    <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+                        <button onclick="exportDashboardData()" class="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 bg-white border border-amber-200 rounded-xl text-slate-700 font-bold hover:bg-amber-50 hover:border-amber-300 transition-all text-sm shadow-sm w-full sm:w-auto"><span class="material-symbols-outlined text-lg">download</span>Export</button>
+                        <button onclick="openAdminAddAppointment()" class="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 bg-admin-accent hover:bg-teal-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-admin-accent/25 text-sm w-full sm:w-auto"><span class="material-symbols-outlined text-lg">add</span>New Booking</button>
                     </div>
                 </div>
 
                 <!-- Stats Cards -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div class="group p-6 rounded-2xl bg-white border border-amber-100 shadow-sm hover:shadow-lg hover:border-admin-primary/30 transition-all">
-                        <div class="flex items-center justify-between mb-4">
-                            <div><p class="text-admin-primary text-xs font-bold uppercase tracking-wider">Today's Revenue</p><h3 class="text-3xl font-bold text-slate-900 mt-1">$${totalRevenue.toLocaleString()}</h3></div>
-                            <div class="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center text-admin-primary group-hover:scale-110 transition-transform"><span class="material-symbols-outlined text-2xl">payments</span></div>
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+                    <div class="group p-4 sm:p-6 rounded-xl sm:rounded-2xl bg-white border border-amber-100 shadow-sm hover:shadow-lg hover:border-admin-primary/30 transition-all">
+                        <div class="flex items-center justify-between mb-3 sm:mb-4">
+                            <div><p class="text-admin-primary text-[10px] sm:text-xs font-bold uppercase tracking-wider">Today's Revenue</p><h3 class="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 mt-1">$${totalRevenue.toLocaleString()}</h3></div>
+                            <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-amber-50 flex items-center justify-center text-admin-primary group-hover:scale-110 transition-transform"><span class="material-symbols-outlined text-xl sm:text-2xl">payments</span></div>
                         </div>
-                        <div class="flex items-center gap-2 text-sm"><span class="flex items-center gap-1 font-bold text-green-600 bg-green-100 px-2.5 py-1 rounded-lg"><span class="material-symbols-outlined text-sm">trending_up</span>12%</span><span class="text-slate-400">vs yesterday</span></div>
+                        <div class="flex items-center gap-2 text-xs sm:text-sm"><span class="flex items-center gap-1 font-bold text-green-600 bg-green-100 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg"><span class="material-symbols-outlined text-xs sm:text-sm">trending_up</span>12%</span><span class="text-slate-400 hidden sm:inline">vs yesterday</span></div>
                     </div>
-                    <div class="group p-6 rounded-2xl bg-white border border-amber-100 shadow-sm hover:shadow-lg hover:border-admin-primary/30 transition-all">
-                        <div class="flex items-center justify-between mb-4">
-                            <div><p class="text-admin-primary text-xs font-bold uppercase tracking-wider">Active Bookings</p><h3 class="text-3xl font-bold text-slate-900 mt-1">${todayAppts.length}</h3></div>
-                            <div class="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center text-admin-accent group-hover:scale-110 transition-transform"><span class="material-symbols-outlined text-2xl">calendar_today</span></div>
+                    <div class="group p-4 sm:p-6 rounded-xl sm:rounded-2xl bg-white border border-amber-100 shadow-sm hover:shadow-lg hover:border-admin-primary/30 transition-all">
+                        <div class="flex items-center justify-between mb-3 sm:mb-4">
+                            <div><p class="text-admin-primary text-[10px] sm:text-xs font-bold uppercase tracking-wider">Active Bookings</p><h3 class="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 mt-1">${todayAppts.length}</h3></div>
+                            <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-teal-50 flex items-center justify-center text-admin-accent group-hover:scale-110 transition-transform"><span class="material-symbols-outlined text-xl sm:text-2xl">calendar_today</span></div>
                         </div>
-                        <div class="flex items-center gap-2 text-sm"><span class="flex items-center gap-1 font-bold text-admin-accent bg-teal-100 px-2.5 py-1 rounded-lg"><span class="material-symbols-outlined text-sm">arrow_upward</span>+${confirmedCount}</span><span class="text-slate-400">confirmed</span></div>
+                        <div class="flex items-center gap-2 text-xs sm:text-sm"><span class="flex items-center gap-1 font-bold text-admin-accent bg-teal-100 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg"><span class="material-symbols-outlined text-xs sm:text-sm">arrow_upward</span>+${confirmedCount}</span><span class="text-slate-400 hidden sm:inline">confirmed</span></div>
                     </div>
-                    <div class="group p-6 rounded-2xl bg-white border border-amber-100 shadow-sm hover:shadow-lg hover:border-admin-primary/30 transition-all">
-                        <div class="flex items-center justify-between mb-4">
-                            <div><p class="text-admin-primary text-xs font-bold uppercase tracking-wider">In Grooming</p><h3 class="text-3xl font-bold text-slate-900 mt-1">${data.appointments.filter(a => a.status === 'in_progress').length}</h3></div>
-                            <div class="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform"><span class="material-symbols-outlined text-2xl">content_cut</span></div>
+                    <div class="group p-4 sm:p-6 rounded-xl sm:rounded-2xl bg-white border border-amber-100 shadow-sm hover:shadow-lg hover:border-admin-primary/30 transition-all">
+                        <div class="flex items-center justify-between mb-3 sm:mb-4">
+                            <div><p class="text-admin-primary text-[10px] sm:text-xs font-bold uppercase tracking-wider">In Grooming</p><h3 class="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 mt-1">${data.appointments.filter(a => a.status === 'in_progress').length}</h3></div>
+                            <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform"><span class="material-symbols-outlined text-xl sm:text-2xl">content_cut</span></div>
                         </div>
-                        <div class="flex items-center gap-2 text-sm"><span class="text-slate-400">Current capacity</span></div>
+                        <div class="flex items-center gap-2 text-xs sm:text-sm"><span class="text-slate-400">Current capacity</span></div>
                     </div>
-                    <div class="group p-6 rounded-2xl bg-admin-accent text-white shadow-lg hover:shadow-xl transition-all">
-                        <div class="flex items-center justify-between mb-4">
-                            <div><p class="text-teal-100 text-xs font-bold uppercase tracking-wider">Loyalty Points</p><h3 class="text-3xl font-bold mt-1">${(state.allCustomers.reduce((sum, c) => sum + (c.loyalty_points || 0), 0) / 1000).toFixed(1)}k</h3></div>
-                            <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform"><span class="material-symbols-outlined text-2xl">favorite</span></div>
+                    <div class="group p-4 sm:p-6 rounded-xl sm:rounded-2xl bg-admin-accent text-white shadow-lg hover:shadow-xl transition-all">
+                        <div class="flex items-center justify-between mb-3 sm:mb-4">
+                            <div><p class="text-teal-100 text-[10px] sm:text-xs font-bold uppercase tracking-wider">Loyalty Points</p><h3 class="text-xl sm:text-2xl lg:text-3xl font-bold mt-1">${(state.allCustomers.reduce((sum, c) => sum + (c.loyalty_points || 0), 0) / 1000).toFixed(1)}k</h3></div>
+                            <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform"><span class="material-symbols-outlined text-xl sm:text-2xl">favorite</span></div>
                         </div>
-                        <div class="flex items-center gap-2 text-sm"><span class="text-teal-100">Total Issued</span></div>
+                        <div class="flex items-center gap-2 text-xs sm:text-sm"><span class="text-teal-100">Total Issued</span></div>
                     </div>
                 </div>
 
@@ -13540,15 +13542,15 @@
                 <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
                     <!-- Schedule Table -->
                     <div class="xl:col-span-2 flex flex-col gap-6">
-                        <div class="flex items-center justify-between px-1">
-                            <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2"><span class="w-1.5 h-6 bg-admin-primary rounded-full"></span>Appointment Schedule</h2>
-                            <div class="flex items-center gap-3">
-                                <div class="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
-                                    <button onclick="setDashboardView('day')" class="px-3 py-1.5 rounded-md text-sm font-bold ${(state.dashboardScheduleView || 'day') === 'day' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}">Day</button>
-                                    <button onclick="setDashboardView('week')" class="px-3 py-1.5 rounded-md text-sm font-bold ${state.dashboardScheduleView === 'week' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}">Week</button>
-                                    <button onclick="setDashboardView('month')" class="px-3 py-1.5 rounded-md text-sm font-bold ${state.dashboardScheduleView === 'month' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}">Month</button>
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0 px-1">
+                            <h2 class="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2"><span class="w-1.5 h-6 bg-admin-primary rounded-full"></span>Appointment Schedule</h2>
+                            <div class="flex items-center gap-2 sm:gap-3">
+                                <div class="flex items-center gap-0.5 sm:gap-1 p-0.5 sm:p-1 bg-slate-100 rounded-lg">
+                                    <button onclick="setDashboardView('day')" class="px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-[11px] sm:text-sm font-bold ${(state.dashboardScheduleView || 'day') === 'day' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}">Day</button>
+                                    <button onclick="setDashboardView('week')" class="px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-[11px] sm:text-sm font-bold ${state.dashboardScheduleView === 'week' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}">Week</button>
+                                    <button onclick="setDashboardView('month')" class="px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-[11px] sm:text-sm font-bold ${state.dashboardScheduleView === 'month' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}">Month</button>
                                 </div>
-                                <button onclick="setTab('appointments')" class="text-sm font-bold text-admin-primary hover:text-amber-600 flex items-center gap-1">View All <span class="material-symbols-outlined text-base">arrow_forward</span></button>
+                                <button onclick="setTab('appointments')" class="text-xs sm:text-sm font-bold text-admin-primary hover:text-amber-600 flex items-center gap-1 whitespace-nowrap">View All <span class="material-symbols-outlined text-sm sm:text-base">arrow_forward</span></button>
                             </div>
                         </div>
                         
@@ -13597,10 +13599,10 @@
                             </div>
                             <div class="grid grid-cols-7 border-b border-slate-100">
                                 ${getAdminDashboardWeekDays().map(day => `
-                                    <div class="p-3 text-center border-r border-slate-100 last:border-r-0 ${day.isToday ? 'bg-admin-primary/5' : ''}">
-                                        <p class="text-xs font-bold text-slate-400 uppercase">${day.dayName}</p>
-                                        <p class="text-lg font-bold ${day.isToday ? 'text-admin-primary' : 'text-slate-700'}">${day.dayNum}</p>
-                                        <p class="text-xs ${day.count > 0 ? 'text-admin-accent font-bold' : 'text-slate-400'}">${day.count} appt${day.count !== 1 ? 's' : ''}</p>
+                                    <div class="p-1.5 sm:p-3 text-center border-r border-slate-100 last:border-r-0 ${day.isToday ? 'bg-admin-primary/5' : ''}">
+                                        <p class="text-[8px] sm:text-xs font-bold text-slate-400 uppercase">${day.dayName}</p>
+                                        <p class="text-sm sm:text-lg font-bold ${day.isToday ? 'text-admin-primary' : 'text-slate-700'}">${day.dayNum}</p>
+                                        <p class="text-[9px] sm:text-xs ${day.count > 0 ? 'text-admin-accent font-bold' : 'text-slate-400'}">${day.count}<span class="hidden sm:inline"> appt${day.count !== 1 ? 's' : ''}</span></p>
                                     </div>
                                 `).join('')}
                             </div>
@@ -13636,18 +13638,18 @@
                                 </div>
                                 <button onclick="resetDashboardMonth()" class="text-xs font-bold text-admin-primary hover:underline">This Month</button>
                             </div>
-                            <div class="p-4">
-                                <div class="grid grid-cols-7 gap-1 mb-2">
-                                    ${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => `<div class="text-center text-xs font-bold text-slate-400 py-2">${d}</div>`).join('')}
+                            <div class="p-2 sm:p-4">
+                                <div class="grid grid-cols-7 gap-0.5 sm:gap-1 mb-2">
+                                    ${['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => `<div class="text-center text-[9px] sm:text-xs font-bold text-slate-400 py-1 sm:py-2"><span class="sm:hidden">${d}</span><span class="hidden sm:inline">${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][i]}</span></div>`).join('')}
                                 </div>
-                                <div class="grid grid-cols-7 gap-1">
+                                <div class="grid grid-cols-7 gap-0.5 sm:gap-1">
                                     ${getAdminDashboardMonthDays().map(day => {
-                                        if (day.empty) return `<div class="aspect-square min-h-[40px]"></div>`;
+                                        if (day.empty) return `<div class="aspect-square min-h-[32px] sm:min-h-[40px]"></div>`;
                                         return `
                                         <button onclick="${day.count > 0 ? `selectDashboardDate('${day.dateStr}')` : ''}" 
-                                            class="aspect-square min-h-[40px] flex flex-col items-center justify-center rounded-lg text-sm active:scale-95 ${day.isToday ? 'bg-admin-primary text-white font-bold' : day.count > 0 ? 'bg-admin-accent/10 text-admin-accent font-medium cursor-pointer hover:bg-admin-accent/20' : 'text-slate-600 hover:bg-slate-50'} transition-all">
+                                            class="aspect-square min-h-[32px] sm:min-h-[40px] flex flex-col items-center justify-center rounded-md sm:rounded-lg text-xs sm:text-sm active:scale-95 ${day.isToday ? 'bg-admin-primary text-white font-bold' : day.count > 0 ? 'bg-admin-accent/10 text-admin-accent font-medium cursor-pointer hover:bg-admin-accent/20' : 'text-slate-600 hover:bg-slate-50'} transition-all">
                                             <span>${day.day}</span>
-                                            ${day.count > 0 ? `<span class="text-[10px] ${day.isToday ? 'text-white/80' : 'text-admin-accent'}">${day.count}</span>` : ''}
+                                            ${day.count > 0 ? `<span class="text-[8px] sm:text-[10px] ${day.isToday ? 'text-white/80' : 'text-admin-accent'}">${day.count}</span>` : ''}
                                         </button>`;
                                     }).join('')}
                                 </div>
