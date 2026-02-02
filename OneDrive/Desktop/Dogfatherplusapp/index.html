@@ -6157,12 +6157,12 @@
             const canTakeAction = !isPastAppointment && apt.status !== 'completed' && apt.status !== 'cancelled';
             
             return `
-            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onclick="closeAppointmentDetail()">
+            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onmousedown="if(event.target === this) closeAppointmentDetail()">
                 <div class="bg-white dark:bg-surface-dark rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
                     
                     <!-- Header -->
                     <div class="relative p-6 pb-4">
-                        <button onclick="closeAppointmentDetail()" class="absolute top-4 right-4 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                        <button onmousedown="if(event.target === this) closeAppointmentDetail()" class="absolute top-4 right-4 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
                             <span class="material-symbols-outlined text-slate-500">close</span>
                         </button>
                         
@@ -8005,7 +8005,7 @@
             if (!state.showAddGroomerModal) return '';
             
             return `
-            <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onclick="closeAddGroomerModal()">
+            <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onmousedown="if(event.target === this) closeAddGroomerModal()">
                 <div class="bg-white dark:bg-surface-dark rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
                     <div class="p-6 border-b border-slate-200 dark:border-border-dark flex justify-between items-center sticky top-0 bg-white dark:bg-surface-dark z-10">
                         <div class="flex items-center gap-3">
@@ -8017,7 +8017,7 @@
                                 <p class="text-xs text-slate-500 dark:text-slate-400">Create login credentials for your groomer</p>
                             </div>
                         </div>
-                        <button onclick="closeAddGroomerModal()" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                        <button onmousedown="if(event.target === this) closeAddGroomerModal()" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
                             <span class="material-symbols-outlined text-slate-400">close</span>
                         </button>
                     </div>
@@ -8483,8 +8483,8 @@
             const pet = state.adminSelectedPet;
             
             return `
-            <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onclick="closeAdminAddAppointment()">
-                <div class="bg-white dark:bg-surface-dark rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
+            <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onmousedown="if(event.target === this) closeAdminAddAppointment()">
+                <div class="bg-white dark:bg-surface-dark rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl" onmousedown="event.stopPropagation()">
                     <!-- Header -->
                     <div class="p-6 border-b border-slate-200 dark:border-border-dark flex justify-between items-center sticky top-0 bg-white dark:bg-surface-dark z-10">
                         <div class="flex items-center gap-3">
@@ -8880,7 +8880,7 @@
             const currentSpecialties = g.specialties || [];
             
             return `
-            <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onclick="closeEditGroomerModal()">
+            <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onmousedown="if(event.target === this) closeEditGroomerModal()">
                 <div class="bg-white dark:bg-surface-dark rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
                     <div class="p-6 border-b border-slate-200 dark:border-border-dark flex justify-between items-center sticky top-0 bg-white dark:bg-surface-dark z-10">
                         <div class="flex items-center gap-3">
@@ -8892,7 +8892,7 @@
                                 <p class="text-xs text-slate-500 dark:text-slate-400">${g.full_name}</p>
                             </div>
                         </div>
-                        <button onclick="closeEditGroomerModal()" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                        <button onmousedown="if(event.target === this) closeEditGroomerModal()" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
                             <span class="material-symbols-outlined text-slate-400">close</span>
                         </button>
                     </div>
@@ -11666,12 +11666,13 @@
         function goToMiniCalendarToday() {
             state.miniCalendarDate = getTodayPacific();
             state.selectedMiniCalendarDate = getTodayPacific();
+            state.selectedCalendarDate = null; // Reset to show today
             render();
         }
         
         function selectMiniCalendarDate(dateStr) {
             state.selectedMiniCalendarDate = dateStr;
-            // Could filter appointments by this date if needed
+            state.selectedCalendarDate = dateStr;
             render();
         }
         
@@ -11948,7 +11949,7 @@
             };
             
             return `
-            <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onclick="closeQuickViewAppointment()">
+            <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onmousedown="if(event.target === this) closeQuickViewAppointment()">
                 <div class="bg-white dark:bg-surface-dark rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" onclick="event.stopPropagation()">
                     <!-- Header -->
                     <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-gradient-to-r from-admin-primary/5 to-transparent">
@@ -13478,11 +13479,13 @@
         }
 
         function renderAdminContent() {
-            const todayAppts = data.appointments;
-            const confirmedCount = data.appointments.filter(a => a.status === 'confirmed').length;
-            const pendingCount = data.appointments.filter(a => a.status === 'pending').length;
-            // Calculate actual revenue from appointment prices
-            const totalRevenue = data.appointments
+            const today = getTodayPacific();
+            const todayAppts = data.appointments.filter(a => a.appointment_date === today);
+            const confirmedCount = todayAppts.filter(a => a.status === 'confirmed').length;
+            const pendingCount = todayAppts.filter(a => a.status === 'pending').length;
+            const inProgressCount = todayAppts.filter(a => a.status === 'in_progress').length;
+            // Calculate actual revenue from TODAY's completed/confirmed appointments
+            const totalRevenue = todayAppts
                 .filter(a => a.status === 'confirmed' || a.status === 'completed')
                 .reduce((sum, a) => sum + (parseFloat(a.total_price) || parseFloat(a.base_price) || 0), 0);
 
@@ -13710,8 +13713,8 @@
                             <span class="material-symbols-outlined text-primary p-2 bg-primary/10 rounded-full">calendar_today</span>
                         </div>
                         <div class="flex items-end gap-3 mt-1">
-                            <p class="text-slate-900 text-3xl font-bold">${confirmedCount + pendingCount}</p>
-                            <p class="text-green-600 bg-green-100 text-xs font-bold px-1.5 py-0.5 rounded flex items-center mb-1"><span class="material-symbols-outlined text-xs mr-0.5">arrow_upward</span>+1</p>
+                            <p class="text-slate-900 text-3xl font-bold">${todayAppts.length}</p>
+                            <p class="text-slate-500 text-xs font-medium mb-1">${confirmedCount} confirmed, ${pendingCount} pending</p>
                         </div>
                     </div>
                     <div class="flex flex-col gap-2 rounded-xl p-5 border border-slate-200 bg-white shadow-sm">
@@ -13720,18 +13723,18 @@
                             <span class="material-symbols-outlined text-orange-500 p-2 bg-orange-100 rounded-full">pending_actions</span>
                         </div>
                         <div class="flex items-end gap-3 mt-1">
-                            <p class="text-slate-900 text-3xl font-bold">${pendingCount}</p>
-                            <p class="text-slate-500 text-xs font-medium mb-1">Needs attention</p>
+                            <p class="text-slate-900 text-3xl font-bold">${data.appointments.filter(a => a.status === 'pending').length}</p>
+                            <p class="text-slate-500 text-xs font-medium mb-1">All pending (any date)</p>
                         </div>
                     </div>
                     <div class="flex flex-col gap-2 rounded-xl p-5 border border-slate-200 bg-white shadow-sm">
                         <div class="flex items-center justify-between">
-                            <p class="text-slate-500 text-sm font-medium uppercase tracking-wide">Total Revenue Today</p>
+                            <p class="text-slate-500 text-sm font-medium uppercase tracking-wide">Today's Revenue</p>
                             <span class="material-symbols-outlined text-green-600 p-2 bg-green-100 rounded-full">payments</span>
                         </div>
                         <div class="flex items-end gap-3 mt-1">
-                            <p class="text-slate-900 text-3xl font-bold">$${totalRevenue}</p>
-                            <p class="text-green-600 bg-green-100 text-xs font-bold px-1.5 py-0.5 rounded flex items-center mb-1"><span class="material-symbols-outlined text-xs mr-0.5">trending_up</span>+$120</p>
+                            <p class="text-slate-900 text-3xl font-bold">$${totalRevenue.toLocaleString()}</p>
+                            <p class="text-slate-500 text-xs font-medium mb-1">From ${todayAppts.filter(a => a.status === 'completed').length} completed</p>
                         </div>
                     </div>
                 </section>
@@ -14006,17 +14009,30 @@
 
                         <!-- Upcoming Today -->
                         <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                            <h3 class="text-slate-900 font-bold mb-4 flex items-center gap-2"><span class="material-symbols-outlined text-primary">schedule</span>Upcoming Today</h3>
+                            <h3 class="text-slate-900 font-bold mb-4 flex items-center gap-2"><span class="material-symbols-outlined text-primary">schedule</span>${state.selectedCalendarDate && state.selectedCalendarDate !== getTodayPacific() ? 'Selected Date' : 'Upcoming Today'}</h3>
                             <div class="flex flex-col gap-3">
-                                ${data.appointments.filter(a => a.status === 'confirmed' || a.status === 'pending').slice(0, 3).map(a => `
-                                <div onclick="viewAppointmentDetails('${a.id}')" class="flex items-center gap-3 p-3 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors">
-                                    <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">${(a.petName || 'P').charAt(0)}</div>
+                                ${(() => {
+                                    const targetDate = state.selectedCalendarDate || getTodayPacific();
+                                    const dateAppts = data.appointments.filter(a => 
+                                        a.appointment_date === targetDate && 
+                                        (a.status === 'confirmed' || a.status === 'pending' || a.status === 'in_progress')
+                                    ).sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
+                                    
+                                    if (dateAppts.length === 0) {
+                                        return `<div class="text-center py-4 text-slate-400 text-sm">No appointments for ${targetDate === getTodayPacific() ? 'today' : formatDate(targetDate)}</div>`;
+                                    }
+                                    
+                                    return dateAppts.slice(0, 5).map(a => `
+                                <div onclick="openQuickViewAppointment('${a.id}')" class="flex items-center gap-3 p-3 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors">
+                                    <div class="w-10 h-10 rounded-full ${a.status === 'in_progress' ? 'bg-purple-100 text-purple-600' : 'bg-primary/10 text-primary'} flex items-center justify-center font-bold text-sm">${(a.petName || 'P').charAt(0)}</div>
                                     <div class="flex-1 min-w-0">
                                         <p class="text-sm font-bold text-slate-900 truncate">${a.petName || 'Pet'}</p>
                                         <p class="text-xs text-slate-500">${formatTime(a.start_time)} • ${a.serviceName || 'Grooming'}</p>
                                     </div>
+                                    ${a.status === 'in_progress' ? '<span class="px-2 py-0.5 bg-purple-100 text-purple-600 text-xs font-bold rounded-full">In Progress</span>' : ''}
                                     <span class="material-symbols-outlined text-slate-400">chevron_right</span>
-                                </div>`).join('') || '<div class="text-center py-4 text-slate-400 text-sm">No appointments today</div>'}
+                                </div>`).join('');
+                                })()}
                             </div>
                         </div>
                     </div>
