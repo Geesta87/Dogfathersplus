@@ -4382,16 +4382,19 @@
                 </div>
                 
                 <!-- Mobile Tab Switcher for Columns -->
-                <div class="flex gap-2 overflow-x-auto pb-2 mt-4 lg:hidden scrollbar-hide">
-                    <button onclick="state.mobileTab = 'inprogress'; render();" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all touch-target ${state.mobileTab === 'inprogress' || !state.mobileTab ? 'bg-tech-purple text-white' : 'bg-white/50 text-slate-600 border border-slate-200'}">
-                        🔵 In Progress (${allInProgress.length})
-                    </button>
-                    <button onclick="state.mobileTab = 'upcoming'; render();" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all touch-target ${state.mobileTab === 'upcoming' ? 'bg-amber-500 text-white' : 'bg-white/50 text-slate-600 border border-slate-200'}">
-                        🟡 Upcoming (${pendingToday.length})
-                    </button>
-                    <button onclick="state.mobileTab = 'completed'; render();" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all touch-target ${state.mobileTab === 'completed' ? 'bg-groomer-primary text-white' : 'bg-white/50 text-slate-600 border border-slate-200'}">
-                        ✅ Completed (${todayCompletedCount})
-                    </button>
+                <div class="glass-card rounded-2xl p-3 mt-4 lg:hidden">
+                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-2 px-1">Today's Queue</p>
+                    <div class="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                        <button onclick="state.mobileTab = 'inprogress'; render();" class="px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all touch-target ${state.mobileTab === 'inprogress' || !state.mobileTab ? 'bg-tech-purple text-white shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}">
+                            🔵 In Progress (${allInProgress.length})
+                        </button>
+                        <button onclick="state.mobileTab = 'upcoming'; render();" class="px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all touch-target ${state.mobileTab === 'upcoming' ? 'bg-amber-500 text-white shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}">
+                            🟡 Upcoming (${pendingToday.length})
+                        </button>
+                        <button onclick="state.mobileTab = 'completed'; render();" class="px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all touch-target ${state.mobileTab === 'completed' ? 'bg-groomer-primary text-white shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}">
+                            ✅ Completed (${todayCompletedCount})
+                        </button>
+                    </div>
                 </div>
                 
                 <!-- Mobile: Single Column View -->
@@ -5743,84 +5746,82 @@
             const appointmentCounts = getAppointmentCountsByDate();
             const weekLabel = getWeekRangeLabel(state.calendarStartDate);
             
-            // Get appointments for selected day
-            const selectedDayAppts = state.selectedCalendarDate 
-                ? getAppointmentsForDate(state.selectedCalendarDate)
-                : [];
-            
             return `
-            <div class="flex h-[calc(100vh-280px)] gap-6">
-                <!-- Calendar Section -->
-                <div class="flex-1 flex flex-col">
-                    <!-- Calendar Header -->
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-lg font-bold text-slate-900 dark:text-white">${weekLabel}</h3>
-                        <div class="flex items-center gap-2">
-                            <button onclick="goToPreviousWeek()" class="p-2 rounded-xl bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                                <span class="material-symbols-outlined text-sm">chevron_left</span>
-                            </button>
-                            <button onclick="goToCalendarToday()" class="px-3 py-2 rounded-xl bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                                Today
-                            </button>
-                            <button onclick="goToNextWeek()" class="p-2 rounded-xl bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                                <span class="material-symbols-outlined text-sm">chevron_right</span>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Calendar Grid -->
-                    <div class="bg-white dark:bg-surface-dark rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex-1 flex flex-col">
-                        <!-- Day Headers -->
-                        <div class="grid grid-cols-7 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                            ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => `
-                                <div class="py-3 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">${day}</div>
-                            `).join('')}
-                        </div>
-                        
-                        <!-- Calendar Days -->
-                        <div class="grid grid-cols-7 flex-1">
-                            ${weekDates.map(dateStr => {
-                                const dateObj = new Date(dateStr + 'T12:00:00');
-                                const dayNum = dateObj.getDate();
-                                const count = appointmentCounts[dateStr] || 0;
-                                const isSelected = state.selectedCalendarDate === dateStr;
-                                const isTodayDate = dateStr === today;
-                                const isPast = dateStr < today;
-                                
-                                const dayAppts = getAppointmentsForDate(dateStr);
-                                const hasInProgress = dayAppts.some(a => a.status === 'in_progress');
-                                const hasConfirmed = dayAppts.some(a => a.status === 'confirmed' || a.status === 'pending');
-                                
-                                return `
-                                <button onclick="selectCalendarDate('${dateStr}')" 
-                                    class="p-4 border-r border-b border-slate-100 dark:border-slate-700 last:border-r-0 flex flex-col items-center justify-start gap-2 transition-all hover:bg-slate-50 dark:hover:bg-slate-800 ${isSelected ? 'bg-emerald-50 dark:bg-emerald-900/20 ring-2 ring-emerald-500 ring-inset' : ''} ${isTodayDate ? 'bg-emerald-50/50 dark:bg-emerald-900/10' : ''} ${isPast && !isTodayDate ? 'opacity-50' : ''}">
-                                    <span class="text-2xl font-bold ${isTodayDate ? 'text-emerald-600 dark:text-emerald-400' : isSelected ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-700 dark:text-slate-300'}">${dayNum}</span>
-                                    ${count > 0 ? `
-                                        <div class="flex flex-col items-center gap-1">
-                                            <div class="flex items-center gap-1">
-                                                ${hasInProgress ? `<span class="w-2.5 h-2.5 rounded-full bg-purple-500 animate-pulse"></span>` : ''}
-                                                ${hasConfirmed ? `<span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>` : ''}
-                                            </div>
-                                            <span class="text-xs font-semibold ${isTodayDate || isSelected ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}">${count} appt${count !== 1 ? 's' : ''}</span>
-                                        </div>
-                                    ` : `<span class="text-xs text-slate-400 dark:text-slate-500">-</span>`}
-                                </button>
-                                `;
-                            }).join('')}
-                        </div>
+            <div class="space-y-4">
+                <!-- Calendar Header -->
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">${weekLabel}</h3>
+                    <div class="flex items-center gap-1 sm:gap-2">
+                        <button onclick="goToPreviousWeek()" class="p-2 sm:p-2.5 rounded-xl bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors touch-target">
+                            <span class="material-symbols-outlined text-sm">chevron_left</span>
+                        </button>
+                        <button onclick="goToCalendarToday()" class="px-3 py-2 rounded-xl bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                            Today
+                        </button>
+                        <button onclick="goToNextWeek()" class="p-2 sm:p-2.5 rounded-xl bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors touch-target">
+                            <span class="material-symbols-outlined text-sm">chevron_right</span>
+                        </button>
                     </div>
                 </div>
                 
-                <!-- Day Detail Panel -->
-                ${state.selectedCalendarDate ? renderDayDetailPanel(state.selectedCalendarDate, selectedDayAppts) : `
-                    <div class="w-[380px] bg-white dark:bg-surface-dark rounded-2xl border border-slate-200 dark:border-slate-700 flex items-center justify-center">
-                        <div class="text-center p-8">
-                            <span class="material-symbols-outlined text-5xl text-slate-300 dark:text-slate-600 mb-3">calendar_today</span>
-                            <p class="text-slate-500 dark:text-slate-400">Select a day to view appointments</p>
-                        </div>
+                <!-- Week Grid - Full Width -->
+                <div class="bg-white dark:bg-surface-dark rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <!-- Day Headers -->
+                    <div class="grid grid-cols-7 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                        ${['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => `
+                            <div class="py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                <span class="sm:hidden">${d}</span>
+                                <span class="hidden sm:inline">${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i]}</span>
+                            </div>
+                        `).join('')}
                     </div>
-                `}
+                    
+                    <!-- Week Days - Larger cells for week view -->
+                    <div class="grid grid-cols-7">
+                        ${weekDates.map(dateStr => {
+                            const dateObj = new Date(dateStr + 'T12:00:00');
+                            const dayNum = dateObj.getDate();
+                            const monthShort = dateObj.toLocaleDateString('en-US', { month: 'short' });
+                            const count = appointmentCounts[dateStr] || 0;
+                            const isTodayDate = dateStr === today;
+                            const isPast = dateStr < today;
+                            
+                            const dayAppts = getAppointmentsForDate(dateStr);
+                            const hasInProgress = dayAppts.some(a => a.status === 'in_progress');
+                            const hasConfirmed = dayAppts.some(a => a.status === 'confirmed' || a.status === 'pending');
+                            const hasCompleted = dayAppts.some(a => a.status === 'completed');
+                            
+                            return `
+                            <button onclick="openDayDetailModal('${dateStr}')" 
+                                class="min-h-[100px] sm:min-h-[140px] border-r border-slate-100 dark:border-slate-700 last:border-r-0 flex flex-col items-center justify-start p-2 sm:p-4 gap-1 sm:gap-2 transition-all hover:bg-emerald-50 dark:hover:bg-emerald-900/20 active:scale-[0.98] ${isTodayDate ? 'bg-emerald-100 dark:bg-emerald-900/30 ring-2 ring-emerald-500 ring-inset' : ''} ${isPast && !isTodayDate ? 'opacity-50' : ''} ${count > 0 ? 'cursor-pointer' : ''}">
+                                <span class="text-xl sm:text-3xl font-bold ${isTodayDate ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-300'}">${dayNum}</span>
+                                <span class="text-[9px] sm:text-xs text-slate-400">${monthShort}</span>
+                                ${count > 0 ? `
+                                    <div class="flex flex-col items-center gap-1 mt-1 sm:mt-2">
+                                        <div class="flex items-center gap-1">
+                                            ${hasInProgress ? `<span class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-purple-500 animate-pulse"></span>` : ''}
+                                            ${hasConfirmed ? `<span class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-amber-500"></span>` : ''}
+                                            ${hasCompleted ? `<span class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500"></span>` : ''}
+                                        </div>
+                                        <span class="text-xs sm:text-sm font-bold ${isTodayDate ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}">${count} appt${count !== 1 ? 's' : ''}</span>
+                                    </div>
+                                ` : `<span class="text-xs text-slate-300 dark:text-slate-600 mt-2">—</span>`}
+                            </button>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+                
+                <!-- Legend -->
+                <div class="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-[10px] sm:text-xs text-slate-500">
+                    <div class="flex items-center gap-1"><span class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-purple-500"></span> In Progress</div>
+                    <div class="flex items-center gap-1"><span class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-amber-500"></span> Upcoming</div>
+                    <div class="flex items-center gap-1"><span class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500"></span> Completed</div>
+                </div>
             </div>
+            
+            <!-- Day Detail Modal -->
+            ${state.dayDetailModal ? renderDayDetailModal(state.dayDetailModal) : ''}
             `;
         }
         
@@ -5851,85 +5852,81 @@
                 calendarDays.push(dateStr);
             }
             
-            // Get appointments for selected day
-            const selectedDayAppts = state.selectedCalendarDate 
-                ? getAppointmentsForDate(state.selectedCalendarDate)
-                : [];
-            
             return `
-            <div class="flex h-[calc(100vh-280px)] gap-6">
-                <!-- Calendar Section -->
-                <div class="flex-1 flex flex-col">
-                    <!-- Calendar Header -->
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-lg font-bold text-slate-900 dark:text-white">${monthLabel}</h3>
-                        <div class="flex items-center gap-2">
-                            <button onclick="goToPreviousMonth()" class="p-2 rounded-xl bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                                <span class="material-symbols-outlined text-sm">chevron_left</span>
-                            </button>
-                            <button onclick="goToCalendarToday()" class="px-3 py-2 rounded-xl bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                                Today
-                            </button>
-                            <button onclick="goToNextMonth()" class="p-2 rounded-xl bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                                <span class="material-symbols-outlined text-sm">chevron_right</span>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Calendar Grid -->
-                    <div class="bg-white dark:bg-surface-dark rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex-1 flex flex-col">
-                        <!-- Day Headers -->
-                        <div class="grid grid-cols-7 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                            ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => `
-                                <div class="py-2 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">${day}</div>
-                            `).join('')}
-                        </div>
-                        
-                        <!-- Calendar Days -->
-                        <div class="grid grid-cols-7 flex-1 auto-rows-fr">
-                            ${calendarDays.map(dateStr => {
-                                if (!dateStr) {
-                                    return `<div class="border-r border-b border-slate-100 dark:border-slate-700 last:border-r-0 bg-slate-50/50 dark:bg-slate-800/30"></div>`;
-                                }
-                                
-                                const dayNum = parseInt(dateStr.split('-')[2]);
-                                const count = appointmentCounts[dateStr] || 0;
-                                const isSelected = state.selectedCalendarDate === dateStr;
-                                const isTodayDate = dateStr === today;
-                                const isPast = dateStr < today;
-                                
-                                const dayAppts = getAppointmentsForDate(dateStr);
-                                const hasInProgress = dayAppts.some(a => a.status === 'in_progress');
-                                const hasConfirmed = dayAppts.some(a => a.status === 'confirmed' || a.status === 'pending');
-                                
-                                return `
-                                <button onclick="selectCalendarDate('${dateStr}')" 
-                                    class="p-2 border-r border-b border-slate-100 dark:border-slate-700 last:border-r-0 flex flex-col items-center justify-center gap-1 transition-all hover:bg-slate-50 dark:hover:bg-slate-800 ${isSelected ? 'bg-emerald-50 dark:bg-emerald-900/20 ring-2 ring-emerald-500 ring-inset' : ''} ${isTodayDate ? 'bg-emerald-50/50 dark:bg-emerald-900/10' : ''} ${isPast && !isTodayDate ? 'opacity-40' : ''}">
-                                    <span class="text-sm font-bold ${isTodayDate ? 'text-emerald-600 dark:text-emerald-400' : isSelected ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-700 dark:text-slate-300'}">${dayNum}</span>
-                                    ${count > 0 ? `
-                                        <div class="flex items-center gap-0.5">
-                                            ${hasInProgress ? `<span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>` : ''}
-                                            ${hasConfirmed ? `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>` : ''}
-                                            <span class="text-[10px] font-bold text-slate-500">${count}</span>
-                                        </div>
-                                    ` : ''}
-                                </button>
-                                `;
-                            }).join('')}
-                        </div>
+            <div class="space-y-4">
+                <!-- Calendar Header -->
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">${monthLabel}</h3>
+                    <div class="flex items-center gap-1 sm:gap-2">
+                        <button onclick="goToPreviousMonth()" class="p-2 sm:p-2.5 rounded-xl bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors touch-target">
+                            <span class="material-symbols-outlined text-sm">chevron_left</span>
+                        </button>
+                        <button onclick="goToCalendarToday()" class="px-3 py-2 rounded-xl bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                            Today
+                        </button>
+                        <button onclick="goToNextMonth()" class="p-2 sm:p-2.5 rounded-xl bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors touch-target">
+                            <span class="material-symbols-outlined text-sm">chevron_right</span>
+                        </button>
                     </div>
                 </div>
                 
-                <!-- Day Detail Panel -->
-                ${state.selectedCalendarDate ? renderDayDetailPanel(state.selectedCalendarDate, selectedDayAppts) : `
-                    <div class="w-[380px] bg-white dark:bg-surface-dark rounded-2xl border border-slate-200 dark:border-slate-700 flex items-center justify-center">
-                        <div class="text-center p-8">
-                            <span class="material-symbols-outlined text-5xl text-slate-300 dark:text-slate-600 mb-3">calendar_today</span>
-                            <p class="text-slate-500 dark:text-slate-400">Select a day to view appointments</p>
-                        </div>
+                <!-- Full Width Calendar Grid -->
+                <div class="bg-white dark:bg-surface-dark rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <!-- Day Headers -->
+                    <div class="grid grid-cols-7 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                        ${['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => `
+                            <div class="py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                <span class="sm:hidden">${d}</span>
+                                <span class="hidden sm:inline">${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i]}</span>
+                            </div>
+                        `).join('')}
                     </div>
-                `}
+                    
+                    <!-- Calendar Days -->
+                    <div class="grid grid-cols-7">
+                        ${calendarDays.map(dateStr => {
+                            if (!dateStr) {
+                                return `<div class="aspect-square border-r border-b border-slate-100 dark:border-slate-700 last:border-r-0 bg-slate-50/50 dark:bg-slate-800/30"></div>`;
+                            }
+                            
+                            const dayNum = parseInt(dateStr.split('-')[2]);
+                            const count = appointmentCounts[dateStr] || 0;
+                            const isTodayDate = dateStr === today;
+                            const isPast = dateStr < today;
+                            
+                            const dayAppts = getAppointmentsForDate(dateStr);
+                            const hasInProgress = dayAppts.some(a => a.status === 'in_progress');
+                            const hasConfirmed = dayAppts.some(a => a.status === 'confirmed' || a.status === 'pending');
+                            const hasCompleted = dayAppts.some(a => a.status === 'completed');
+                            
+                            return `
+                            <button onclick="openDayDetailModal('${dateStr}')" 
+                                class="aspect-square border-r border-b border-slate-100 dark:border-slate-700 last:border-r-0 flex flex-col items-center justify-center gap-0.5 sm:gap-1 transition-all hover:bg-emerald-50 dark:hover:bg-emerald-900/20 active:scale-95 ${isTodayDate ? 'bg-emerald-100 dark:bg-emerald-900/30 ring-2 ring-emerald-500 ring-inset' : ''} ${isPast && !isTodayDate ? 'opacity-40' : ''} ${count > 0 ? 'cursor-pointer' : ''}">
+                                <span class="text-sm sm:text-lg font-bold ${isTodayDate ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-300'}">${dayNum}</span>
+                                ${count > 0 ? `
+                                    <div class="flex items-center gap-0.5">
+                                        ${hasInProgress ? `<span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-purple-500 animate-pulse"></span>` : ''}
+                                        ${hasConfirmed ? `<span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-amber-500"></span>` : ''}
+                                        ${hasCompleted ? `<span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500"></span>` : ''}
+                                    </div>
+                                    <span class="text-[9px] sm:text-xs font-bold ${isTodayDate ? 'text-emerald-600' : 'text-slate-500'}">${count}</span>
+                                ` : ''}
+                            </button>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+                
+                <!-- Legend -->
+                <div class="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-[10px] sm:text-xs text-slate-500">
+                    <div class="flex items-center gap-1"><span class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-purple-500"></span> In Progress</div>
+                    <div class="flex items-center gap-1"><span class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-amber-500"></span> Upcoming</div>
+                    <div class="flex items-center gap-1"><span class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500"></span> Completed</div>
+                </div>
             </div>
+            
+            <!-- Day Detail Modal -->
+            ${state.dayDetailModal ? renderDayDetailModal(state.dayDetailModal) : ''}
             `;
         }
         
@@ -6057,7 +6054,181 @@
             render();
         }
         
-        // Day Detail Panel (right sidebar)
+        // Open day detail modal
+        function openDayDetailModal(dateStr) {
+            state.dayDetailModal = dateStr;
+            render();
+        }
+        
+        // Close day detail modal
+        function closeDayDetailModal() {
+            state.dayDetailModal = null;
+            render();
+        }
+        
+        // Render day detail modal (popup)
+        function renderDayDetailModal(dateStr) {
+            const appointments = getAppointmentsForDate(dateStr);
+            const dateObj = new Date(dateStr + 'T12:00:00');
+            const today = getTodayPacific();
+            const isToday = dateStr === today;
+            const isPast = dateStr < today;
+            const dayLabel = isToday ? 'Today' : dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+            
+            // Group by status
+            const inProgress = appointments.filter(a => a.status === 'in_progress');
+            const upcoming = appointments.filter(a => a.status === 'confirmed' || a.status === 'pending');
+            const completed = appointments.filter(a => a.status === 'completed');
+            const cancelled = appointments.filter(a => a.status === 'cancelled');
+            
+            return `
+            <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onmousedown="if(event.target === this) closeDayDetailModal()">
+                <div class="bg-white dark:bg-surface-dark w-full sm:w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl max-h-[85vh] sm:max-h-[80vh] overflow-hidden flex flex-col animate-slide-up">
+                    <!-- Modal Header -->
+                    <div class="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-gradient-to-r from-groomer-primary/10 to-emerald-500/10">
+                        <div>
+                            <h3 class="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                ${isToday ? '<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>' : ''}
+                                ${dayLabel}
+                            </h3>
+                            <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                                ${appointments.length} appointment${appointments.length !== 1 ? 's' : ''}
+                                ${appointments.length > 0 ? ` • $${appointments.reduce((sum, a) => sum + (parseFloat(a.total_price) || 0), 0).toFixed(0)} total` : ''}
+                            </p>
+                        </div>
+                        <button onclick="closeDayDetailModal()" class="p-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors touch-target">
+                            <span class="material-symbols-outlined text-slate-500">close</span>
+                        </button>
+                    </div>
+                    
+                    <!-- Appointments List -->
+                    <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                        ${appointments.length === 0 ? `
+                            <div class="flex flex-col items-center justify-center py-12 text-center">
+                                <div class="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+                                    <span class="material-symbols-outlined text-3xl text-slate-300 dark:text-slate-600">event_available</span>
+                                </div>
+                                <p class="text-slate-500 dark:text-slate-400 font-medium">No appointments</p>
+                                <p class="text-sm text-slate-400 dark:text-slate-500 mt-1">${isPast ? 'This day had no bookings' : 'This day is free'}</p>
+                            </div>
+                        ` : ''}
+                        
+                        ${inProgress.length > 0 ? `
+                            <div>
+                                <p class="text-xs font-bold text-purple-600 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                    <span class="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></span>
+                                    In Progress (${inProgress.length})
+                                </p>
+                                <div class="space-y-2">
+                                    ${inProgress.map(apt => renderDayModalAppointmentCard(apt)).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        ${upcoming.length > 0 ? `
+                            <div>
+                                <p class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                                    Upcoming (${upcoming.length})
+                                </p>
+                                <div class="space-y-2">
+                                    ${upcoming.map(apt => renderDayModalAppointmentCard(apt)).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        ${completed.length > 0 ? `
+                            <div>
+                                <p class="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                    Completed (${completed.length})
+                                </p>
+                                <div class="space-y-2">
+                                    ${completed.map(apt => renderDayModalAppointmentCard(apt, true)).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        ${cancelled.length > 0 ? `
+                            <div>
+                                <p class="text-xs font-bold text-red-500 uppercase tracking-wider mb-2">Cancelled (${cancelled.length})</p>
+                                <div class="space-y-2 opacity-50">
+                                    ${cancelled.map(apt => renderDayModalAppointmentCard(apt, true)).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    <!-- Footer -->
+                    <div class="p-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 safe-bottom">
+                        <button onclick="closeDayDetailModal()" class="w-full py-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold rounded-xl transition-colors">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        }
+        
+        // Render appointment card for day modal
+        function renderDayModalAppointmentCard(apt, isCompleted = false) {
+            const statusBorder = {
+                pending: 'border-l-amber-500',
+                confirmed: 'border-l-emerald-500',
+                in_progress: 'border-l-purple-500',
+                completed: 'border-l-slate-300',
+                cancelled: 'border-l-red-400'
+            };
+            
+            const fullAddress = apt.service_address || apt.customerAddress || '';
+            const mapsUrl = fullAddress ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(fullAddress)}` : '';
+            const phoneClean = (apt.customerPhone || '').replace(/[^0-9+]/g, '');
+            
+            return `
+            <div class="bg-white dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden border-l-4 ${statusBorder[apt.status] || 'border-l-slate-300'} ${isCompleted ? 'opacity-70' : ''}">
+                <div onclick="closeDayDetailModal(); setTimeout(() => openAppointmentDetail('${apt.id}'), 100);" class="p-3 sm:p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 overflow-hidden flex items-center justify-center flex-shrink-0">
+                            ${apt.petPhoto ? `<img src="${apt.petPhoto}" class="w-full h-full object-cover"/>` : `<span class="material-symbols-outlined text-xl text-slate-400">pets</span>`}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between">
+                                <h4 class="font-bold text-slate-900 dark:text-white truncate">${apt.petName || 'Pet'}</h4>
+                                <span class="text-lg font-bold text-emerald-600 dark:text-emerald-400 flex-shrink-0">${formatTime(apt.start_time)}</span>
+                            </div>
+                            <p class="text-sm text-slate-500 dark:text-slate-400 truncate">${apt.serviceName || 'Grooming'} • ${apt.customerName || 'Customer'}</p>
+                            ${apt.total_price ? `<p class="text-xs text-slate-400 mt-0.5">$${apt.total_price}</p>` : ''}
+                        </div>
+                    </div>
+                </div>
+                ${!isCompleted ? `
+                <div class="flex items-center justify-between px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700">
+                    <div class="flex items-center gap-1">
+                        ${mapsUrl ? `
+                        <a href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()" class="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-colors touch-target">
+                            <span class="material-symbols-outlined text-lg">directions</span>
+                        </a>
+                        ` : ''}
+                        ${phoneClean ? `
+                        <a href="tel:${phoneClean}" onclick="event.stopPropagation()" class="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-colors touch-target">
+                            <span class="material-symbols-outlined text-lg">call</span>
+                        </a>
+                        ` : ''}
+                    </div>
+                    ${apt.status === 'in_progress' ? `
+                        <button onclick="event.stopPropagation(); openCompleteAppointmentModal('${apt.id}')" class="px-3 py-1.5 bg-groomer-primary hover:bg-groomer-primary/90 text-white text-xs font-bold rounded-lg transition-colors">
+                            Mark Done
+                        </button>
+                    ` : apt.status === 'confirmed' || apt.status === 'pending' ? `
+                        <button onclick="event.stopPropagation(); startAppointment('${apt.id}')" class="px-3 py-1.5 bg-tech-purple hover:bg-purple-700 text-white text-xs font-bold rounded-lg transition-colors">
+                            Start
+                        </button>
+                    ` : ''}
+                </div>
+                ` : ''}
+            </div>`;
+        }
+        
+        // Day Detail Panel (right sidebar) - keeping for desktop but hidden on mobile
         function renderDayDetailPanel(dateStr, appointments) {
             const dateObj = new Date(dateStr + 'T12:00:00');
             const isToday = dateStr === getTodayPacific();
