@@ -1158,32 +1158,47 @@
                     return; // Don't continue with normal init if in recovery mode
                 }
                 
-                // Check for existing session
-                if (supabaseClient) {
-                    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
-                    if (sessionError) {
-                        console.error('Session error:', sessionError);
-                    }
-                    
-                    if (session) {
-                        console.log('Found existing session');
-                        state.session = session;
+                // Add timeout to prevent infinite loading
+                const timeout = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Init timeout')), 8000)
+                );
+                
+                const init = async () => {
+                    // Check for existing session
+                    if (supabaseClient) {
+                        const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+                        if (sessionError) {
+                            console.error('Session error:', sessionError);
+                        }
                         
-                        // IMPORTANT: Restoring session = existing user, NEVER show onboarding
-                        state.showOnboarding = false;
+                        if (session) {
+                            console.log('Found existing session');
+                            state.session = session;
+                            state.showOnboarding = false;
+                            
+                            // Load user profile and public data in parallel
+                            await Promise.all([
+                                loadUserProfile(session.user.id),
+                                loadPublicData(),
+                                loadSmartBookingSettings()
+                            ]);
+                        } else {
+                            // No session - just load public data in parallel
+                            await Promise.all([
+                                loadPublicData(),
+                                loadSmartBookingSettings()
+                            ]);
+                        }
                         
-                        await loadUserProfile(session.user.id);
+                        // Set up real-time subscriptions (non-blocking)
+                        setupRealtimeSubscriptions();
                     }
-                    
-                    // Load public data
-                    await loadPublicData();
-                    
-                    // Load smart booking settings
-                    await loadSmartBookingSettings();
-                    
-                    // Set up real-time subscriptions for 2-way sync
-                    setupRealtimeSubscriptions();
-                }
+                };
+                
+                // Race between init and timeout
+                await Promise.race([init(), timeout]).catch(err => {
+                    console.warn('Init timeout or error, continuing anyway:', err.message);
+                });
                 
                 hideLoading();
                 render();
@@ -1520,48 +1535,30 @@
         // Load public data (services, products, etc)
         async function loadPublicData() {
             try {
-                // Load ALL services (admin needs to see inactive too)
-                // Filter for active-only in customer/groomer booking dropdowns
-                const { data: services, error: servicesError } = await supabaseClient
-                    .from('services')
-                    .select('*')
-                    .order('sort_order');
-                if (servicesError) console.error('Services load error:', servicesError);
-                state.services = services || [];
+                // Run all queries in parallel for faster loading
+                const [servicesResult, productsResult, rewardsResult, packagesResult, hoursResult] = await Promise.all([
+                    supabaseClient.from('services').select('*').order('sort_order'),
+                    supabaseClient.from('products').select('*').order('sort_order'),
+                    supabaseClient.from('rewards').select('*').eq('is_active', true),
+                    supabaseClient.from('ride_along_packages').select('*').eq('is_active', true).order('sort_order'),
+                    supabaseClient.from('business_hours').select('*').order('day_of_week')
+                ]);
+                
+                if (servicesResult.error) console.error('Services load error:', servicesResult.error);
+                state.services = servicesResult.data || [];
                 console.log('Services loaded:', state.services.length, 'total');
-
-                // Load products
-                const { data: products, error: productsError } = await supabaseClient
-                    .from('products')
-                    .select('*')
-                    .order('sort_order');
-                if (productsError) console.error('Products load error:', productsError);
-                state.products = products || [];
-
-                // Load rewards
-                const { data: rewards, error: rewardsError } = await supabaseClient
-                    .from('rewards')
-                    .select('*')
-                    .eq('is_active', true);
-                if (rewardsError) console.error('Rewards load error:', rewardsError);
-                state.rewards = rewards || [];
-
-                // Load ride-along packages
-                const { data: packages, error: packagesError } = await supabaseClient
-                    .from('ride_along_packages')
-                    .select('*')
-                    .eq('is_active', true)
-                    .order('sort_order');
-                if (packagesError) console.error('Packages load error:', packagesError);
-                state.rideAlongPackages = packages || [];
-
-                // Load business hours
-                const { data: hours, error: hoursError } = await supabaseClient
-                    .from('business_hours')
-                    .select('*')
-                    .order('day_of_week');
-                if (hoursError) console.error('Hours load error:', hoursError);
-                state.businessHours = hours || [];
+                
+                if (productsResult.error) console.error('Products load error:', productsResult.error);
+                state.products = productsResult.data || [];
+                
+                if (rewardsResult.error) console.error('Rewards load error:', rewardsResult.error);
+                state.rewards = rewardsResult.data || [];
+                
+                if (packagesResult.error) console.error('Packages load error:', packagesResult.error);
+                state.rideAlongPackages = packagesResult.data || [];
+                
+                if (hoursResult.error) console.error('Hours load error:', hoursResult.error);
+                state.businessHours = hoursResult.data || [];
             } catch (err) {
                 console.error('Failed to load public data:', err);
             }
