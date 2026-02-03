@@ -13274,13 +13274,18 @@
                             <label class="block">
                                 <span class="text-sm font-semibold mb-2 block dark:text-white">Service Address</span>
                                 <div class="flex gap-2">
-                                    <input type="text" id="booking-address" value="${fullAddress}" placeholder="Street address, City" class="flex-1 h-12 px-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark dark:text-white" required>
+                                    <input type="text" id="booking-address" value="${fullAddress}" placeholder="Street address, City, ZIP" 
+                                        oninput="debounceAddressChange()"
+                                        class="flex-1 h-12 px-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark dark:text-white" required>
                                     <button type="button" onclick="reloadSmartDatePicker()" class="h-12 px-4 bg-primary text-white rounded-lg font-semibold text-sm hover:bg-primary/90 active:scale-95 transition-all flex items-center gap-1.5 flex-shrink-0">
                                         <span class="material-symbols-outlined text-lg">search</span>
                                         <span class="hidden sm:inline">Find Times</span>
                                     </button>
                                 </div>
-                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Enter your address and tap Find Times to see available slots</p>
+                                <!-- Address status indicator (green checkmark / amber warning / red error) -->
+                                <div id="address-status" class="mt-1 text-xs hidden">
+                                    <span id="address-status-text"></span>
+                                </div>
                             </label>
                             <input type="hidden" id="booking-city" value="${userCity}">
                             <input type="hidden" id="booking-zip" value="${userZip}">
@@ -13492,6 +13497,23 @@
             }
         }
         
+        // Debounce address input — auto-refresh smart picker 800ms after user stops typing
+        let addressDebounceTimer = null;
+        function debounceAddressChange() {
+            clearTimeout(addressDebounceTimer);
+            
+            // Clear status while typing
+            const addressStatus = document.getElementById('address-status');
+            if (addressStatus) addressStatus.classList.add('hidden');
+            
+            addressDebounceTimer = setTimeout(() => {
+                const address = document.getElementById('booking-address')?.value?.trim();
+                if (address && address.length >= 5) {
+                    reloadSmartDatePicker();
+                }
+            }, 800);
+        }
+        
         // Reload smart date picker (when user changes address)
         function reloadSmartDatePicker() {
             // Clear previous smart booking data so it re-fetches
@@ -13514,6 +13536,8 @@
         async function loadSmartDatePicker() {
             const addressInput = document.getElementById('booking-address');
             const pickerContainer = document.getElementById('smart-date-picker');
+            const addressStatus = document.getElementById('address-status');
+            const addressStatusText = document.getElementById('address-status-text');
             
             if (!addressInput || !pickerContainer) return;
             
@@ -13532,23 +13556,119 @@
             `;
             pickerContainer.classList.remove('hidden');
             
+            // Reset address status
+            if (addressStatus) {
+                addressStatus.classList.add('hidden');
+                addressStatus.className = 'mt-1 text-xs hidden';
+            }
+            
             try {
-                // Parse address to extract city and zip if possible
-                const parts = address.split(',').map(p => p.trim());
-                const street = parts[0] || address;
-                const city = state.currentUser?.city || parts[1] || '';
-                const zip = state.currentUser?.zip || '';
+                // Smart address parsing: detect zip codes, handle various formats
+                let street = address;
+                let city = '';
+                let zip = '';
+                
+                // Try to extract zip code (5 digits or 5+4 format)
+                const zipMatch = address.match(/\b(\d{5})(?:-\d{4})?\b/);
+                if (zipMatch) {
+                    zip = zipMatch[1];
+                    street = address.replace(/\b\d{5}(?:-\d{4})?\b/, '').trim();
+                }
+                
+                // Try to extract city from comma-separated parts
+                const parts = street.split(',').map(p => p.trim());
+                if (parts.length > 1) {
+                    street = parts[0];
+                    const cityPart = parts[1].replace(/\b(CA|California)\b/gi, '').trim();
+                    if (cityPart) city = cityPart;
+                }
+                
+                // Use user's saved data as fallback
+                if (!city) city = state.currentUser?.city || '';
+                if (!zip) zip = state.currentUser?.zip || '';
+                
+                console.log('Parsed address:', { street, city, zip, original: address });
                 
                 // Geocode the address
                 const coords = await geocodeAddress(street, city, 'CA', zip);
                 
                 if (!coords) {
+                    // Show error status
+                    if (addressStatus) {
+                        addressStatus.classList.remove('hidden');
+                        addressStatus.className = 'mt-1 text-xs text-red-600 dark:text-red-400';
+                        if (addressStatusText) addressStatusText.textContent = '❌ Could not find this address';
+                    }
                     state.smartBookingData = { noCoordinates: true };
                     pickerContainer.innerHTML = renderSmartDatePicker(state.smartBookingData, null);
                     return;
                 }
                 
                 console.log('Customer coords:', coords);
+                
+                // Service area check (50 miles from LA center)
+                const distFromBase = calculateDistance(
+                    coords.latitude, coords.longitude,
+                    businessHomeBase.latitude, businessHomeBase.longitude
+                );
+                
+                if (distFromBase > (smartBookingSettings.max_service_radius_miles || 50)) {
+                    // Outside service area
+                    if (addressStatus) {
+                        addressStatus.classList.remove('hidden');
+                        addressStatus.className = 'mt-1 text-xs text-red-600 dark:text-red-400';
+                        if (addressStatusText) addressStatusText.textContent = `❌ Outside service area (${Math.round(distFromBase)} miles from LA)`;
+                    }
+                    state.smartBookingData = { outsideArea: true, distance: Math.round(distFromBase) };
+                    pickerContainer.innerHTML = `
+                        <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl">
+                            <div class="flex items-start gap-3">
+                                <span class="material-symbols-outlined text-red-600">wrong_location</span>
+                                <div>
+                                    <p class="font-semibold text-red-800 dark:text-red-200">Outside Service Area</p>
+                                    <p class="text-sm text-red-700 dark:text-red-300 mt-1">This address is approximately ${Math.round(distFromBase)} miles from our service area (Los Angeles). We currently serve within ${smartBookingSettings.max_service_radius_miles || 50} miles.</p>
+                                    <p class="text-sm text-red-600 dark:text-red-400 mt-2">📍 Please enter an address in the LA area.</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Address is valid — show green checkmark status
+                if (addressStatus) {
+                    addressStatus.classList.remove('hidden');
+                    
+                    // Extract zip from geocoded result
+                    const returnedZipMatch = coords.display_name?.match(/\b(\d{5})\b/);
+                    const returnedZip = returnedZipMatch ? returnedZipMatch[1] : null;
+                    
+                    // Extract neighborhood/city from display name
+                    const displayParts = coords.display_name?.split(',').map(p => p.trim()) || [];
+                    let detectedArea = '';
+                    for (let i = 1; i < Math.min(displayParts.length, 4); i++) {
+                        const part = displayParts[i];
+                        if (part && !part.match(/^\d+$/) && !part.match(/^(CA|California)$/i) && !part.match(/^\d{5}/)) {
+                            detectedArea = part;
+                            break;
+                        }
+                    }
+                    detectedArea = detectedArea || 'Los Angeles area';
+                    
+                    // Check if user-entered zip matches returned zip
+                    if (zip && returnedZip && zip !== returnedZip) {
+                        // ZIP MISMATCH - warn user
+                        addressStatus.className = 'mt-1 text-xs text-amber-600 dark:text-amber-400';
+                        if (addressStatusText) {
+                            addressStatusText.innerHTML = `⚠️ Found "${detectedArea}" (${returnedZip}) — You entered ${zip}. <span class="underline cursor-pointer" onclick="document.getElementById('booking-address').focus()">Check address?</span>`;
+                        }
+                    } else {
+                        // All good - show green checkmark
+                        addressStatus.className = 'mt-1 text-xs text-emerald-600 dark:text-emerald-400';
+                        const zipDisplay = returnedZip || zip || '';
+                        if (addressStatusText) addressStatusText.textContent = `✓ Found: ${detectedArea}${zipDisplay ? ' (' + zipDisplay + ')' : ''}`;
+                    }
+                }
                 
                 // Store coordinates for later
                 state.customerBookingCoords = coords;
