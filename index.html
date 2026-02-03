@@ -126,6 +126,17 @@
             to { transform: scale(1); opacity: 1; }
         }
         .animate-slide-up { animation: slideUp 0.3s ease-out; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fade-in-up { animation: fadeInUp 0.5s ease-out both; }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out both; }
+        .animate-delay-100 { animation-delay: 0.1s; }
+        .animate-delay-200 { animation-delay: 0.2s; }
+        .animate-delay-300 { animation-delay: 0.3s; }
+        .animate-delay-400 { animation-delay: 0.4s; }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        .skeleton { background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: shimmer 1.5s ease-in-out infinite; border-radius: 8px; }
+        .dark .skeleton { background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%); background-size: 200% 100%; animation: shimmer 1.5s ease-in-out infinite; }
         .animate-scale-up { animation: scaleUp 0.2s ease-out; }
         
         /* Mobile Touch Feedback */
@@ -307,6 +318,7 @@
             groomingServiceModal: null, // Modal for adding/editing grooming services
             editItems: {}, // Temporary storage for items to edit
             onboardingData: {
+                phone: '',
                 address: '',
                 city: '',
                 state: 'CA',
@@ -3354,6 +3366,14 @@
 
                 <form id="onboarding-form-1" class="space-y-4">
                     <div>
+                        <label class="block text-sm font-semibold mb-2 dark:text-white">Phone Number *</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-sub-light">phone</span>
+                            <input type="tel" id="ob-phone" value="${state.onboardingData.phone}" placeholder="(555) 123-4567" 
+                                class="w-full h-12 pl-12 pr-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark focus:ring-2 focus:ring-primary outline-none dark:text-white" required>
+                        </div>
+                    </div>
+                    <div>
                         <label class="block text-sm font-semibold mb-2 dark:text-white">Street Address *</label>
                         <div class="relative">
                             <span class="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-sub-light">home</span>
@@ -3377,7 +3397,7 @@
 
                     <div class="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-start gap-3">
                         <span class="material-symbols-outlined text-primary">info</span>
-                        <p class="text-sm text-text-sub-light dark:text-text-sub-dark">We come to you! Our mobile grooming van will arrive at your address for all appointments.</p>
+                        <p class="text-sm text-text-sub-light dark:text-text-sub-dark">We come to you! Your phone number helps our groomer reach you on appointment day.</p>
                     </div>
 
                     <div class="pt-4">
@@ -3655,21 +3675,24 @@
 
         async function nextOnboardingStep() {
             if (state.onboardingStep === 1) {
-                // Save address data
+                // Save address + phone data
+                state.onboardingData.phone = document.getElementById('ob-phone')?.value || '';
                 state.onboardingData.address = document.getElementById('ob-address')?.value || '';
                 state.onboardingData.city = document.getElementById('ob-city')?.value || '';
                 state.onboardingData.zip = document.getElementById('ob-zip')?.value || '';
                 
-                // Update profile with address
+                // Update profile with address + phone
                 await supabaseClient
                     .from('profiles')
                     .update({
+                        phone: state.onboardingData.phone,
                         address: state.onboardingData.address,
                         city: state.onboardingData.city,
                         zip_code: state.onboardingData.zip
                     })
                     .eq('id', state.currentUser.id);
                 
+                state.currentUser.phone = state.onboardingData.phone;
                 state.currentUser.address = state.onboardingData.address;
                 state.currentUser.city = state.onboardingData.city;
                 state.currentUser.zip = state.onboardingData.zip;
@@ -11053,7 +11076,7 @@
                 </div>
 
                 <div class="flex gap-3 pt-4">
-                    ${pet.id ? `<button type="button" onclick="confirmDeletePet('${pet.id}', '${pet.name}')" class="px-4 h-12 border border-red-300 text-red-600 rounded-lg font-bold hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">Delete</button>` : ''}
+                    ${pet.id ? `<button type="button" onclick="confirmDeletePet('${pet.id}', '${pet.name}')" class="px-4 h-12 border border-amber-300 text-amber-600 rounded-lg font-bold hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors flex items-center gap-1"><span class="material-symbols-outlined text-sm">archive</span>Archive</button>` : ''}
                     <button type="submit" class="flex-1 h-12 bg-primary hover:bg-sky-600 text-white font-bold rounded-lg transition-colors">
                         ${pet.id ? 'Save Changes' : 'Add Pet'}
                     </button>
@@ -11618,19 +11641,19 @@
 
         // Delete confirmations
         function confirmDeletePet(id, name) {
-            showConfirm('Delete Pet', `Are you sure you want to remove ${name}?`, async () => {
+            showConfirm('Archive Pet', `Archive ${name}? Their grooming history will be preserved and you can contact support to restore them later.`, async () => {
                 showLoading();
                 try {
-                    const { error } = await supabaseClient.from('pets').update({ is_active: false }).eq('id', id);
+                    const { error } = await supabaseClient.from('pets').update({ is_active: false, deactivated_at: new Date().toISOString() }).eq('id', id);
                     if (error) {
-                        console.error('Delete pet error:', error);
+                        console.error('Archive pet error:', error);
                         hideLoading();
-                        showToast('Failed to delete: ' + (error.message || 'Unknown error'), 'error');
+                        showToast('Failed to archive: ' + (error.message || 'Unknown error'), 'error');
                         return;
                     }
                     state.pets = state.pets.filter(p => p.id !== id);
                     hideLoading();
-                    showToast(`${name} removed`, 'success');
+                    showToast(`${name} archived — history preserved`, 'success');
                     closeEditModal();
                 } catch (err) {
                     console.error('Exception:', err);
@@ -12516,8 +12539,36 @@
                         <button onclick="logout()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 touch-target"><span class="material-symbols-outlined">logout</span>Sign Out</button>
                     </div>
                 </aside>
-                <main class="flex-1 lg:ml-72 pt-16 lg:pt-0 pb-8 bg-background-light dark:bg-background-dark min-h-screen safe-bottom overflow-x-hidden"><div class="${isFullWidth ? '' : 'p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto'}">${renderCustomerContent()}</div></main>
+                <main class="flex-1 lg:ml-72 pt-16 lg:pt-0 pb-24 lg:pb-8 bg-background-light dark:bg-background-dark min-h-screen safe-bottom overflow-x-hidden"><div class="${isFullWidth ? '' : 'p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto'}">${renderCustomerContent()}</div></main>
             </div>
+            
+            <!-- #1 Mobile Bottom Tab Bar -->
+            <nav class="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface-light/95 dark:bg-surface-dark/95 backdrop-blur-md border-t border-border-light dark:border-border-dark safe-bottom">
+                <div class="flex items-center justify-around h-16 px-1">
+                    <button onclick="setTab('dashboard')" class="flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-all ${state.currentTab === 'dashboard' ? 'text-primary' : 'text-slate-400 dark:text-slate-500'}">
+                        <span class="material-symbols-outlined text-xl ${state.currentTab === 'dashboard' ? 'fill-1' : ''}">home</span>
+                        <span class="text-[10px] font-bold mt-0.5">Home</span>
+                    </button>
+                    <button onclick="setTab('pets')" class="flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-all ${state.currentTab === 'pets' ? 'text-primary' : 'text-slate-400 dark:text-slate-500'}">
+                        <span class="material-symbols-outlined text-xl ${state.currentTab === 'pets' ? 'fill-1' : ''}">pets</span>
+                        <span class="text-[10px] font-bold mt-0.5">Pets</span>
+                    </button>
+                    <div class="relative -mt-6">
+                        <button onclick="openBookingModal()" class="w-14 h-14 rounded-full bg-primary text-white flex items-center justify-center shadow-xl shadow-primary/40 active:scale-95 transition-transform">
+                            <span class="material-symbols-outlined text-2xl">calendar_add_on</span>
+                        </button>
+                    </div>
+                    <button onclick="setTab('appointments')" class="flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-all ${state.currentTab === 'appointments' ? 'text-primary' : 'text-slate-400 dark:text-slate-500'}">
+                        <span class="material-symbols-outlined text-xl ${state.currentTab === 'appointments' ? 'fill-1' : ''}">calendar_month</span>
+                        <span class="text-[10px] font-bold mt-0.5">Appts</span>
+                    </button>
+                    <button onclick="setTab('rewards')" class="flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-all relative ${state.currentTab === 'rewards' ? 'text-primary' : 'text-slate-400 dark:text-slate-500'}">
+                        <span class="material-symbols-outlined text-xl ${state.currentTab === 'rewards' ? 'fill-1' : ''}">loyalty</span>
+                        <span class="text-[10px] font-bold mt-0.5">Rewards</span>
+                    </button>
+                </div>
+            </nav>
+            
             ${state.showBookingModal ? renderBookingModal() : ''}
             ${state.editModal ? renderEditModal() : ''}
             ${state.confirmDialog ? renderConfirmDialog() : ''}
@@ -12526,10 +12577,39 @@
             ${state.showNotifications ? renderNotificationsPanel() : ''}`;
         }
 
+        // #16 Skeleton loading states
+        function renderCustomerSkeleton() {
+            return `
+                <!-- Hero Skeleton -->
+                <div class="rounded-2xl sm:rounded-3xl mb-4 sm:mb-6 bg-slate-200 dark:bg-slate-700 p-4 sm:p-6 lg:p-8 animate-pulse">
+                    <div class="h-6 w-48 skeleton mb-3 rounded"></div>
+                    <div class="h-4 w-64 skeleton mb-6 rounded"></div>
+                    <div class="h-16 skeleton rounded-xl mb-4"></div>
+                    <div class="h-12 w-48 skeleton rounded-xl"></div>
+                </div>
+                <!-- Stat Cards Skeleton -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                    ${[1,2,3,4].map(() => `<div class="bg-surface-light dark:bg-surface-dark rounded-lg sm:rounded-xl p-3 sm:p-4 flex items-center gap-3"><div class="w-10 h-10 skeleton rounded-xl"></div><div><div class="h-6 w-8 skeleton rounded mb-1"></div><div class="h-3 w-12 skeleton rounded"></div></div></div>`).join('')}
+                </div>
+                <!-- Pet Cards Skeleton -->
+                <div class="bg-surface-light dark:bg-surface-dark rounded-lg sm:rounded-xl p-4 sm:p-6 mb-4 sm:mb-6">
+                    <div class="h-5 w-24 skeleton rounded mb-4"></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        ${[1,2].map(() => `<div class="bg-background-light dark:bg-background-dark rounded-xl p-4"><div class="flex gap-4"><div class="w-16 h-16 skeleton rounded-2xl flex-shrink-0"></div><div class="flex-1"><div class="h-5 w-24 skeleton rounded mb-2"></div><div class="h-3 w-32 skeleton rounded mb-3"></div><div class="h-6 w-28 skeleton rounded-full"></div></div></div></div>`).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
         function renderCustomerContent() {
             const user = state.currentUser;
             const pets = state.pets || [];
             const appointments = state.appointments || [];
+            
+            // Show skeleton while initial data loads
+            if (state.currentTab === 'dashboard' && state.loading && pets.length === 0 && appointments.length === 0) {
+                return renderCustomerSkeleton();
+            }
             
             // Categorize appointments
             const upcomingAppointments = appointments.filter(a => a.status === 'pending' || a.status === 'confirmed');
@@ -12538,13 +12618,10 @@
             const nextAppt = upcomingAppointments[0];
             const activeAppt = inProgressAppointments[0];
             
-            // Time-based greeting
+            // Time-based greeting for customer
             const hour = new Date().getHours();
             const timeGreeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
             const greetingEmoji = hour < 12 ? '☀️' : hour < 17 ? '🌤️' : '🌙';
-            
-            // Calculate countdown for next appointment
-            let countdownText = '';
             let countdownDays = 0;
             if (nextAppt && nextAppt.appointment_date) {
                 const apptDate = new Date(nextAppt.appointment_date + 'T00:00:00');
@@ -12573,11 +12650,32 @@
             // Business phone number (you can make this configurable)
             const businessPhone = '(323) 304-7618';
             const businessPhoneClean = businessPhone.replace(/\D/g, '');
+            
+            // Contextual subtitle for greeting
+            let contextSubtitle = '';
+            if (activeAppt) {
+                contextSubtitle = `${activeAppt.petName || 'Your pet'} is being pampered right now! ✨`;
+            } else if (nextAppt && countdownDays === 0) {
+                contextSubtitle = `${nextAppt.petName || 'Your pet'}'s groom is today! 🎉`;
+            } else if (nextAppt && countdownDays === 1) {
+                contextSubtitle = `${nextAppt.petName || 'Your pet'}'s groom is tomorrow!`;
+            } else if (nextAppt && countdownDays <= 3) {
+                contextSubtitle = `${nextAppt.petName || 'Your pet'}'s groom is in ${countdownDays} days`;
+            } else {
+                const oldestUngroomed = pets.find(p => { const lg = getPetLastGroom(p.id); return lg && lg.weeksSince >= 6 && !upcomingAppointments.some(a => a.pet_id === p.id); });
+                if (oldestUngroomed) {
+                    contextSubtitle = `${oldestUngroomed.name} is due for a groom — book today! 🐾`;
+                } else if (pets.length > 0) {
+                    contextSubtitle = `Your ${pets.length === 1 ? 'pup looks' : 'pups look'} great! ${user.loyaltyPoints || 0} loyalty points earned 🏆`;
+                } else {
+                    contextSubtitle = 'Add your first pet to get started! 🐕';
+                }
+            }
 
             if (state.currentTab === 'dashboard') {
                 return `
                 <!-- #1 HERO SECTION - Prominent Book Now + Phone + Countdown -->
-                <div class="relative overflow-hidden rounded-2xl sm:rounded-3xl mb-4 sm:mb-6 bg-gradient-to-br from-primary via-sky-500 to-cyan-400 p-4 sm:p-6 lg:p-8 text-white shadow-xl shadow-primary/20">
+                <div class="relative overflow-hidden rounded-2xl sm:rounded-3xl mb-4 sm:mb-6 bg-gradient-to-br from-primary via-sky-500 to-cyan-400 p-4 sm:p-6 lg:p-8 text-white shadow-xl shadow-primary/20 animate-fade-in-up">
                     <!-- Background Pattern -->
                     <div class="absolute inset-0 opacity-10">
                         <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -12600,6 +12698,7 @@
                                 <span class="text-xl sm:text-2xl">${greetingEmoji}</span>
                                 <h1 class="text-xl sm:text-2xl lg:text-3xl font-extrabold">${timeGreeting}, ${user.name?.split(' ')[0] || 'there'}!</h1>
                             </div>
+                            ${contextSubtitle ? `<p class="text-white/80 text-xs sm:text-sm mt-1 lg:hidden">${contextSubtitle}</p>` : ''}
                             <a href="tel:${businessPhoneClean}" class="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-3 sm:px-4 py-2 rounded-full transition-colors text-xs sm:text-sm font-bold self-start sm:self-auto">
                                 <span class="material-symbols-outlined text-base sm:text-lg">call</span>
                                 <span class="hidden sm:inline">${businessPhone}</span>
@@ -12676,7 +12775,7 @@
                 </div>
                 
                 <!-- #6 CONDENSED STAT CARDS (4 cards including loyalty) -->
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6 animate-fade-in animate-delay-100">
                     <div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg sm:rounded-xl p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
                         <div class="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
                             <span class="material-symbols-outlined text-primary text-lg sm:text-base">pets</span>
@@ -12715,8 +12814,8 @@
                     </button>
                 </div>
 
-                <!-- #7 MY PETS with "Last Groomed" Reminders -->
-                <div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg sm:rounded-xl p-4 sm:p-6 mb-4 sm:mb-6">
+                <!-- #7 MY PETS with Visual Status Cards -->
+                <div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg sm:rounded-xl p-4 sm:p-6 mb-4 sm:mb-6 animate-fade-in animate-delay-200">
                     <div class="flex justify-between items-center mb-3 sm:mb-4">
                         <h3 class="text-base sm:text-lg font-bold flex items-center gap-2 dark:text-white">
                             <span class="material-symbols-outlined text-primary text-lg sm:text-base">pets</span>My Pets
@@ -12734,46 +12833,54 @@
                                 const lastGroom = getPetLastGroom(pet.id);
                                 const needsGroom = lastGroom && lastGroom.weeksSince >= 6;
                                 const hasUpcoming = upcomingAppointments.some(a => a.pet_id === pet.id);
+                                const isInProgress = inProgressAppointments.some(a => a.pet_id === pet.id);
+                                
+                                // Status banner config
+                                let bannerClass, bannerIcon, bannerText;
+                                if (isInProgress) {
+                                    bannerClass = 'bg-purple-500 text-white';
+                                    bannerIcon = 'content_cut';
+                                    bannerText = 'Being Groomed Now ✨';
+                                } else if (hasUpcoming) {
+                                    const apt = upcomingAppointments.find(a => a.pet_id === pet.id);
+                                    bannerClass = 'bg-green-500 text-white';
+                                    bannerIcon = 'event';
+                                    bannerText = 'Scheduled ' + (apt ? formatDate(apt.appointment_date) : '');
+                                } else if (needsGroom) {
+                                    bannerClass = 'bg-amber-500 text-white';
+                                    bannerIcon = 'warning';
+                                    bannerText = 'Due for Groom (' + lastGroom.weeksSince + ' wks)';
+                                } else if (lastGroom) {
+                                    bannerClass = 'bg-slate-400 dark:bg-slate-600 text-white';
+                                    bannerIcon = 'check_circle';
+                                    bannerText = 'Groomed ' + lastGroom.weeksSince + ' weeks ago';
+                                } else {
+                                    bannerClass = 'bg-slate-300 dark:bg-slate-600 text-white';
+                                    bannerIcon = 'info';
+                                    bannerText = 'New Pet — No History';
+                                }
                                 
                                 return `
-                                <div class="bg-background-light dark:bg-background-dark rounded-lg sm:rounded-xl p-3 sm:p-4 ${needsGroom && !hasUpcoming ? 'ring-2 ring-amber-400 ring-offset-2 dark:ring-offset-slate-900' : ''}">
-                                    <div class="flex items-start gap-3 sm:gap-4">
-                                        <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-cover bg-center border-2 border-primary/20 shadow-md flex-shrink-0" style="background-image: url('${pet.photo_url || 'https://via.placeholder.com/150'}')"></div>
-                                        <div class="flex-1 min-w-0">
-                                            <div class="flex items-start justify-between">
-                                                <div class="min-w-0">
-                                                    <p class="font-bold text-base sm:text-lg dark:text-white truncate">${pet.name}</p>
-                                                    <p class="text-xs sm:text-sm text-text-sub-light dark:text-text-sub-dark truncate">${pet.breed || 'Unknown breed'} • ${pet.weight || '?'} lbs</p>
-                                                </div>
+                                <div class="bg-background-light dark:bg-background-dark rounded-xl sm:rounded-2xl overflow-hidden ${needsGroom && !hasUpcoming ? 'ring-2 ring-amber-400 ring-offset-2 dark:ring-offset-slate-900' : ''} hover:shadow-md transition-all">
+                                    <!-- Status Banner -->
+                                    <div class="${bannerClass} px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold">
+                                        <span class="material-symbols-outlined text-xs">${bannerIcon}</span>
+                                        ${bannerText}
+                                    </div>
+                                    <div class="p-3 sm:p-4">
+                                        <div class="flex items-center gap-3 sm:gap-4">
+                                            <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl sm:rounded-2xl bg-cover bg-center border-2 border-primary/20 shadow-lg flex-shrink-0" style="background-image: url('${pet.photo_url || 'https://via.placeholder.com/150'}')"></div>
+                                            <div class="flex-1 min-w-0">
+                                                <p class="font-bold text-lg sm:text-xl dark:text-white truncate">${pet.name}</p>
+                                                <p class="text-xs sm:text-sm text-text-sub-light dark:text-text-sub-dark truncate">${pet.breed || 'Unknown breed'} • ${pet.weight || '?'} lbs</p>
+                                                
+                                                ${!hasUpcoming && !isInProgress ? `
+                                                    <button onclick="openBookingModalForPet('${pet.id}')" class="mt-2 sm:mt-3 w-full py-2 bg-primary/10 hover:bg-primary/20 text-primary text-xs sm:text-sm font-bold rounded-lg flex items-center justify-center gap-1 transition-colors min-h-[36px]">
+                                                        <span class="material-symbols-outlined text-xs sm:text-sm">calendar_add_on</span>
+                                                        Book ${pet.name}
+                                                    </button>
+                                                ` : ''}
                                             </div>
-                                            
-                                            <!-- Last Groomed Status -->
-                                            <div class="mt-2">
-                                                ${hasUpcoming ? `
-                                                    <span class="inline-flex items-center gap-1 text-[10px] sm:text-xs font-medium text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 sm:py-1 rounded-full">
-                                                        <span class="material-symbols-outlined text-[10px] sm:text-xs">event</span>
-                                                        Appointment scheduled
-                                                    </span>
-                                                ` : lastGroom ? `
-                                                    <span class="inline-flex items-center gap-1 text-[10px] sm:text-xs font-medium ${needsGroom ? 'text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30' : 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800'} px-2 py-0.5 sm:py-1 rounded-full">
-                                                        <span class="material-symbols-outlined text-[10px] sm:text-xs">${needsGroom ? 'warning' : 'schedule'}</span>
-                                                        ${needsGroom ? `Due (${lastGroom.weeksSince}wks)` : `${lastGroom.weeksSince} weeks ago`}
-                                                    </span>
-                                                ` : `
-                                                    <span class="inline-flex items-center gap-1 text-[10px] sm:text-xs font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 sm:py-1 rounded-full">
-                                                        <span class="material-symbols-outlined text-[10px] sm:text-xs">info</span>
-                                                        No history
-                                                    </span>
-                                                `}
-                                            </div>
-                                            
-                                            <!-- Quick Book Button for this pet -->
-                                            ${!hasUpcoming ? `
-                                                <button onclick="openBookingModalForPet('${pet.id}')" class="mt-2 sm:mt-3 w-full py-2 bg-primary/10 hover:bg-primary/20 text-primary text-xs sm:text-sm font-bold rounded-lg flex items-center justify-center gap-1 transition-colors min-h-[36px]">
-                                                    <span class="material-symbols-outlined text-xs sm:text-sm">calendar_add_on</span>
-                                                    Book ${pet.name}
-                                                </button>
-                                            ` : ''}
                                         </div>
                                     </div>
                                 </div>
@@ -12793,40 +12900,39 @@
                     `}
                 </div>
                 
-                <!-- Quick Links Section -->
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
-                    <button onclick="setTab('ridealongs')" class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg sm:rounded-xl p-3 sm:p-4 hover:shadow-lg transition-all text-left group">
-                        <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                            <div class="w-8 h-8 sm:w-10 sm:h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg sm:rounded-xl flex items-center justify-center">
-                                <span class="material-symbols-outlined text-purple-600 dark:text-purple-400 text-lg sm:text-base">directions_car</span>
-                            </div>
+                <!-- #10 Quick Profile Card -->
+                <div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg sm:rounded-xl p-4 sm:p-5 mb-4 sm:mb-6 animate-fade-in animate-delay-300">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 sm:w-12 sm:h-12 bg-primary rounded-full flex items-center justify-center text-white font-bold text-lg">${user.name?.charAt(0) || 'U'}</div>
                             <div>
-                                <p class="font-bold text-xs sm:text-base dark:text-white group-hover:text-primary transition-colors">Ride-Alongs</p>
-                                <p class="text-[10px] sm:text-xs text-text-sub-light dark:text-text-sub-dark hidden sm:block">Learn grooming skills</p>
+                                <p class="font-bold dark:text-white">${user.name}</p>
+                                <p class="text-xs text-text-sub-light dark:text-text-sub-dark">${user.email || ''}</p>
+                                <p class="text-xs text-text-sub-light dark:text-text-sub-dark">${user.phone || 'No phone added'} • ${user.address ? user.address + (user.city ? ', ' + user.city : '') : 'No address'}</p>
                             </div>
                         </div>
+                        <button onclick="openEditModal('profile', state.currentUser)" class="p-2 hover:bg-background-light dark:hover:bg-background-dark rounded-lg text-text-sub-light hover:text-primary transition-colors" title="Edit Profile">
+                            <span class="material-symbols-outlined">edit</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- #9 Contextual Promotional Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 animate-fade-in animate-delay-400">
+                    <button onclick="setTab('ridealongs')" class="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl sm:rounded-2xl p-4 sm:p-5 text-left text-white hover:shadow-lg hover:scale-[1.02] transition-all group">
+                        <span class="material-symbols-outlined text-2xl mb-2 opacity-80">directions_car</span>
+                        <p class="font-bold text-sm sm:text-base">Learn to Groom at Home</p>
+                        <p class="text-[10px] sm:text-xs text-white/70 mt-1">Shadow a pro groomer on a real appointment</p>
                     </button>
-                    <button onclick="setTab('education')" class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg sm:rounded-xl p-3 sm:p-4 hover:shadow-lg transition-all text-left group">
-                        <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                            <div class="w-8 h-8 sm:w-10 sm:h-10 bg-cyan-100 dark:bg-cyan-900/30 rounded-lg sm:rounded-xl flex items-center justify-center">
-                                <span class="material-symbols-outlined text-cyan-600 dark:text-cyan-400 text-lg sm:text-base">school</span>
-                            </div>
-                            <div>
-                                <p class="font-bold text-xs sm:text-base dark:text-white group-hover:text-primary transition-colors">Academy</p>
-                                <p class="text-[10px] sm:text-xs text-text-sub-light dark:text-text-sub-dark hidden sm:block">Online courses</p>
-                            </div>
-                        </div>
+                    <button onclick="setTab('education')" class="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl sm:rounded-2xl p-4 sm:p-5 text-left text-white hover:shadow-lg hover:scale-[1.02] transition-all group">
+                        <span class="material-symbols-outlined text-2xl mb-2 opacity-80">school</span>
+                        <p class="font-bold text-sm sm:text-base">Grooming Academy</p>
+                        <p class="text-[10px] sm:text-xs text-white/70 mt-1">Tips to maintain your pup's coat between grooms</p>
                     </button>
-                    <button onclick="setTab('store')" class="col-span-2 sm:col-span-1 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg sm:rounded-xl p-3 sm:p-4 hover:shadow-lg transition-all text-left group">
-                        <div class="flex flex-row items-center gap-3">
-                            <div class="w-8 h-8 sm:w-10 sm:h-10 bg-rose-100 dark:bg-rose-900/30 rounded-lg sm:rounded-xl flex items-center justify-center">
-                                <span class="material-symbols-outlined text-rose-600 dark:text-rose-400 text-lg sm:text-base">storefront</span>
-                            </div>
-                            <div>
-                                <p class="font-bold text-xs sm:text-base dark:text-white group-hover:text-primary transition-colors">Store</p>
-                                <p class="text-[10px] sm:text-xs text-text-sub-light dark:text-text-sub-dark">Recommended products</p>
-                            </div>
-                        </div>
+                    <button onclick="setTab('store')" class="bg-gradient-to-br from-rose-500 to-pink-600 rounded-xl sm:rounded-2xl p-4 sm:p-5 text-left text-white hover:shadow-lg hover:scale-[1.02] transition-all group">
+                        <span class="material-symbols-outlined text-2xl mb-2 opacity-80">storefront</span>
+                        <p class="font-bold text-sm sm:text-base">${pets.length > 0 ? 'Products for ' + pets[0].name : 'Shop Grooming Tools'}</p>
+                        <p class="text-[10px] sm:text-xs text-white/70 mt-1">Curated picks by the Dogfathers team</p>
                     </button>
                 </div>
                 `;
@@ -12868,8 +12974,11 @@
                             </div>
                         </div>
                         <div class="flex gap-2 mt-4 pt-4 border-t border-border-light dark:border-border-dark">
-                            <button onclick="confirmCancelAppointment('${apt.id}')" class="flex-1 px-4 py-2 text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg flex items-center justify-center gap-1 transition-colors">
-                                <span class="material-symbols-outlined text-base">cancel</span>Cancel Appointment
+                            <button onclick="rescheduleAppointment('${apt.id}')" class="flex-1 px-4 py-2 text-sm font-bold text-primary bg-primary/10 hover:bg-primary/20 rounded-lg flex items-center justify-center gap-1 transition-colors">
+                                <span class="material-symbols-outlined text-base">edit_calendar</span>Reschedule
+                            </button>
+                            <button onclick="confirmCancelAppointment('${apt.id}')" class="flex-1 px-4 py-2 text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 rounded-lg flex items-center justify-center gap-1 transition-colors">
+                                <span class="material-symbols-outlined text-base">cancel</span>Cancel
                             </button>
                         </div>
                     </div>`).join('') : '<div class="text-center py-12 bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark"><span class="material-symbols-outlined text-6xl text-text-sub-light mb-4">calendar_month</span><p class="text-text-sub-light dark:text-text-sub-dark">No upcoming appointments</p><button onclick="openBookingModal()" class="mt-4 bg-primary text-white font-bold px-4 py-2 rounded-lg">Book Your First Appointment</button></div>'}</div>
@@ -12942,6 +13051,17 @@
             if (state.currentTab === 'store') {
                 const categories = ['all', 'grooming', 'treats', 'toys', 'health'];
                 const filteredProducts = state.storeCategory === 'all' ? data.products : data.products.filter(p => p.category === state.storeCategory);
+                
+                // #11 Personalized recommendations based on pet size
+                const petSizeCategory = pets.length > 0 ? (pets[0].weight > 50 ? 'large' : pets[0].weight > 20 ? 'medium' : 'small') : null;
+                const petBreed = pets.length > 0 ? pets[0].breed : '';
+                const recommendedProducts = petSizeCategory ? data.products.filter(p => {
+                    const desc = (p.description || '').toLowerCase() + ' ' + (p.name || '').toLowerCase();
+                    if (petSizeCategory === 'large') return desc.includes('large') || desc.includes('shed') || desc.includes('strong') || p.category === 'grooming';
+                    if (petSizeCategory === 'small') return desc.includes('small') || desc.includes('gentle') || desc.includes('sensitive') || p.category === 'treats';
+                    return p.badge === 'groomer' || p.category === 'grooming';
+                }).slice(0, 4) : [];
+                
                 return `
                 <div class="p-4 md:p-8 max-w-[1200px] mx-auto">
                     <div class="flex min-h-[280px] flex-col gap-4 bg-cover bg-center bg-no-repeat rounded-2xl items-start justify-end px-6 pb-8 shadow-md relative overflow-hidden mb-6" style="background-image: linear-gradient(rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.6) 100%), url('https://lh3.googleusercontent.com/aida-public/AB6AXuA-l9fQMzQ46NScwNxTOmvji96VyFtz0DEvfpIZPoEI2n98qWiqORYpMz7mP_SVLo7HdvDLy8EJTaPankBpfjSozf9kya8F5CF_NPLPoOIRnWnInstxdoCboZDO_Jh-HX8KlgRqD-iK-4O4hhgEOQCOpjBMqmREQEtYekCqzViyHxE6z6Puj8og0W3QwDAaug3ho0OLzxE_vW35ZF38i4Fc9u2Yk5igndj6fupyo-gv5B9oOXhPOqrpa8qscpgF9auQBUCmE-vGwUYy');">
@@ -12949,14 +13069,39 @@
                         <div class="flex flex-col gap-2 text-left z-10 max-w-2xl"><h1 class="text-white text-3xl font-black leading-tight">Curated Grooming Essentials</h1><p class="text-white/90 text-sm">Handpicked by the Dogfathers Team.</p></div>
                         <button class="flex items-center gap-2 rounded-lg h-11 px-5 bg-primary hover:bg-sky-400 text-white text-sm font-bold shadow-lg z-10 mt-2">Explore Deals <span class="material-symbols-outlined text-sm">arrow_forward</span></button>
                     </div>
-                    <div class="flex flex-col md:flex-row justify-between gap-4 py-3 sticky top-16 lg:top-0 z-30 bg-background-light/95 backdrop-blur-sm mb-6">
-                        <div class="flex w-full md:w-80 items-center rounded-lg bg-white border border-border-light px-3 h-11 shadow-sm"><span class="material-symbols-outlined text-text-sub-light">search</span><input class="w-full bg-transparent border-none focus:ring-0 text-sm px-2 placeholder:text-text-sub-light" placeholder="Search products..."/></div>
-                        <div class="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">${categories.map(cat => `<button onclick="setStoreCategory('${cat}')" class="flex h-10 shrink-0 items-center justify-center rounded-full px-5 text-sm font-medium transition-all ${state.storeCategory === cat ? 'bg-primary text-white' : 'bg-white border border-border-light'}">${cat.charAt(0).toUpperCase() + cat.slice(1)}</button>`).join('')}</div>
+                    
+                    ${recommendedProducts.length > 0 ? `
+                    <div class="mb-6">
+                        <h2 class="text-lg font-bold dark:text-white flex items-center gap-2 mb-3">
+                            <span class="material-symbols-outlined text-primary">auto_awesome</span>
+                            Recommended for ${pets[0].name}
+                            <span class="text-xs font-normal text-text-sub-light dark:text-text-sub-dark">(${petBreed} • ${petSizeCategory} breed)</span>
+                        </h2>
+                        <div class="flex gap-4 overflow-x-auto pb-3 scrollbar-hide">
+                            ${recommendedProducts.map(p => `
+                                <a href="${p.link}" target="_blank" class="flex-shrink-0 w-48 rounded-xl bg-primary/5 dark:bg-primary/10 border border-primary/20 overflow-hidden hover:shadow-lg transition-all group">
+                                    <div class="w-full h-32 bg-cover bg-center" style="background-image: url('${p.image}');"></div>
+                                    <div class="p-3">
+                                        <p class="font-bold text-sm dark:text-white truncate">${p.name}</p>
+                                        <div class="flex items-center justify-between mt-1">
+                                            <span class="font-bold text-primary">$${p.price.toFixed(2)}</span>
+                                            <span class="material-symbols-outlined text-primary text-sm">open_in_new</span>
+                                        </div>
+                                    </div>
+                                </a>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="flex flex-col md:flex-row justify-between gap-4 py-3 sticky top-16 lg:top-0 z-30 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-sm mb-6">
+                        <div class="flex w-full md:w-80 items-center rounded-lg bg-white dark:bg-surface-dark border border-border-light dark:border-border-dark px-3 h-11 shadow-sm"><span class="material-symbols-outlined text-text-sub-light dark:text-text-sub-dark">search</span><input class="w-full bg-transparent border-none focus:ring-0 text-sm px-2 placeholder:text-text-sub-light dark:placeholder:text-text-sub-dark dark:text-white" placeholder="Search products..."/></div>
+                        <div class="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">${categories.map(cat => `<button onclick="setStoreCategory('${cat}')" class="flex h-10 shrink-0 items-center justify-center rounded-full px-5 text-sm font-medium transition-all ${state.storeCategory === cat ? 'bg-primary text-white' : 'bg-white dark:bg-surface-dark border border-border-light dark:border-border-dark dark:text-white'}">${cat.charAt(0).toUpperCase() + cat.slice(1)}</button>`).join('')}</div>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-8">
-                        ${filteredProducts.map(p => `<div class="flex flex-col rounded-xl bg-white border border-border-light overflow-hidden hover:shadow-lg transition-all group"><div class="relative w-full aspect-[4/3] bg-gray-100 overflow-hidden">${p.badge ? `<div class="absolute top-3 left-3 z-10"><span class="${p.badge === 'groomer' ? 'bg-amber-100 text-amber-800' : p.badge === 'sale' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'} text-xs font-bold px-2 py-1 rounded">${p.badge === 'groomer' ? "Groomer's Choice" : p.badge === 'sale' ? 'Sale 20% Off' : 'New'}</span></div>` : ''}<div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-500" style="background-image: url('${p.image}');"></div></div><div class="flex flex-col flex-1 p-4 gap-3"><div class="flex-1"><h3 class="font-bold group-hover:text-primary transition-colors">${p.name}</h3><p class="text-sm text-text-sub-light">${p.description}</p></div><div class="flex items-center justify-between pt-2 border-t border-border-light">${p.originalPrice ? `<div class="flex flex-col"><span class="text-xs line-through text-text-sub-light">$${p.originalPrice.toFixed(2)}</span><span class="text-lg font-bold text-red-600">$${p.price.toFixed(2)}</span></div>` : `<span class="text-lg font-bold">$${p.price.toFixed(2)}</span>`}<a href="${p.link}" class="flex items-center gap-1 bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold">Buy <span class="material-symbols-outlined text-base">open_in_new</span></a></div></div></div>`).join('')}
+                        ${filteredProducts.map(p => `<div class="flex flex-col rounded-xl bg-white dark:bg-surface-dark border border-border-light dark:border-border-dark overflow-hidden hover:shadow-lg transition-all group"><div class="relative w-full aspect-[4/3] bg-gray-100 dark:bg-slate-800 overflow-hidden">${p.badge ? `<div class="absolute top-3 left-3 z-10"><span class="${p.badge === 'groomer' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300' : p.badge === 'sale' ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300' : 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'} text-xs font-bold px-2 py-1 rounded">${p.badge === 'groomer' ? "Groomer's Choice" : p.badge === 'sale' ? 'Sale 20% Off' : 'New'}</span></div>` : ''}<div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-500" style="background-image: url('${p.image}');"></div></div><div class="flex flex-col flex-1 p-4 gap-3"><div class="flex-1"><h3 class="font-bold dark:text-white group-hover:text-primary transition-colors">${p.name}</h3><p class="text-sm text-text-sub-light dark:text-text-sub-dark">${p.description}</p></div><div class="flex items-center justify-between pt-2 border-t border-border-light dark:border-border-dark">${p.originalPrice ? `<div class="flex flex-col"><span class="text-xs line-through text-text-sub-light dark:text-text-sub-dark">$${p.originalPrice.toFixed(2)}</span><span class="text-lg font-bold text-red-600 dark:text-red-400">$${p.price.toFixed(2)}</span></div>` : `<span class="text-lg font-bold dark:text-white">$${p.price.toFixed(2)}</span>`}<a href="${p.link}" class="flex items-center gap-1 bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold">Buy <span class="material-symbols-outlined text-base">open_in_new</span></a></div></div></div>`).join('')}
                     </div>
-                    <footer class="text-center py-6 border-t border-border-light"><p class="text-xs text-text-sub-light"><strong>Affiliate Disclosure:</strong> We may earn a commission at no extra cost to you.</p></footer>
+                    <footer class="text-center py-6 border-t border-border-light dark:border-border-dark"><p class="text-xs text-text-sub-light dark:text-text-sub-dark"><strong>Affiliate Disclosure:</strong> We may earn a commission at no extra cost to you.</p></footer>
                 </div>`;
             }
 
@@ -12974,12 +13119,12 @@
                             </div>
                         </div>
                     </section>
-                    <section class="px-4 md:px-10 py-10 bg-white">
+                    <section class="px-4 md:px-10 py-10 bg-white dark:bg-surface-dark">
                         <div class="max-w-[960px] mx-auto">
                             <div class="text-center mb-8"><h2 class="text-3xl font-bold mb-2">Choose Your Learning Path</h2><p class="text-text-sub-light">From observer to expert - we have a package for every skill level.</p></div>
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 ${data.rideAlongs.map((pkg, i) => `
-                                <div class="relative flex flex-col gap-5 rounded-xl ${pkg.popular ? 'border-2 border-primary bg-white shadow-xl md:-translate-y-2 z-10' : 'border border-border-light bg-background-light'} p-6 transition-all">
+                                <div class="relative flex flex-col gap-5 rounded-xl ${pkg.popular ? 'border-2 border-primary bg-white dark:bg-surface-dark shadow-xl md:-translate-y-2 z-10' : 'border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark'} p-6 transition-all">
                                     ${pkg.popular ? '<div class="absolute top-0 right-0 left-0 -mt-3 flex justify-center"><span class="bg-primary text-white text-xs font-bold px-3 py-1 rounded-full uppercase">Most Popular</span></div>' : ''}
                                     <div class="${pkg.popular ? 'mt-2' : ''}">
                                         <h3 class="text-lg font-bold">${pkg.name}</h3>
@@ -13003,7 +13148,7 @@
                             </div>
                         </div>
                     </section>
-                    <footer class="border-t border-border-light py-8 text-center"><p class="text-text-sub-light/70 text-sm">© 2024 Dogfathersplus. All rights reserved.</p></footer>
+                    <footer class="border-t border-border-light dark:border-border-dark py-8 text-center"><p class="text-text-sub-light/70 dark:text-text-sub-dark/70 text-sm">© ${new Date().getFullYear()} Dogfathersplus. All rights reserved.</p></footer>
                 </div>`;
             }
 
@@ -13033,7 +13178,7 @@
                     <section class="flex flex-col gap-8">
                         <div class="border-b border-border-light pb-6"><h2 class="text-2xl md:text-3xl font-bold mb-2">What You'll Learn</h2><p class="text-text-sub-light">Comprehensive modules from basic hygiene to advanced styling.</p></div>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            ${[{icon:'content_cut',title:'Professional Techniques',desc:'Safe scissoring and clipping methods.'},{icon:'shower',title:'Bathing & Drying',desc:'Best practices for all coat types.'},{icon:'health_and_safety',title:'Health Checks',desc:'Spot early signs of issues.'},{icon:'construction',title:'Tools of the Trade',desc:'Complete equipment guide.'},{icon:'groups',title:'Community Access',desc:'Q&A with expert groomers.'},{icon:'verified',title:'Certification',desc:'Earn your Home Groomer certificate.'}].map(item => `<div class="group flex flex-col gap-4 p-6 rounded-xl border border-border-light bg-white hover:shadow-lg transition-all"><div class="size-12 rounded-lg bg-blue-50 text-primary flex items-center justify-center"><span class="material-symbols-outlined text-2xl">${item.icon}</span></div><div><h3 class="text-lg font-bold mb-2">${item.title}</h3><p class="text-text-sub-light text-sm">${item.desc}</p></div></div>`).join('')}
+                            ${[{icon:'content_cut',title:'Professional Techniques',desc:'Safe scissoring and clipping methods.'},{icon:'shower',title:'Bathing & Drying',desc:'Best practices for all coat types.'},{icon:'health_and_safety',title:'Health Checks',desc:'Spot early signs of issues.'},{icon:'construction',title:'Tools of the Trade',desc:'Complete equipment guide.'},{icon:'groups',title:'Community Access',desc:'Q&A with expert groomers.'},{icon:'verified',title:'Certification',desc:'Earn your Home Groomer certificate.'}].map(item => `<div class="group flex flex-col gap-4 p-6 rounded-xl border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark hover:shadow-lg transition-all"><div class="size-12 rounded-lg bg-blue-50 dark:bg-primary/20 text-primary flex items-center justify-center"><span class="material-symbols-outlined text-2xl">${item.icon}</span></div><div><h3 class="text-lg font-bold mb-2 dark:text-white">${item.title}</h3><p class="text-text-sub-light dark:text-text-sub-dark text-sm">${item.desc}</p></div></div>`).join('')}
                         </div>
                     </section>
                     <section class="rounded-3xl bg-primary/10 border border-primary/20 p-8 md:p-16 text-center">
@@ -13045,7 +13190,7 @@
                             <p class="text-xs text-text-sub-light">30-day money-back guarantee.</p>
                         </div>
                     </section>
-                    <footer class="border-t border-border-light py-8 text-center"><p class="text-sm text-text-sub-light">© 2024 Dogfathersplus</p></footer>
+                    <footer class="border-t border-border-light dark:border-border-dark py-8 text-center"><p class="text-sm text-text-sub-light dark:text-text-sub-dark">© ${new Date().getFullYear()} Dogfathersplus</p></footer>
                 </div>`;
             }
             return '';
@@ -13165,11 +13310,24 @@
                             <textarea id="booking-notes" placeholder="Any special requests or notes..." class="w-full h-20 px-4 py-3 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark dark:text-white resize-none"></textarea>
                         </label>
                         
-                        <button type="submit" class="w-full h-12 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg flex items-center justify-center gap-2 touch-target transition-colors disabled:opacity-50 disabled:cursor-not-allowed" ${!selectedDate ? 'disabled' : ''}>
-                            Confirm Booking
-                            <span class="material-symbols-outlined">check</span>
+                        <button type="button" onclick="showBookingConfirmation()" class="w-full h-12 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg flex items-center justify-center gap-2 touch-target transition-colors disabled:opacity-50 disabled:cursor-not-allowed" ${!selectedDate ? 'disabled' : ''} id="booking-review-btn">
+                            Review & Confirm
+                            <span class="material-symbols-outlined">arrow_forward</span>
                         </button>
                     </form>
+                    
+                    <!-- #2 Booking Confirmation Summary (hidden by default) -->
+                    <div id="booking-confirmation-summary" class="p-4 sm:p-6 hidden">
+                        <div class="flex items-center gap-2 mb-4">
+                            <button onclick="hideBookingConfirmation()" class="p-1 hover:bg-background-light dark:hover:bg-background-dark rounded-lg"><span class="material-symbols-outlined dark:text-white">arrow_back</span></button>
+                            <h3 class="text-lg font-bold dark:text-white">Confirm Your Booking</h3>
+                        </div>
+                        <div id="booking-summary-content" class="space-y-3 mb-6"></div>
+                        <button onclick="submitBookingFromConfirmation()" class="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg flex items-center justify-center gap-2 touch-target transition-colors">
+                            <span class="material-symbols-outlined">check_circle</span>
+                            Confirm Booking
+                        </button>
+                    </div>
                 </div>
             </div>`;
         }
@@ -14944,12 +15102,96 @@
                 
                 state.notifications = notifications || [];
                 state.unreadNotifications = notifications?.filter(n => !n.is_read).length || 0;
+                
+                // #5 Generate local appointment reminders
+                checkAppointmentReminders();
             } catch (err) {
                 console.error('Error loading notifications:', err);
                 state.notifications = [];
                 state.unreadNotifications = 0;
             }
         }
+        
+        // #5 Appointment reminder system
+        function checkAppointmentReminders() {
+            if (!state.currentUser || state.currentUser.role === 'admin') return;
+            const appointments = state.appointments || [];
+            const upcoming = appointments.filter(a => a.status === 'pending' || a.status === 'confirmed');
+            const now = new Date();
+            const today = new Date(); today.setHours(0,0,0,0);
+            
+            const existingIds = (state.notifications || []).map(n => n.id || n.local_id);
+            
+            upcoming.forEach(apt => {
+                if (!apt.appointment_date) return;
+                const apptDate = new Date(apt.appointment_date + 'T00:00:00');
+                const diffDays = Math.ceil((apptDate - today) / (1000 * 60 * 60 * 24));
+                const petName = apt.petName || 'Your pet';
+                const reminderId24 = 'reminder_24h_' + apt.id;
+                const reminderIdToday = 'reminder_today_' + apt.id;
+                
+                // Tomorrow reminder
+                if (diffDays === 1 && !existingIds.includes(reminderId24)) {
+                    state.notifications.unshift({
+                        local_id: reminderId24,
+                        id: reminderId24,
+                        title: 'Appointment Tomorrow',
+                        message: `${petName}'s groom is tomorrow at ${formatTime(apt.start_time)}! Make sure your gate is accessible.`,
+                        type: 'reminder',
+                        is_read: false,
+                        created_at: now.toISOString()
+                    });
+                    state.unreadNotifications++;
+                }
+                
+                // Day-of reminder
+                if (diffDays === 0 && !existingIds.includes(reminderIdToday)) {
+                    state.notifications.unshift({
+                        local_id: reminderIdToday,
+                        id: reminderIdToday,
+                        title: 'Groom Today! 🐕',
+                        message: `${petName}'s grooming appointment is today at ${formatTime(apt.start_time)}. Your groomer will arrive at your address.`,
+                        type: 'reminder',
+                        is_read: false,
+                        created_at: now.toISOString()
+                    });
+                    state.unreadNotifications++;
+                }
+            });
+            
+            // Check for pets due for grooming (>8 weeks)
+            const pets = state.pets || [];
+            const completedAppts = appointments.filter(a => a.status === 'completed');
+            pets.forEach(pet => {
+                const petGrooms = completedAppts.filter(a => a.pet_id === pet.id);
+                if (petGrooms.length === 0) return;
+                petGrooms.sort((a, b) => new Date(b.appointment_date) - new Date(a.appointment_date));
+                const lastDate = new Date(petGrooms[0].appointment_date);
+                const weeksSince = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24 * 7));
+                const hasUpcoming = upcoming.some(a => a.pet_id === pet.id);
+                const dueId = 'due_groom_' + pet.id + '_w' + weeksSince;
+                
+                if (weeksSince >= 8 && !hasUpcoming && !existingIds.includes(dueId)) {
+                    state.notifications.unshift({
+                        local_id: dueId,
+                        id: dueId,
+                        title: `${pet.name} Needs a Groom`,
+                        message: `It's been ${weeksSince} weeks since ${pet.name}'s last groom. Book an appointment to keep them looking great!`,
+                        type: 'reminder',
+                        is_read: false,
+                        created_at: now.toISOString()
+                    });
+                    state.unreadNotifications++;
+                }
+            });
+        }
+        
+        // Start periodic reminder check (every 30 min)
+        setInterval(() => {
+            if (state.currentUser && state.currentUser.role !== 'admin') {
+                checkAppointmentReminders();
+            }
+        }, 30 * 60 * 1000);
         
         // Toggle notifications panel
         function toggleNotifications() {
@@ -15996,6 +16238,31 @@
             }
         }
         
+        // #3 Reschedule: cancel old + open booking pre-filled
+        function rescheduleAppointment(appointmentId) {
+            const appointments = state.appointments || [];
+            const appt = appointments.find(a => a.id === appointmentId);
+            if (!appt) return;
+            
+            showConfirm(
+                'Reschedule Appointment',
+                `We'll cancel the current appointment for ${appt.petName || 'your pet'} on ${formatDate(appt.appointment_date)} and open booking with the same details pre-filled. Continue?`,
+                async () => {
+                    // Cancel the old appointment silently
+                    await cancelAppointment(appointmentId, 'Rescheduled by customer');
+                    
+                    // Open booking with same pet/service
+                    openBookingModal({
+                        petId: appt.pet_id,
+                        serviceId: appt.service_id,
+                        serviceName: appt.serviceName || appt.service
+                    });
+                    
+                    showToast('Pick a new date and time for ' + (appt.petName || 'your pet'), 'info');
+                }
+            );
+        }
+        
         function closeBookingModal() { 
             state.showBookingModal = false;
             // Reset smart booking state
@@ -16004,6 +16271,75 @@
             state.customerBookingCoords = null;
             state.bookingPreselect = null;
             render(); 
+        }
+        
+        // #2 Booking confirmation summary
+        function showBookingConfirmation() {
+            const petSelect = document.getElementById('booking-pet');
+            const serviceSelect = document.getElementById('booking-service-select');
+            const addressInput = document.getElementById('booking-address');
+            const dateInput = document.getElementById('booking-date');
+            const timeSelect = document.getElementById('booking-time');
+            const notesInput = document.getElementById('booking-notes');
+            
+            const petName = petSelect?.options[petSelect.selectedIndex]?.text || 'N/A';
+            const serviceName = serviceSelect?.options[serviceSelect.selectedIndex]?.getAttribute('data-name') || serviceSelect?.options[serviceSelect.selectedIndex]?.text || 'N/A';
+            const servicePrice = serviceSelect?.options[serviceSelect.selectedIndex]?.getAttribute('data-price') || '';
+            const serviceDuration = serviceSelect?.options[serviceSelect.selectedIndex]?.getAttribute('data-duration') || '60';
+            const address = addressInput?.value || 'N/A';
+            const date = dateInput?.value ? formatDate(dateInput.value) : 'N/A';
+            const time = timeSelect?.value ? formatTime(timeSelect.value) : (state.selectedBookingTime ? formatTime(state.selectedBookingTime) : 'N/A');
+            const notes = notesInput?.value || 'None';
+            
+            if (!dateInput?.value) { showToast('Please select a date', 'warning'); return; }
+            if (!timeSelect?.value && !state.selectedBookingTime) { showToast('Please select a time', 'warning'); return; }
+            
+            const summaryHTML = `
+                <div class="bg-background-light dark:bg-background-dark rounded-xl p-4 space-y-3">
+                    <div class="flex items-center gap-3 pb-3 border-b border-border-light dark:border-border-dark">
+                        <div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><span class="material-symbols-outlined text-primary">pets</span></div>
+                        <div><p class="text-xs text-text-sub-light dark:text-text-sub-dark">Pet</p><p class="font-bold dark:text-white">${petName}</p></div>
+                    </div>
+                    <div class="flex items-center gap-3 pb-3 border-b border-border-light dark:border-border-dark">
+                        <div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><span class="material-symbols-outlined text-primary">content_cut</span></div>
+                        <div class="flex-1"><p class="text-xs text-text-sub-light dark:text-text-sub-dark">Service</p><p class="font-bold dark:text-white">${serviceName}</p></div>
+                        ${servicePrice ? `<span class="text-lg font-bold text-primary">$${servicePrice}</span>` : ''}
+                    </div>
+                    <div class="flex items-center gap-3 pb-3 border-b border-border-light dark:border-border-dark">
+                        <div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><span class="material-symbols-outlined text-primary">calendar_month</span></div>
+                        <div><p class="text-xs text-text-sub-light dark:text-text-sub-dark">Date & Time</p><p class="font-bold dark:text-white">${date} at ${time}</p><p class="text-xs text-text-sub-light dark:text-text-sub-dark">~${serviceDuration} min</p></div>
+                    </div>
+                    <div class="flex items-center gap-3 pb-3 border-b border-border-light dark:border-border-dark">
+                        <div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><span class="material-symbols-outlined text-primary">location_on</span></div>
+                        <div><p class="text-xs text-text-sub-light dark:text-text-sub-dark">Address</p><p class="font-bold dark:text-white">${address}</p></div>
+                    </div>
+                    ${notes && notes !== 'None' ? `
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><span class="material-symbols-outlined text-primary">notes</span></div>
+                        <div><p class="text-xs text-text-sub-light dark:text-text-sub-dark">Notes</p><p class="text-sm dark:text-white">${notes}</p></div>
+                    </div>` : ''}
+                </div>
+            `;
+            
+            const summaryEl = document.getElementById('booking-summary-content');
+            const summaryPanel = document.getElementById('booking-confirmation-summary');
+            const form = document.getElementById('booking-form');
+            if (summaryEl) summaryEl.innerHTML = summaryHTML;
+            if (summaryPanel) summaryPanel.classList.remove('hidden');
+            if (form) form.classList.add('hidden');
+        }
+        
+        function hideBookingConfirmation() {
+            const summaryPanel = document.getElementById('booking-confirmation-summary');
+            const form = document.getElementById('booking-form');
+            if (summaryPanel) summaryPanel.classList.add('hidden');
+            if (form) form.classList.remove('hidden');
+        }
+        
+        function submitBookingFromConfirmation() {
+            hideBookingConfirmation();
+            const form = document.getElementById('booking-form');
+            if (form) form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
         }
         
         function logout() { 
