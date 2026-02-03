@@ -955,6 +955,8 @@
         
         // JavaScript fallback calculation for available slots
         async function calculateAvailableSlotsJS(customerLat, customerLng, startDate, endDate) {
+            console.log('calculateAvailableSlotsJS called:', { customerLat, customerLng, startDate, endDate });
+            
             // 1. Get all active groomers with their availability
             const { data: groomers, error: groomersError } = await supabaseClient
                 .from('profiles')
@@ -962,16 +964,20 @@
                 .eq('role', 'groomer')
                 .eq('is_active', true);
             
+            console.log('Groomers query:', { count: groomers?.length || 0, error: groomersError?.message || 'none', groomers: groomers?.map(g => g.full_name) });
+            
             if (groomersError || !groomers?.length) {
                 console.error('No groomers found:', groomersError);
                 return { bestAvailable: [], moreAvailable: [], error: true };
             }
             
             // 2. Get groomer availability schedules
-            const { data: availability } = await supabaseClient
+            const { data: availability, error: availError } = await supabaseClient
                 .from('groomer_availability')
                 .select('groomer_id, day_of_week, start_time, end_time, is_available')
                 .eq('is_available', true);
+            
+            console.log('Groomer availability query:', { count: availability?.length || 0, error: availError?.message || 'none' });
             
             // 3. Get time off requests
             const { data: timeOff } = await supabaseClient
@@ -987,14 +993,34 @@
                 .select('id, appointment_date, start_time, assigned_groomer_id, latitude, longitude')
                 .gte('appointment_date', startDate)
                 .lte('appointment_date', endDate)
-                .not('status', 'in', '("cancelled","no_show")');
+                .not('status', 'in', '(cancelled,no_show)');
             
             // Build lookup maps
             const availabilityMap = {};
-            (availability || []).forEach(a => {
-                if (!availabilityMap[a.groomer_id]) availabilityMap[a.groomer_id] = {};
-                availabilityMap[a.groomer_id][a.day_of_week] = a;
-            });
+            
+            if (availability && availability.length > 0) {
+                // Use actual groomer availability from DB
+                availability.forEach(a => {
+                    if (!availabilityMap[a.groomer_id]) availabilityMap[a.groomer_id] = {};
+                    availabilityMap[a.groomer_id][a.day_of_week] = a;
+                });
+            } else {
+                // FALLBACK: If availability table is empty or RLS blocks customer reads,
+                // default all groomers to Mon-Sat 7am-6pm
+                console.warn('No groomer availability data found — using default Mon-Sat 7am-6pm for all groomers');
+                groomers.forEach(g => {
+                    availabilityMap[g.id] = {};
+                    for (let day = 1; day <= 6; day++) { // Mon(1) - Sat(6)
+                        availabilityMap[g.id][day] = {
+                            groomer_id: g.id,
+                            day_of_week: day,
+                            start_time: '07:00:00',
+                            end_time: '18:00:00',
+                            is_available: true
+                        };
+                    }
+                });
+            }
             
             const timeOffSet = new Set();
             (timeOff || []).forEach(t => {
@@ -1067,6 +1093,7 @@
                 currentDate.setDate(currentDate.getDate() + 1);
             }
             
+            console.log('Total slots generated:', allSlots.length, '| Sample:', allSlots.slice(0, 3));
             return processAvailableSlots(allSlots, customerLat, customerLng);
         }
         
