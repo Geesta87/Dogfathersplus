@@ -3172,10 +3172,14 @@
 
         // Get available time slots for a date
         async function getAvailableSlots(date, serviceId) {
-            const dayOfWeek = new Date(date).getDay();
+            const dayOfWeek = new Date(date + 'T12:00:00').getDay();
             const hours = state.businessHours.find(h => h.day_of_week === dayOfWeek);
             
-            if (!hours || hours.is_closed) return [];
+            // Default business hours fallback (Mon-Sat 7am-6pm, Sun closed)
+            const defaultHours = dayOfWeek === 0 ? null : { open_time: '07:00', close_time: '18:00', is_closed: false };
+            const effectiveHours = hours || defaultHours;
+            
+            if (!effectiveHours || effectiveHours.is_closed) return [];
             
             // Get existing appointments for that date
             const { data: existingAppts } = await supabaseClient
@@ -3193,8 +3197,8 @@
             
             // Generate available slots
             const slots = [];
-            let [openHour, openMin] = hours.open_time.split(':').map(Number);
-            const [closeHour, closeMin] = hours.close_time.split(':').map(Number);
+            let [openHour, openMin] = effectiveHours.open_time.split(':').map(Number);
+            const [closeHour, closeMin] = effectiveHours.close_time.split(':').map(Number);
             
             while (openHour < closeHour || (openHour === closeHour && openMin < closeMin)) {
                 const timeStr = `${String(openHour).padStart(2, '0')}:${String(openMin).padStart(2, '0')}`;
@@ -13359,9 +13363,11 @@
             
             if (error) {
                 return `
-                    <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl">
-                        <p class="text-red-800 dark:text-red-200">Error loading available times. Using standard date picker.</p>
-                        <input type="date" id="booking-date-fallback" min="${new Date().toISOString().split('T')[0]}" onchange="handleFallbackDateChange()" class="mt-3 w-full h-12 px-4 rounded-lg bg-white dark:bg-background-dark border border-border-light dark:border-border-dark dark:text-white">
+                    <div class="p-4 bg-background-light dark:bg-background-dark rounded-xl">
+                        <label class="block">
+                            <span class="text-sm font-semibold mb-2 block dark:text-white">Select a Date</span>
+                            <input type="date" id="booking-date-fallback" min="${new Date().toISOString().split('T')[0]}" onchange="handleFallbackDateChange()" class="w-full h-12 px-4 rounded-lg bg-white dark:bg-slate-800 border border-border-light dark:border-border-dark dark:text-white">
+                        </label>
                     </div>
                 `;
             }
@@ -13533,8 +13539,12 @@
                 
             } catch (err) {
                 console.error('Error loading smart date picker:', err);
+                // Gracefully fall back to standard date picker
                 state.smartBookingData = { error: true };
                 pickerContainer.innerHTML = renderSmartDatePicker(state.smartBookingData, null);
+                // Auto-show time picker wrapper
+                const timeWrapper = document.getElementById('time-selection-wrapper');
+                if (timeWrapper) timeWrapper.classList.remove('hidden');
             }
         }
         
@@ -13638,7 +13648,7 @@
                 
                 if (slots.length === 0) {
                     // Check if it's a closed day
-                    const dayOfWeek = new Date(selectedDate).getDay();
+                    const dayOfWeek = new Date(selectedDate + 'T12:00:00').getDay();
                     const hours = state.businessHours.find(h => h.day_of_week === dayOfWeek);
                     
                     if (!hours || hours.is_closed) {
