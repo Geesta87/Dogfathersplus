@@ -215,6 +215,14 @@
     </div>
     <script>
         // =============================================
+        // DEBUG & CONFIGURATION
+        // =============================================
+        const DEBUG = false; // Set to true for development logging
+        const _log = DEBUG ? console.log.bind(console) : () => {};
+        const _warn = DEBUG ? console.warn.bind(console) : () => {};
+        // console.error always logs (real errors)
+        
+        // =============================================
         // SUPABASE CONFIGURATION
         // =============================================
         const SUPABASE_URL = 'https://cxtxkyitvybmyflsjexr.supabase.co';
@@ -227,7 +235,7 @@
             try {
                 if (typeof supabase !== 'undefined' && supabase.createClient) {
                     supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                    console.log('Supabase client created');
+                    _log('Supabase client created');
                     return true;
                 } else {
                     console.error('Supabase library not loaded');
@@ -447,7 +455,6 @@
             // Phase 7: Quick Text Templates
             showQuickTemplates: false, // Show quick templates picker
             mobileTab: null, // Mobile tab state for dashboard
-            showMobileMenu: false, // Mobile menu state
             showQuickActions: false, // Quick actions menu state
             // Phase 8: History Tab
             historyFilter: 'all', // 'all' | 'completed' | 'cancelled' | 'upcoming'
@@ -460,6 +467,62 @@
 
         const LOGO_MAIN = 'https://storage.googleapis.com/msgsndr/5ZO7GDI0tRsPLerwiyMJ/media/69471b85aca6ab5d44c15e0b.jpg';
         const LOGO_ACADEMY = 'https://storage.googleapis.com/msgsndr/5ZO7GDI0tRsPLerwiyMJ/media/6830663caca6ab25bac0a498.png';
+        
+        // =============================================
+        // NETWORK STATUS MONITORING
+        // =============================================
+        let isOffline = !navigator.onLine;
+        
+        function showOfflineBanner() {
+            let banner = document.getElementById('offline-banner');
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'offline-banner';
+                banner.className = 'fixed top-0 left-0 right-0 z-[250] bg-amber-500 text-white text-center py-2 px-4 text-sm font-semibold flex items-center justify-center gap-2 safe-top';
+                banner.innerHTML = '<span class="material-symbols-outlined text-base">wifi_off</span> You\'re offline — some features may be unavailable';
+                document.body.prepend(banner);
+            }
+            banner.style.display = 'flex';
+        }
+        
+        function hideOfflineBanner() {
+            const banner = document.getElementById('offline-banner');
+            if (banner) banner.style.display = 'none';
+        }
+        
+        window.addEventListener('online', () => {
+            isOffline = false;
+            hideOfflineBanner();
+            showToast('Back online', 'success');
+        });
+        
+        window.addEventListener('offline', () => {
+            isOffline = true;
+            showOfflineBanner();
+            showToast('You\'re offline', 'warning');
+        });
+        
+        // Safe Supabase fetch wrapper with retry
+        async function safeFetch(queryFn, { retries = 1, label = 'request' } = {}) {
+            for (let attempt = 0; attempt <= retries; attempt++) {
+                try {
+                    if (isOffline) throw new Error('No internet connection');
+                    const result = await queryFn();
+                    if (result.error) throw result.error;
+                    return result;
+                } catch (err) {
+                    if (attempt < retries) {
+                        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+                        continue;
+                    }
+                    console.error(`${label} failed:`, err.message);
+                    if (isOffline) {
+                        showToast('No internet connection. Please try again later.', 'warning');
+                    }
+                    throw err;
+                }
+            }
+        }
         
         // =============================================
         // TIME FORMATTING - PACIFIC TIME (LOS ANGELES)
@@ -725,7 +788,7 @@
                 
                 if (!tiersError && tiers && tiers.length > 0) {
                     travelFeeTiers = tiers;
-                    console.log('Loaded travel fee tiers:', tiers.length);
+                    _log('Loaded travel fee tiers:', tiers.length);
                 }
                 
                 // Load business settings
@@ -744,10 +807,10 @@
                     if (value.home_base) {
                         businessHomeBase = value.home_base;
                     }
-                    console.log('Loaded smart booking settings:', smartBookingSettings);
+                    _log('Loaded smart booking settings:', smartBookingSettings);
                 }
             } catch (err) {
-                console.log('Smart booking settings not available, using defaults');
+                _log('Smart booking settings not available, using defaults');
             }
         }
         
@@ -798,7 +861,7 @@
             
             // Check cache first
             if (geocodeCache.has(fullAddress)) {
-                console.log('Geocode cache hit:', fullAddress);
+                _log('Geocode cache hit:', fullAddress);
                 return geocodeCache.get(fullAddress);
             }
             
@@ -819,12 +882,12 @@
                             display_name: data[0].display_name
                         };
                         geocodeCache.set(fullAddress, result);
-                        console.log('Geocoded:', fullAddress, '→', result.latitude, result.longitude);
+                        _log('Geocoded:', fullAddress, '→', result.latitude, result.longitude);
                         return result;
                     }
                 }
             } catch (err) {
-                console.warn('Nominatim geocoding failed:', err);
+                _warn('Nominatim geocoding failed:', err);
             }
             
             // Fallback: Try zip code centroid
@@ -861,7 +924,7 @@
                     };
                 }
             } catch (err) {
-                console.warn('Zip centroid lookup failed:', err);
+                _warn('Zip centroid lookup failed:', err);
             }
             
             return null;
@@ -874,7 +937,7 @@
         // Get smart date/time recommendations for booking (Multi-Groomer System)
         async function getSmartDateRecommendations(customerLat, customerLng, daysAhead = 30) {
             if (!customerLat || !customerLng) {
-                console.log('No customer coordinates for smart booking');
+                _log('No customer coordinates for smart booking');
                 return { bestAvailable: [], moreAvailable: [], noCoordinates: true };
             }
             
@@ -895,12 +958,12 @@
                     });
                 
                 if (!dbError && dbSlots && dbSlots.length > 0) {
-                    console.log('Using database function for smart booking:', dbSlots.length, 'slots');
+                    _log('Using database function for smart booking:', dbSlots.length, 'slots');
                     return processAvailableSlots(dbSlots, customerLat, customerLng);
                 }
                 
                 // Fallback to JavaScript calculation if DB function not available
-                console.log('Falling back to JS calculation for smart booking');
+                _log('Falling back to JS calculation for smart booking');
                 return await calculateAvailableSlotsJS(customerLat, customerLng, todayStr, endDateStr);
                 
             } catch (err) {
@@ -932,7 +995,7 @@
                 .slice(0, 20)
                 .map(s => formatSlotForDisplay(s));
             
-            console.log('Smart booking results:', { bestAvailable: bestAvailable.length, moreAvailable: moreAvailable.length });
+            _log('Smart booking results:', { bestAvailable: bestAvailable.length, moreAvailable: moreAvailable.length });
             
             return { bestAvailable, moreAvailable };
         }
@@ -955,8 +1018,6 @@
         
         // JavaScript fallback calculation for available slots
         async function calculateAvailableSlotsJS(customerLat, customerLng, startDate, endDate) {
-            console.log('calculateAvailableSlotsJS called:', { customerLat, customerLng, startDate, endDate });
-            
             // 1. Get all active groomers with their availability
             const { data: groomers, error: groomersError } = await supabaseClient
                 .from('profiles')
@@ -964,20 +1025,16 @@
                 .eq('role', 'groomer')
                 .eq('is_active', true);
             
-            console.log('Groomers query:', { count: groomers?.length || 0, error: groomersError?.message || 'none', groomers: groomers?.map(g => g.full_name) });
-            
             if (groomersError || !groomers?.length) {
                 console.error('No groomers found:', groomersError);
                 return { bestAvailable: [], moreAvailable: [], error: true };
             }
             
             // 2. Get groomer availability schedules
-            const { data: availability, error: availError } = await supabaseClient
+            const { data: availability } = await supabaseClient
                 .from('groomer_availability')
                 .select('groomer_id, day_of_week, start_time, end_time, is_available')
                 .eq('is_available', true);
-            
-            console.log('Groomer availability query:', { count: availability?.length || 0, error: availError?.message || 'none' });
             
             // 3. Get time off requests
             const { data: timeOff } = await supabaseClient
@@ -993,34 +1050,14 @@
                 .select('id, appointment_date, start_time, assigned_groomer_id, latitude, longitude')
                 .gte('appointment_date', startDate)
                 .lte('appointment_date', endDate)
-                .not('status', 'in', '(cancelled,no_show)');
+                .not('status', 'in', '("cancelled","no_show")');
             
             // Build lookup maps
             const availabilityMap = {};
-            
-            if (availability && availability.length > 0) {
-                // Use actual groomer availability from DB
-                availability.forEach(a => {
-                    if (!availabilityMap[a.groomer_id]) availabilityMap[a.groomer_id] = {};
-                    availabilityMap[a.groomer_id][a.day_of_week] = a;
-                });
-            } else {
-                // FALLBACK: If availability table is empty or RLS blocks customer reads,
-                // default all groomers to Mon-Sat 7am-6pm
-                console.warn('No groomer availability data found — using default Mon-Sat 7am-6pm for all groomers');
-                groomers.forEach(g => {
-                    availabilityMap[g.id] = {};
-                    for (let day = 1; day <= 6; day++) { // Mon(1) - Sat(6)
-                        availabilityMap[g.id][day] = {
-                            groomer_id: g.id,
-                            day_of_week: day,
-                            start_time: '07:00:00',
-                            end_time: '18:00:00',
-                            is_available: true
-                        };
-                    }
-                });
-            }
+            (availability || []).forEach(a => {
+                if (!availabilityMap[a.groomer_id]) availabilityMap[a.groomer_id] = {};
+                availabilityMap[a.groomer_id][a.day_of_week] = a;
+            });
             
             const timeOffSet = new Set();
             (timeOff || []).forEach(t => {
@@ -1093,7 +1130,6 @@
                 currentDate.setDate(currentDate.getDate() + 1);
             }
             
-            console.log('Total slots generated:', allSlots.length, '| Sample:', allSlots.slice(0, 3));
             return processAvailableSlots(allSlots, customerLat, customerLng);
         }
         
@@ -1129,7 +1165,7 @@
                 if (error) {
                     console.error('Failed to store appointment coordinates:', error);
                 } else {
-                    console.log('Stored appointment coordinates:', coords);
+                    _log('Stored appointment coordinates:', coords);
                 }
             }
             
@@ -1153,7 +1189,7 @@
                 if (error) {
                     console.error('Failed to store profile coordinates:', error);
                 } else {
-                    console.log('Stored profile coordinates:', coords);
+                    _log('Stored profile coordinates:', coords);
                     // Update local state
                     if (state.currentUser) {
                         state.currentUser.latitude = coords.latitude;
@@ -1178,6 +1214,155 @@
             if (fee === 0) return 'FREE';
             return `+$${fee}`;
         }
+        
+        // =============================================
+        // ADDRESS SERVICE AREA VERIFICATION
+        // =============================================
+        
+        // Debounce utility
+        function debounce(fn, delay) {
+            let timer;
+            return function(...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn.apply(this, args), delay);
+            };
+        }
+        
+        // Debounced version for input events (400ms delay)
+        const debouncedAddressCheck = debounce(checkAddressServiceArea, 400);
+        
+        // Check address and show service area badge
+        async function checkAddressServiceArea() {
+            const addressInput = document.getElementById('booking-address');
+            const badgeContainer = document.getElementById('address-service-badge');
+            const checkIcon = document.getElementById('address-check-icon');
+            
+            if (!addressInput || !badgeContainer) return;
+            
+            const address = addressInput.value.trim();
+            if (!address || address.length < 5) {
+                badgeContainer.classList.add('hidden');
+                badgeContainer.innerHTML = '';
+                if (checkIcon) checkIcon.classList.add('hidden');
+                return;
+            }
+            
+            // Show loading state
+            badgeContainer.classList.remove('hidden');
+            badgeContainer.innerHTML = `
+                <div class="flex items-center gap-2 p-3 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                    <svg class="animate-spin h-4 w-4 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span class="text-sm text-slate-600 dark:text-slate-400">Checking service area...</span>
+                </div>
+            `;
+            
+            try {
+                // Parse address
+                const parts = address.split(',').map(p => p.trim());
+                const street = parts[0] || address;
+                const city = state.currentUser?.city || parts[1] || '';
+                const zip = state.currentUser?.zip || '';
+                
+                // Geocode the address
+                const coords = await geocodeAddress(street, city, 'CA', zip);
+                
+                if (!coords) {
+                    badgeContainer.innerHTML = renderServiceAreaBadge(null, null, true);
+                    if (checkIcon) checkIcon.classList.add('hidden');
+                    return;
+                }
+                
+                // Store coordinates for booking
+                state.customerBookingCoords = coords;
+                
+                // Calculate distance from business home base
+                const distance = calculateDistance(
+                    coords.latitude, coords.longitude,
+                    businessHomeBase.latitude, businessHomeBase.longitude
+                );
+                
+                // Get the tier for this distance
+                const tier = getTravelFeeTier(distance);
+                
+                // Show the badge
+                badgeContainer.innerHTML = renderServiceAreaBadge(tier, distance, false);
+                
+                // Show/hide check icon based on service availability
+                if (checkIcon) {
+                    if (tier.fee_amount >= 0) {
+                        checkIcon.classList.remove('hidden');
+                        checkIcon.innerHTML = `<span class="material-symbols-outlined ${tier.color_class} text-xl">${tier.icon}</span>`;
+                    } else {
+                        checkIcon.classList.add('hidden');
+                    }
+                }
+                
+            } catch (err) {
+                console.error('Error checking service area:', err);
+                badgeContainer.innerHTML = renderServiceAreaBadge(null, null, true);
+                if (checkIcon) checkIcon.classList.add('hidden');
+            }
+        }
+        
+        // Render the service area badge UI
+        function renderServiceAreaBadge(tier, distance, error) {
+            if (error || !tier) {
+                return `
+                    <div class="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg">
+                        <span class="material-symbols-outlined text-amber-600 dark:text-amber-400">location_off</span>
+                        <div class="flex-1">
+                            <p class="text-sm font-medium text-amber-800 dark:text-amber-200">Couldn't verify address</p>
+                            <p class="text-xs text-amber-600 dark:text-amber-400">Please enter a valid address with city name</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Outside service area
+            if (tier.fee_amount < 0) {
+                return `
+                    <div class="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg">
+                        <span class="material-symbols-outlined text-red-600 dark:text-red-400">${tier.icon || 'wrong_location'}</span>
+                        <div class="flex-1">
+                            <p class="text-sm font-medium text-red-800 dark:text-red-200">${tier.label || 'Outside Service Area'}</p>
+                            <p class="text-xs text-red-600 dark:text-red-400">${distance ? distance.toFixed(1) + ' miles away — ' : ''}We don't currently serve this area</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Determine badge styling based on tier
+            const tierStyles = {
+                1: { bg: 'bg-emerald-50 dark:bg-emerald-900/30', border: 'border-emerald-200 dark:border-emerald-700', text: 'text-emerald-800 dark:text-emerald-200', subtext: 'text-emerald-600 dark:text-emerald-400' },
+                2: { bg: 'bg-blue-50 dark:bg-blue-900/30', border: 'border-blue-200 dark:border-blue-700', text: 'text-blue-800 dark:text-blue-200', subtext: 'text-blue-600 dark:text-blue-400' },
+                3: { bg: 'bg-amber-50 dark:bg-amber-900/30', border: 'border-amber-200 dark:border-amber-700', text: 'text-amber-800 dark:text-amber-200', subtext: 'text-amber-600 dark:text-amber-400' },
+                4: { bg: 'bg-orange-50 dark:bg-orange-900/30', border: 'border-orange-200 dark:border-orange-700', text: 'text-orange-800 dark:text-orange-200', subtext: 'text-orange-600 dark:text-orange-400' },
+                5: { bg: 'bg-red-50 dark:bg-red-900/30', border: 'border-red-200 dark:border-red-700', text: 'text-red-800 dark:text-red-200', subtext: 'text-red-600 dark:text-red-400' }
+            };
+            
+            const style = tierStyles[tier.tier_order] || tierStyles[1];
+            const feeText = tier.fee_amount === 0 ? 'No travel fee!' : `+$${tier.fee_amount} travel fee`;
+            const distanceText = distance !== null ? `${distance.toFixed(1)} mi` : '';
+            
+            return `
+                <div class="flex items-center gap-3 p-3 ${style.bg} ${style.border} border rounded-lg">
+                    <div class="w-10 h-10 rounded-full ${style.bg} flex items-center justify-center">
+                        <span class="material-symbols-outlined ${tier.color_class || style.text} text-xl">${tier.icon || 'check_circle'}</span>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                            <p class="text-sm font-bold ${style.text}">${tier.label || 'In Service Area'}</p>
+                            ${tier.tier_order === 1 ? '<span class="material-symbols-outlined text-emerald-500 text-base fill-1">verified</span>' : ''}
+                        </div>
+                        <p class="text-xs ${style.subtext}">${distanceText}${distanceText && feeText ? ' — ' : ''}${feeText}</p>
+                    </div>
+                    ${tier.tier_order === 1 ? '<span class="material-symbols-outlined text-emerald-500 text-2xl">check_circle</span>' : ''}
+                </div>
+            `;
+        }
 
         // =============================================
         // SUPABASE DATA FUNCTIONS
@@ -1185,7 +1370,10 @@
         
         // Initialize app - check for existing session
         async function initApp() {
-            console.log('Initializing app...');
+            _log('Initializing app...');
+            
+            // Show offline banner if starting without connection
+            if (isOffline) showOfflineBanner();
             
             try {
                 showLoading();
@@ -1211,7 +1399,7 @@
                         }
                         
                         if (session) {
-                            console.log('Found existing session');
+                            _log('Found existing session');
                             state.session = session;
                             state.showOnboarding = false;
                             
@@ -1231,17 +1419,18 @@
                         
                         // Set up real-time subscriptions (non-blocking)
                         setupRealtimeSubscriptions();
+                        startReminderInterval();
                     }
                 };
                 
                 // Race between init and timeout
                 await Promise.race([init(), timeout]).catch(err => {
-                    console.warn('Init timeout or error, continuing anyway:', err.message);
+                    _warn('Init timeout or error, continuing anyway:', err.message);
                 });
                 
                 hideLoading();
                 render();
-                console.log('App initialized successfully');
+                _log('App initialized successfully');
             } catch (err) {
                 console.error('Init error:', err);
                 hideLoading();
@@ -1252,26 +1441,37 @@
         // =============================================
         // REAL-TIME SUBSCRIPTIONS (2-WAY SYNC)
         // =============================================
+        function cleanupRealtimeSubscriptions() {
+            if (!supabaseClient) return;
+            try {
+                supabaseClient.removeAllChannels();
+                _log('Cleaned up realtime subscriptions');
+            } catch(e) { console.error('Cleanup error:', e); }
+        }
+        
         function setupRealtimeSubscriptions() {
             if (!supabaseClient) return;
+            
+            // Clean up existing subscriptions before re-subscribing
+            cleanupRealtimeSubscriptions();
             
             try {
                 // Subscribe to appointments changes
                 supabaseClient
                     .channel('appointments-changes')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, async (payload) => {
-                        console.log('Appointment change:', payload.eventType);
+                        _log('Appointment change:', payload.eventType);
                         await handleRealtimeUpdate('appointments', payload);
                     })
                     .subscribe((status) => {
-                        console.log('Appointments subscription:', status);
+                        _log('Appointments subscription:', status);
                     });
 
                 // Subscribe to pets changes
                 supabaseClient
                     .channel('pets-changes')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'pets' }, async (payload) => {
-                        console.log('Pet change:', payload.eventType);
+                        _log('Pet change:', payload.eventType);
                         await handleRealtimeUpdate('pets', payload);
                     })
                     .subscribe();
@@ -1280,7 +1480,7 @@
                 supabaseClient
                     .channel('products-changes')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, async (payload) => {
-                        console.log('Product change:', payload.eventType);
+                        _log('Product change:', payload.eventType);
                         await handleRealtimeUpdate('products', payload);
                     })
                     .subscribe();
@@ -1289,7 +1489,7 @@
                 supabaseClient
                     .channel('rewards-changes')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'rewards' }, async (payload) => {
-                        console.log('Reward change:', payload.eventType);
+                        _log('Reward change:', payload.eventType);
                         await handleRealtimeUpdate('rewards', payload);
                     })
                     .subscribe();
@@ -1298,7 +1498,7 @@
                 supabaseClient
                     .channel('ridealongs-changes')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_along_packages' }, async (payload) => {
-                        console.log('Ride-along change:', payload.eventType);
+                        _log('Ride-along change:', payload.eventType);
                         await handleRealtimeUpdate('ride_along_packages', payload);
                     })
                     .subscribe();
@@ -1307,7 +1507,7 @@
                 supabaseClient
                     .channel('profiles-changes')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, async (payload) => {
-                        console.log('Profile change:', payload.eventType);
+                        _log('Profile change:', payload.eventType);
                     await handleRealtimeUpdate('profiles', payload);
                 })
                 .subscribe();
@@ -1316,7 +1516,7 @@
             supabaseClient
                 .channel('services-changes')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'services' }, async (payload) => {
-                    console.log('Service change:', payload.eventType);
+                    _log('Service change:', payload.eventType);
                     await handleRealtimeUpdate('services', payload);
                 })
                 .subscribe();
@@ -1325,7 +1525,7 @@
             supabaseClient
                 .channel('redemptions-changes')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'reward_redemptions' }, async (payload) => {
-                    console.log('Redemption change:', payload.eventType);
+                    _log('Redemption change:', payload.eventType);
                     await handleRealtimeUpdate('reward_redemptions', payload);
                 })
                 .subscribe();
@@ -1334,12 +1534,12 @@
             supabaseClient
                 .channel('inquiries-changes')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_along_inquiries' }, async (payload) => {
-                    console.log('Inquiry change:', payload.eventType);
+                    _log('Inquiry change:', payload.eventType);
                     await handleRealtimeUpdate('ride_along_inquiries', payload);
                 })
                 .subscribe();
                 
-            console.log('Realtime subscriptions set up successfully');
+            _log('Realtime subscriptions set up successfully');
             } catch (err) {
                 console.error('Failed to set up realtime subscriptions:', err);
             }
@@ -1383,7 +1583,7 @@
                             const isOwnAction = newRecord?.completed_by === state.currentUser.id ||
                                                (newRecord?.status === 'in_progress' && newRecord?.assigned_groomer_id === state.currentUser.id);
                             
-                            console.log('Real-time groomer check:', {
+                            _log('Real-time groomer check:', {
                                 eventType,
                                 newGroomerId: newRecord?.assigned_groomer_id,
                                 oldGroomerId: oldRecord?.assigned_groomer_id,
@@ -1474,7 +1674,7 @@
                 case 'services':
                     // Reload services for ALL users (admin, customer, groomer)
                     // No notification needed - just silently update the data
-                    console.log('Services updated via real-time:', eventType, newRecord?.name || oldRecord?.name);
+                    _log('Services updated via real-time:', eventType, newRecord?.name || oldRecord?.name);
                     await loadPublicData();
                     break;
                     
@@ -1523,7 +1723,7 @@
         // Load user profile from database
         async function loadUserProfile(userId) {
             try {
-                console.log('Loading profile for user:', userId);
+                _log('Loading profile for user:', userId);
                 const { data: profile, error } = await supabaseClient
                     .from('profiles')
                     .select('*')
@@ -1536,7 +1736,7 @@
                 }
                 
                 if (profile) {
-                    console.log('Profile loaded:', profile);
+                    _log('Profile loaded:', profile);
                     state.currentUser = {
                         id: profile.id,
                         email: profile.email,
@@ -1555,14 +1755,14 @@
                         await loadAdminData();
                     } else if (profile.role === 'groomer') {
                         // FIX: Load groomer data on refresh
-                        console.log('Loading groomer data for role: groomer');
+                        _log('Loading groomer data for role: groomer');
                         await loadGroomerData();
                     } else {
                         await loadCustomerData(userId);
                     }
                     return true;
                 } else {
-                    console.log('No profile found for user');
+                    _log('No profile found for user');
                     return false;
                 }
             } catch (err) {
@@ -1585,7 +1785,7 @@
                 
                 if (servicesResult.error) console.error('Services load error:', servicesResult.error);
                 state.services = servicesResult.data || [];
-                console.log('Services loaded:', state.services.length, 'total');
+                _log('Services loaded:', state.services.length, 'total');
                 
                 if (productsResult.error) console.error('Products load error:', productsResult.error);
                 state.products = productsResult.data || [];
@@ -1606,7 +1806,7 @@
         // Load customer-specific data
         async function loadCustomerData(userId) {
             try {
-                console.log('Loading customer data for:', userId);
+                _log('Loading customer data for:', userId);
                 
                 // Load pets
                 const { data: pets, error: petsError } = await supabaseClient
@@ -1615,7 +1815,7 @@
                     .eq('owner_id', userId)
                     .eq('is_active', true);
                 if (petsError) console.error('Pets load error:', petsError);
-                console.log('Pets loaded:', pets?.length || 0);
+                _log('Pets loaded:', pets?.length || 0);
                 state.pets = pets || [];
 
                 // Load appointments with JOINs
@@ -1629,7 +1829,7 @@
                     .eq('customer_id', userId)
                     .order('created_at', { ascending: false });
                 if (apptsError) console.error('Appointments load error:', apptsError);
-                console.log('Appointments loaded:', appointments?.length || 0, appointments);
+                _log('Appointments loaded:', appointments?.length || 0, appointments);
                 
                 // Map appointments and resolve names from local state if JOIN failed
                 state.appointments = (appointments || []).map(a => {
@@ -1676,7 +1876,7 @@
         // Load admin data
         async function loadAdminData() {
             try {
-                console.log('Loading admin data...');
+                _log('Loading admin data...');
                 
                 // Load all appointments with customer, pet, service, and assigned groomer info
                 // Note: groomer join uses explicit FK name because profiles is referenced twice
@@ -1695,7 +1895,7 @@
                     console.error('Admin appointments load error:', apptsError);
                     
                     // Try without groomer join (in case groomer-db-setup.sql hasn't been run)
-                    console.log('Trying query without groomer join...');
+                    _log('Trying query without groomer join...');
                     const { data: appts2, error: err2 } = await supabaseClient
                         .from('appointments')
                         .select(`
@@ -1707,7 +1907,7 @@
                         .order('created_at', { ascending: false });
                     
                     if (!err2 && appts2) {
-                        console.log('Loaded appointments without groomer join:', appts2.length);
+                        _log('Loaded appointments without groomer join:', appts2.length);
                         state.allAppointments = (appts2 || []).map(a => ({
                             ...a,
                             customerName: a.customer?.full_name || 'Customer',
@@ -1727,7 +1927,7 @@
                         }));
                     } else {
                         // Fallback: try simpler query without joins
-                        console.log('Trying fallback query without joins...');
+                        _log('Trying fallback query without joins...');
                         const { data: simpleAppts, error: simpleError } = await supabaseClient
                             .from('appointments')
                             .select('*')
@@ -1737,7 +1937,7 @@
                             console.error('Fallback query also failed:', simpleError);
                             state.allAppointments = [];
                         } else {
-                            console.log('Fallback appointments loaded:', simpleAppts?.length || 0);
+                            _log('Fallback appointments loaded:', simpleAppts?.length || 0);
                             
                             // Need to manually fetch related data
                             const mappedAppts = await Promise.all((simpleAppts || []).map(async (a) => {
@@ -1793,7 +1993,7 @@
                         }
                     }
                 } else {
-                    console.log('Admin appointments loaded:', appointments?.length || 0, appointments);
+                    _log('Admin appointments loaded:', appointments?.length || 0, appointments);
                     state.allAppointments = (appointments || []).map(a => ({
                         ...a,
                         customerName: a.customer?.full_name || 'Customer',
@@ -1820,7 +2020,7 @@
                     .eq('role', 'customer')
                     .order('created_at', { ascending: false });
                 if (customersError) console.error('Customers load error:', customersError);
-                console.log('Customers loaded:', customers?.length || 0);
+                _log('Customers loaded:', customers?.length || 0);
                 state.allCustomers = customers || [];
                 
                 // Load all pets for customers
@@ -1829,7 +2029,7 @@
                     .select('*')
                     .order('name', { ascending: true });
                 if (petsError) console.error('Pets load error:', petsError);
-                console.log('All pets loaded:', allPets?.length || 0);
+                _log('All pets loaded:', allPets?.length || 0);
                 state.pets = allPets || [];
                 
                 // Load all groomers with full details
@@ -1839,12 +2039,12 @@
                     .eq('role', 'groomer')
                     .order('full_name', { ascending: true });
                 if (groomersError) console.error('Groomers load error:', groomersError);
-                console.log('Groomers loaded:', groomers?.length || 0);
+                _log('Groomers loaded:', groomers?.length || 0);
                 
                 // Calculate stats for each groomer
                 const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-                console.log('Current month for stats:', currentMonth);
-                console.log('All appointments with groomer IDs:', state.allAppointments.map(a => ({
+                _log('Current month for stats:', currentMonth);
+                _log('All appointments with groomer IDs:', state.allAppointments.map(a => ({
                     id: a.id.substring(0, 8),
                     assigned_groomer_id: a.assigned_groomer_id?.substring(0, 8) || 'none',
                     date: a.appointment_date
@@ -1864,7 +2064,7 @@
                         return dateStr.startsWith(currentMonth);
                     });
                     
-                    console.log(`Groomer ${g.full_name} (${g.id.substring(0, 8)}) - Found ${groomerAppts.length} appointments this month`);
+                    _log(`Groomer ${g.full_name} (${g.id.substring(0, 8)}) - Found ${groomerAppts.length} appointments this month`);
                     
                     const completedAppts = groomerAppts.filter(a => a.status === 'completed');
                     const monthRevenue = completedAppts.reduce((sum, a) => 
@@ -1892,7 +2092,7 @@
                     `)
                     .order('created_at', { ascending: false });
                 if (inquiriesError) console.error('Inquiries load error:', inquiriesError);
-                console.log('Inquiries loaded:', inquiries?.length || 0);
+                _log('Inquiries loaded:', inquiries?.length || 0);
                 state.rideAlongInquiries = (inquiries || []).map(i => ({
                     ...i,
                     customerName: i.customer?.full_name || 'Customer',
@@ -1912,7 +2112,7 @@
                     `)
                     .order('created_at', { ascending: false });
                 if (redemptionsError) console.error('Redemptions load error:', redemptionsError);
-                console.log('Redemptions loaded:', redemptions?.length || 0);
+                _log('Redemptions loaded:', redemptions?.length || 0);
                 state.rewardRedemptions = (redemptions || []).map(r => ({
                     ...r,
                     customerName: r.customer?.full_name || 'Customer',
@@ -1944,7 +2144,7 @@
         // Load groomer's assigned appointments
         async function loadGroomerData() {
             try {
-                console.log('Loading groomer data for user:', state.currentUser?.id);
+                _log('Loading groomer data for user:', state.currentUser?.id);
                 
                 const { data: appointments, error: apptsError } = await supabaseClient
                     .from('appointments')
@@ -1963,8 +2163,8 @@
                     console.error('Groomer appointments load error:', apptsError);
                     state.groomerAppointments = [];
                 } else {
-                    console.log('Groomer appointments loaded:', appointments?.length || 0);
-                    console.log('Raw appointments data:', appointments?.map(a => ({
+                    _log('Groomer appointments loaded:', appointments?.length || 0);
+                    _log('Raw appointments data:', appointments?.map(a => ({
                         id: a.id?.substring(0, 8),
                         date: a.appointment_date,
                         time: a.start_time,
@@ -2220,7 +2420,7 @@
                     console.error('Storage upload error:', error);
                     // If bucket doesn't exist, show helpful message
                     if (error.message.includes('bucket') || error.message.includes('not found')) {
-                        console.log('Note: Storage bucket "grooming-photos" may need to be created in Supabase');
+                        _log('Note: Storage bucket "grooming-photos" may need to be created in Supabase');
                     }
                     return null;
                 }
@@ -2380,7 +2580,7 @@
                         groomer_notes: groomerNotes,
                         after_photo_url: afterPhotoUrl
                     };
-                    console.log('Local state updated for appointment:', appointmentId);
+                    _log('Local state updated for appointment:', appointmentId);
                 }
                 
                 // Award loyalty points to customer (non-blocking)
@@ -2392,7 +2592,7 @@
                 try {
                     await loadGroomerData();
                 } catch (reloadErr) {
-                    console.warn('Reload warning (non-critical):', reloadErr);
+                    _warn('Reload warning (non-critical):', reloadErr);
                 }
                 
                 hideLoading();
@@ -2424,7 +2624,7 @@
                         .update({ loyalty_points: updatedPoints })
                         .eq('id', customerId);
                     
-                    console.log(`Awarded 50 loyalty points to customer. New total: ${updatedPoints}`);
+                    _log(`Awarded 50 loyalty points to customer. New total: ${updatedPoints}`);
                 }
             } catch (pointsErr) {
                 console.error('Failed to award loyalty points:', pointsErr);
@@ -2508,7 +2708,7 @@
                     return false;
                 }
                 
-                console.log('Sign in successful, loading profile...');
+                _log('Sign in successful, loading profile...');
                 state.session = data.session;
                 
                 // Try to load user profile
@@ -2516,7 +2716,7 @@
                 
                 // If profile didn't load, create a basic one from auth data
                 if (!state.currentUser) {
-                    console.log('Profile not found, using auth data');
+                    _log('Profile not found, using auth data');
                     state.currentUser = {
                         id: data.user.id,
                         email: data.user.email,
@@ -2544,6 +2744,8 @@
 
         async function handleSignOut() {
             showLoading();
+            stopReminderInterval();
+            cleanupRealtimeSubscriptions();
             await supabaseClient.auth.signOut();
             state.currentUser = null;
             state.session = null;
@@ -2699,7 +2901,7 @@
             
             if (error) {
                 // Fallback to direct update
-                console.log('soft_delete_pet RPC not available, using direct update');
+                _log('soft_delete_pet RPC not available, using direct update');
                 await simpleSoftDeletePet(petId);
                 return;
             }
@@ -2786,9 +2988,9 @@
             const pet = state.pets.find(p => p.id === appointmentData.petId);
             const service = state.services?.find(s => s.id === appointmentData.serviceId);
             
-            console.log('Creating appointment:', appointmentData);
-            console.log('Pet found:', pet);
-            console.log('Service found:', service);
+            _log('Creating appointment:', appointmentData);
+            _log('Pet found:', pet);
+            _log('Service found:', service);
             
             // Build appointment data - store names directly for reliability
             const appointmentRecord = {
@@ -2816,7 +3018,7 @@
             // Auto-assign groomer if provided from smart booking
             if (appointmentData.groomerId && appointmentData.groomerId.length > 10) {
                 appointmentRecord.assigned_groomer_id = appointmentData.groomerId;
-                console.log('Auto-assigning groomer:', appointmentData.groomerId);
+                _log('Auto-assigning groomer:', appointmentData.groomerId);
             }
             
             // Only add service_id if it's a valid UUID (from actual database)
@@ -2838,7 +3040,7 @@
                 return null;
             }
             
-            console.log('Appointment created:', data);
+            _log('Appointment created:', data);
             
             // If no coordinates were provided, geocode asynchronously after creation
             if (!appointmentData.latitude && !appointmentData.longitude && data.id) {
@@ -2877,7 +3079,7 @@
                     data.id
                 );
             } catch (notifyErr) {
-                console.log('Could not send admin notification:', notifyErr);
+                _log('Could not send admin notification:', notifyErr);
             }
             
             // Create customer confirmation notification
@@ -2891,7 +3093,7 @@
                     data.id
                 );
             } catch (notifyErr) {
-                console.log('Could not create customer notification:', notifyErr);
+                _log('Could not create customer notification:', notifyErr);
             }
             
             render();
@@ -3183,7 +3385,7 @@
                                 .update({ loyalty_points: newPoints })
                                 .eq('id', appointment.customer_id);
                             
-                            console.log(`Awarded 50 loyalty points to customer ${appointment.customer_id}. New total: ${newPoints}`);
+                            _log(`Awarded 50 loyalty points to customer ${appointment.customer_id}. New total: ${newPoints}`);
                         }
                     } catch (pointsErr) {
                         console.error('Failed to award loyalty points:', pointsErr);
@@ -3199,14 +3401,10 @@
 
         // Get available time slots for a date
         async function getAvailableSlots(date, serviceId) {
-            const dayOfWeek = new Date(date + 'T12:00:00').getDay();
+            const dayOfWeek = new Date(date).getDay();
             const hours = state.businessHours.find(h => h.day_of_week === dayOfWeek);
             
-            // Default business hours fallback (Mon-Sat 7am-6pm, Sun closed)
-            const defaultHours = dayOfWeek === 0 ? null : { open_time: '07:00', close_time: '18:00', is_closed: false };
-            const effectiveHours = hours || defaultHours;
-            
-            if (!effectiveHours || effectiveHours.is_closed) return [];
+            if (!hours || hours.is_closed) return [];
             
             // Get existing appointments for that date
             const { data: existingAppts } = await supabaseClient
@@ -3224,8 +3422,8 @@
             
             // Generate available slots
             const slots = [];
-            let [openHour, openMin] = effectiveHours.open_time.split(':').map(Number);
-            const [closeHour, closeMin] = effectiveHours.close_time.split(':').map(Number);
+            let [openHour, openMin] = hours.open_time.split(':').map(Number);
+            const [closeHour, closeMin] = hours.close_time.split(':').map(Number);
             
             while (openHour < closeHour || (openHour === closeHour && openMin < closeMin)) {
                 const timeStr = `${String(openHour).padStart(2, '0')}:${String(openMin).padStart(2, '0')}`;
@@ -3334,7 +3532,7 @@
                         <div class="bg-white rounded-2xl p-8 max-w-lg w-full shadow-xl text-center">
                             <span class="material-symbols-outlined text-6xl text-red-500 mb-4">error</span>
                             <h2 class="text-2xl font-bold text-gray-900 mb-2">Something went wrong</h2>
-                            <p class="text-gray-600 mb-4">${err.message}</p>
+                            <p class="text-gray-600 mb-4">${escapeHtml(err.message)}</p>
                             <button onclick="location.reload()" class="px-6 py-3 bg-blue-500 text-white rounded-lg font-bold hover:bg-blue-600">
                                 Reload Page
                             </button>
@@ -3787,7 +3985,7 @@
                 if (state.onboardingData.petBirthYear) petData.birth_year = parseInt(state.onboardingData.petBirthYear);
                 if (state.onboardingData.petPhoto) petData.photo_url = state.onboardingData.petPhoto;
                 
-                console.log('Creating pet:', petData);
+                _log('Creating pet:', petData);
                 
                 const { data: pet, error } = await supabaseClient
                     .from('pets')
@@ -3803,7 +4001,7 @@
                 }
                 
                 if (pet) {
-                    console.log('Pet created successfully:', pet);
+                    _log('Pet created successfully:', pet);
                     state.pets.push(pet);
                 }
                 
@@ -3914,9 +4112,9 @@
             const formattedDate = currentDate.toLocaleDateString('en-US', dateOptions);
             
             // Debug logging
-            console.log('Groomer Dashboard - Today (Pacific):', today);
-            console.log('Groomer Dashboard - Total appointments:', appointments.length);
-            console.log('Groomer Dashboard - Appointments:', appointments.map(a => ({
+            _log('Groomer Dashboard - Today (Pacific):', today);
+            _log('Groomer Dashboard - Total appointments:', appointments.length);
+            _log('Groomer Dashboard - Appointments:', appointments.map(a => ({
                 id: a.id?.substring(0, 8),
                 date: a.appointment_date,
                 status: a.status,
@@ -3937,9 +4135,9 @@
             const completedAppts = appointments.filter(a => a.status === 'completed');
             const inProgressAppt = todayAppts.find(a => a.status === 'in_progress');
             
-            console.log('Groomer Dashboard - Today:', todayAppts.length, 'Upcoming:', upcomingAppts.length);
-            console.log('Groomer Dashboard - Completed total:', completedAppts.length);
-            console.log('Groomer Dashboard - Upcoming dates:', upcomingAppts.map(a => a.appointment_date));
+            _log('Groomer Dashboard - Today:', todayAppts.length, 'Upcoming:', upcomingAppts.length);
+            _log('Groomer Dashboard - Completed total:', completedAppts.length);
+            _log('Groomer Dashboard - Upcoming dates:', upcomingAppts.map(a => a.appointment_date));
             
             // Calculate estimated earnings from COMPLETED appointments today
             const todayCompletedAppts = completedAppts.filter(a => a.appointment_date === today);
@@ -4044,7 +4242,7 @@
                             <!-- User Profile -->
                             <div class="flex items-center gap-2 lg:gap-3 pl-2 lg:pl-3 border-l border-slate-200/50 dark:border-slate-700/50">
                                 <div class="text-right hidden lg:block">
-                                    <p class="text-sm font-bold text-slate-900 dark:text-white">${user.name || 'Groomer'}</p>
+                                    <p class="text-sm font-bold text-slate-900 dark:text-white">${escapeHtml(user.name || 'Groomer')}</p>
                                     <p class="text-[10px] text-slate-500 uppercase tracking-wider">Head Groomer</p>
                                 </div>
                                 <div class="w-9 h-9 lg:h-10 lg:w-10 rounded-full border-2 border-tech-purple/30 shadow-sm bg-gradient-to-br from-tech-purple to-tech-magenta flex items-center justify-center">
@@ -4543,7 +4741,7 @@
                                                 </button>
                                                 <span class="text-amber-600 font-bold">${formatTime(apt.start_time)}</span>
                                             </div>
-                                            <p class="text-sm text-slate-500">${apt.serviceName || 'Grooming'} • ${apt.customerName}</p>
+                                            <p class="text-sm text-slate-500">${apt.serviceName || 'Grooming'} • ${escapeHtml(apt.customerName)}</p>
                                         </div>
                                     </div>
                                     
@@ -5056,7 +5254,7 @@
                     <!-- Customer Contact -->
                     <div class="flex items-center gap-2 text-sm mb-4">
                         <span class="material-symbols-outlined text-slate-400 text-lg">person</span>
-                        <span class="font-medium dark:text-white flex-1 truncate">${apt.customerName}</span>
+                        <span class="font-medium dark:text-white flex-1 truncate">${escapeHtml(apt.customerName)}</span>
                         ${phoneClean ? `
                             <a href="tel:${phoneClean}" class="p-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors touch-target" title="Call">
                                 <span class="material-symbols-outlined text-lg">call</span>
@@ -5121,7 +5319,7 @@
                 <div class="flex items-center justify-between gap-2 pt-3 border-t border-slate-200/50 dark:border-slate-800">
                     <div class="flex items-center gap-2 min-w-0">
                         <span class="material-symbols-outlined text-slate-400 text-base">person</span>
-                        <span class="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">${apt.customerName}</span>
+                        <span class="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">${escapeHtml(apt.customerName)}</span>
                     </div>
                     <div class="flex items-center gap-1 flex-shrink-0">
                         ${mapsUrl ? `
@@ -5544,7 +5742,7 @@
                                     ${apt.status}
                                 </span>
                             </div>
-                            <p class="text-sm text-slate-500 truncate">${apt.serviceName || 'Grooming'} • ${apt.customerName}</p>
+                            <p class="text-sm text-slate-500 truncate">${apt.serviceName || 'Grooming'} • ${escapeHtml(apt.customerName)}</p>
                             <p class="text-xs text-slate-400 mt-1">${apt.customerAddress || 'No address'}</p>
                         </div>
                         
@@ -6026,7 +6224,7 @@
                                 <button onclick="event.stopPropagation(); openPetProfile('${apt.pet_id}', ${petProfileData})" class="font-bold text-slate-900 dark:text-white truncate hover:text-groomer-primary transition-colors text-left">${apt.petName}</button>
                                 ${apt.status === 'in_progress' ? `<span class="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-xs font-bold rounded-full flex-shrink-0">In Progress</span>` : ''}
                             </div>
-                            <p class="text-sm text-slate-500 dark:text-slate-400 truncate">${apt.serviceName} • ${apt.customerName}</p>
+                            <p class="text-sm text-slate-500 dark:text-slate-400 truncate">${apt.serviceName} • ${escapeHtml(apt.customerName)}</p>
                         </div>
                         <div class="text-right flex-shrink-0">
                             <p class="text-lg font-bold text-slate-700 dark:text-slate-300">${formatTime(apt.start_time)}</p>
@@ -7064,7 +7262,7 @@
                 state.groomerSettings[key] = value;
                 
                 // Save to database (would need a groomer_settings table)
-                console.log('Updated setting:', key, '=', value);
+                _log('Updated setting:', key, '=', value);
                 showToast('Setting updated', 'success');
             } catch (err) {
                 console.error('Failed to update setting:', err);
@@ -7569,11 +7767,11 @@
                         });
                     
                     if (error) {
-                        console.log('Messages table may not exist:', error);
+                        _log('Messages table may not exist:', error);
                     }
                 }
             } catch (err) {
-                console.log('Could not save to database:', err);
+                _log('Could not save to database:', err);
             }
             
             // Add to local state for immediate feedback
@@ -7766,8 +7964,8 @@
                                 ${pet.photo_url || pet.petPhoto ? `<img src="${pet.photo_url || pet.petPhoto}" class="w-full h-full object-cover"/>` : `<span class="material-symbols-outlined text-5xl">pets</span>`}
                             </div>
                             <div>
-                                <h2 class="text-2xl font-bold">${pet.name || pet.petName || 'Pet'}</h2>
-                                <p class="text-white/80">${pet.breed || pet.petBreed || 'Unknown breed'}</p>
+                                <h2 class="text-2xl font-bold">${escapeHtml(pet.name || pet.petName || 'Pet')}</h2>
+                                <p class="text-white/80">${escapeHtml(pet.breed || pet.petBreed || 'Unknown breed')}</p>
                                 ${pet.weight || pet.petWeight ? `<p class="text-white/80 text-sm">${pet.weight || pet.petWeight} lbs</p>` : ''}
                             </div>
                         </div>
@@ -7972,7 +8170,7 @@
                     render();
                 }
             } catch (err) {
-                console.log('Messages table may not exist yet');
+                _log('Messages table may not exist yet');
                 state.groomerMessages = [];
             }
         }
@@ -8032,7 +8230,7 @@
                         <!-- Customer -->
                         <div class="bg-slate-50 dark:bg-background-dark rounded-lg p-4">
                             <h4 class="text-xs font-semibold text-slate-400 uppercase mb-2">Customer</h4>
-                            <p class="font-bold dark:text-white">${apt.customerName}</p>
+                            <p class="font-bold dark:text-white">${escapeHtml(apt.customerName)}</p>
                             ${apt.customerPhone ? `
                                 <a href="tel:${apt.customerPhone}" class="flex items-center gap-1 text-sm text-emerald-600 hover:underline mt-1">
                                     <span class="material-symbols-outlined text-sm">call</span>${apt.customerPhone}
@@ -8162,11 +8360,11 @@
                             </div>
                             <div class="flex flex-col gap-1 text-sm text-slate-500 dark:text-slate-400">
                                 <a href="mailto:${g.email}" class="hover:text-primary flex items-center gap-1.5">
-                                    <span class="material-symbols-outlined text-sm">email</span>${g.email}
+                                    <span class="material-symbols-outlined text-sm">email</span>${escapeHtml(g.email)}
                                 </a>
                                 ${g.phone ? `
                                 <a href="tel:${g.phone}" class="hover:text-primary flex items-center gap-1.5">
-                                    <span class="material-symbols-outlined text-sm">phone</span>${g.phone}
+                                    <span class="material-symbols-outlined text-sm">phone</span>${escapeHtml(g.phone)}
                                 </a>` : ''}
                             </div>
                         </div>
@@ -8841,8 +9039,8 @@
                                     </div>
                                     <div class="flex-1">
                                         <p class="font-bold text-slate-900 dark:text-white">${c.full_name}</p>
-                                        <p class="text-sm text-slate-500">${c.phone || 'No phone'} ${c.email ? '• ' + c.email : ''}</p>
-                                        ${c.address ? `<p class="text-xs text-slate-400">${c.address}, ${c.city || ''}</p>` : ''}
+                                        <p class="text-sm text-slate-500">${escapeHtml(c.phone || 'No phone')} ${c.email ? '• ' + c.email : ''}</p>
+                                        ${c.address ? `<p class="text-xs text-slate-400">${escapeHtml(c.address)}, ${escapeHtml(c.city || '')}</p>` : ''}
                                     </div>
                                     <span class="material-symbols-outlined text-slate-400">chevron_right</span>
                                 </div>
@@ -8932,7 +9130,7 @@
                         </div>
                         <div>
                             <p class="font-bold text-slate-900 dark:text-white">${customer.full_name}</p>
-                            <p class="text-sm text-slate-500">${customer.phone || ''} ${customer.address ? '• ' + customer.address + ', ' + customer.city : ''}</p>
+                            <p class="text-sm text-slate-500">${escapeHtml(customer.phone || '')} ${customer.address ? '• ' + customer.address + ', ' + customer.city : ''}</p>
                         </div>
                         <button onclick="adminAppointmentBack()" class="ml-auto text-sm text-primary hover:underline">Change</button>
                     </div>
@@ -8950,8 +9148,8 @@
                                             ${p.photo_url ? `<img src="${p.photo_url}" class="w-full h-full object-cover">` : `<span class="material-symbols-outlined text-amber-600">pets</span>`}
                                         </div>
                                         <div class="flex-1">
-                                            <p class="font-bold text-slate-900 dark:text-white">${p.name}</p>
-                                            <p class="text-sm text-slate-500">${p.breed || 'Dog'} ${p.weight ? '• ' + p.weight + ' lbs' : ''}</p>
+                                            <p class="font-bold text-slate-900 dark:text-white">${escapeHtml(p.name)}</p>
+                                            <p class="text-sm text-slate-500">${escapeHtml(p.breed || 'Dog')} ${p.weight ? '• ' + p.weight + ' lbs' : ''}</p>
                                         </div>
                                         <span class="material-symbols-outlined text-slate-400">chevron_right</span>
                                     </div>
@@ -9006,8 +9204,8 @@
                         <span class="text-slate-300">|</span>
                         <div class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-amber-500 text-sm">pets</span>
-                            <span class="font-semibold text-slate-900 dark:text-white">${pet.name}</span>
-                            ${pet.breed ? `<span class="text-slate-500 text-sm">(${pet.breed})</span>` : ''}
+                            <span class="font-semibold text-slate-900 dark:text-white">${escapeHtml(pet.name)}</span>
+                            ${pet.breed ? `<span class="text-slate-500 text-sm">(${escapeHtml(pet.breed)})</span>` : ''}
                         </div>
                         <button onclick="adminAppointmentBack()" class="ml-auto text-sm text-primary hover:underline">Change</button>
                     </div>
@@ -9038,7 +9236,7 @@
                             <select id="admin-appt-service" onchange="updateAdminApptPrice()"
                                 class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all">
                                 <option value="">Select service</option>
-                                ${services.filter(s => !s.is_addon).map(s => `<option value="${s.id}" data-price="${s.base_price}">${s.name} - $${s.base_price}</option>`).join('')}
+                                ${services.filter(s => !s.is_addon).map(s => `<option value="${s.id}" data-price="${s.base_price}">${escapeHtml(s.name)} - $${s.base_price}</option>`).join('')}
                             </select>
                         </div>
                         
@@ -9202,7 +9400,7 @@
             const currentYear = state.adminScheduleYear;
             
             // Debug: Log all appointments and their groomer IDs
-            console.log('All appointments for schedule:', state.allAppointments.map(a => ({
+            _log('All appointments for schedule:', state.allAppointments.map(a => ({
                 id: a.id,
                 date: a.appointment_date,
                 assigned_groomer_id: a.assigned_groomer_id,
@@ -9210,7 +9408,7 @@
             })));
             
             const groomerAppts = state.allAppointments.filter(a => a.assigned_groomer_id === g.id);
-            console.log(`Filtered appointments for ${g.full_name}:`, groomerAppts);
+            _log(`Filtered appointments for ${g.full_name}:`, groomerAppts);
             
             // Get calendar data for the selected month
             const firstDay = new Date(currentYear, currentMonth, 1);
@@ -9493,7 +9691,7 @@
                 
                 // Debug: Log what appointments belong to this groomer
                 const groomerAppts = state.allAppointments.filter(a => a.assigned_groomer_id === groomerId);
-                console.log(`Groomer ${groomer.full_name} (${groomerId}) has ${groomerAppts.length} appointments:`, groomerAppts);
+                _log(`Groomer ${groomer.full_name} (${groomerId}) has ${groomerAppts.length} appointments:`, groomerAppts);
             }
             
             hideLoading();
@@ -10071,7 +10269,7 @@
             
             // Supabase sends recovery links with hash like: #access_token=...&type=recovery
             if (hash && hash.includes('type=recovery')) {
-                console.log('Password recovery detected');
+                _log('Password recovery detected');
                 state.showResetPassword = true;
                 render();
                 return true;
@@ -10690,7 +10888,7 @@
                             </div>
                             <h3 class="text-xl font-bold dark:text-white">${dialog.title || 'Confirm Action'}</h3>
                         </div>
-                        <p class="text-text-sub-light dark:text-text-sub-dark mb-6">${dialog.message || 'Are you sure you want to proceed?'}</p>
+                        <p class="text-text-sub-light dark:text-text-sub-dark mb-6">${escapeHtml(dialog.message || 'Are you sure you want to proceed?')}</p>
                         <div class="flex gap-3">
                             <button onclick="closeConfirmDialog()" class="flex-1 px-4 py-3 text-sm font-bold text-text-main-light dark:text-white bg-background-light dark:bg-background-dark hover:bg-border-light dark:hover:bg-border-dark rounded-lg transition-colors">
                                 Cancel
@@ -10874,7 +11072,7 @@
                 is_popular: isPopular
             };
             
-            console.log('Saving ride-along:', pkgData, 'ID:', pkg.id);
+            _log('Saving ride-along:', pkgData, 'ID:', pkg.id);
             showLoading();
             
             try {
@@ -11107,7 +11305,7 @@
                 </div>
 
                 <div class="flex gap-3 pt-4">
-                    ${pet.id ? `<button type="button" onclick="confirmDeletePet('${pet.id}', '${pet.name}')" class="px-4 h-12 border border-amber-300 text-amber-600 rounded-lg font-bold hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors flex items-center gap-1"><span class="material-symbols-outlined text-sm">archive</span>Archive</button>` : ''}
+                    ${pet.id ? `<button type="button" onclick="confirmDeletePet('${pet.id}', '${escapeHtml(pet.name)}')" class="px-4 h-12 border border-amber-300 text-amber-600 rounded-lg font-bold hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors flex items-center gap-1"><span class="material-symbols-outlined text-sm">archive</span>Archive</button>` : ''}
                     <button type="submit" class="flex-1 h-12 bg-primary hover:bg-sky-600 text-white font-bold rounded-lg transition-colors">
                         ${pet.id ? 'Save Changes' : 'Add Pet'}
                     </button>
@@ -11507,7 +11705,7 @@
                 points_required: points
             };
             
-            console.log('Saving reward:', rewardData, 'ID:', reward.id);
+            _log('Saving reward:', rewardData, 'ID:', reward.id);
             showLoading();
             
             try {
@@ -11584,7 +11782,7 @@
                 image_url: imageUrl
             };
             
-            console.log('Saving product:', productData, 'ID:', product.id);
+            _log('Saving product:', productData, 'ID:', product.id);
             
             showLoading();
             
@@ -11602,7 +11800,7 @@
                         showToast('Failed to update: ' + (error.message || 'Unknown error'), 'error');
                         return;
                     }
-                    console.log('Update result:', data);
+                    _log('Update result:', data);
                     showToast('Product updated!', 'success');
                 } else {
                     productData.is_active = true;
@@ -11619,7 +11817,7 @@
                         showToast('Failed to add: ' + (error.message || 'Unknown error'), 'error');
                         return;
                     }
-                    console.log('Insert result:', data);
+                    _log('Insert result:', data);
                     showToast('Product added!', 'success');
                 }
                 
@@ -12097,7 +12295,7 @@
                                             ${pet.photo_url ? `<img src="${pet.photo_url}" class="w-full h-full object-cover"/>` : `<span class="material-symbols-outlined text-slate-400">pets</span>`}
                                         </div>
                                         <div class="flex-1 min-w-0">
-                                            <p class="font-bold text-slate-900 dark:text-white">${pet.name}</p>
+                                            <p class="font-bold text-slate-900 dark:text-white">${escapeHtml(pet.name)}</p>
                                             <p class="text-xs text-slate-500">${pet.breed || 'Unknown breed'} • ${pet.weight ? pet.weight + ' lbs' : 'Weight N/A'}</p>
                                         </div>
                                     </div>
@@ -12538,14 +12736,14 @@
                 </div>
             </header>
             ${state.showMobileMenu ? `
-            <div class="lg:hidden fixed inset-0 z-[60] bg-black/50" onclick="toggleMobileMenu()">
-                <div class="absolute left-0 top-0 bottom-0 w-72 bg-surface-light dark:bg-surface-dark shadow-xl flex flex-col" onclick="event.stopPropagation()">
-                    <div class="p-6 border-b border-border-light dark:border-border-dark flex items-center gap-3 flex-shrink-0">
+            <div class="lg:hidden fixed inset-0 z-40 bg-black/50" onclick="toggleMobileMenu()">
+                <div class="absolute left-0 top-0 bottom-0 w-72 bg-surface-light dark:bg-surface-dark shadow-xl" onclick="event.stopPropagation()">
+                    <div class="p-6 border-b border-border-light dark:border-border-dark flex items-center gap-3">
                         <div class="w-10 h-10 rounded-xl overflow-hidden"><img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-cover"/></div>
                         <div><p class="font-bold dark:text-white">${user.name}</p><p class="text-sm text-text-sub-light dark:text-text-sub-dark">${user.loyaltyPoints} pts</p></div>
                     </div>
-                    <nav class="p-4 flex-1 overflow-y-auto">${navItems.map(i => `<button onclick="setTab('${i.id}')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left mb-1 touch-target ${state.currentTab === i.id ? 'bg-primary text-white' : 'hover:bg-background-light dark:hover:bg-background-dark dark:text-white'}"><span class="material-symbols-outlined">${i.icon}</span>${i.label}</button>`).join('')}</nav>
-                    <div class="flex-shrink-0 p-4 pb-24 border-t border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark">
+                    <nav class="p-4">${navItems.map(i => `<button onclick="setTab('${i.id}')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left mb-1 touch-target ${state.currentTab === i.id ? 'bg-primary text-white' : 'hover:bg-background-light dark:hover:bg-background-dark dark:text-white'}"><span class="material-symbols-outlined">${i.icon}</span>${i.label}</button>`).join('')}</nav>
+                    <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-border-light dark:border-border-dark safe-bottom">
                         <button onclick="toggleDarkMode()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-background-light dark:hover:bg-background-dark dark:text-white mb-1 touch-target"><span class="material-symbols-outlined">${state.darkMode ? 'light_mode' : 'dark_mode'}</span>${state.darkMode ? 'Light Mode' : 'Dark Mode'}</button>
                         <button onclick="openChangePassword()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-background-light dark:hover:bg-background-dark dark:text-white mb-1 touch-target"><span class="material-symbols-outlined">password</span>Change Password</button>
                         <button onclick="logout()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 touch-target"><span class="material-symbols-outlined">logout</span>Sign Out</button>
@@ -12902,13 +13100,13 @@
                                         <div class="flex items-center gap-3 sm:gap-4">
                                             <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl sm:rounded-2xl bg-cover bg-center border-2 border-primary/20 shadow-lg flex-shrink-0" style="background-image: url('${pet.photo_url || 'https://via.placeholder.com/150'}')"></div>
                                             <div class="flex-1 min-w-0">
-                                                <p class="font-bold text-lg sm:text-xl dark:text-white truncate">${pet.name}</p>
+                                                <p class="font-bold text-lg sm:text-xl dark:text-white truncate">${escapeHtml(pet.name)}</p>
                                                 <p class="text-xs sm:text-sm text-text-sub-light dark:text-text-sub-dark truncate">${pet.breed || 'Unknown breed'} • ${pet.weight || '?'} lbs</p>
                                                 
                                                 ${!hasUpcoming && !isInProgress ? `
                                                     <button onclick="openBookingModalForPet('${pet.id}')" class="mt-2 sm:mt-3 w-full py-2 bg-primary/10 hover:bg-primary/20 text-primary text-xs sm:text-sm font-bold rounded-lg flex items-center justify-center gap-1 transition-colors min-h-[36px]">
                                                         <span class="material-symbols-outlined text-xs sm:text-sm">calendar_add_on</span>
-                                                        Book ${pet.name}
+                                                        Book ${escapeHtml(pet.name)}
                                                     </button>
                                                 ` : ''}
                                             </div>
@@ -12975,7 +13173,7 @@
                 return `<div class="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6 sm:mb-8"><div><h1 class="text-2xl sm:text-3xl font-bold mb-2 dark:text-white">My Pets</h1><p class="text-text-sub-light dark:text-text-sub-dark text-sm sm:text-base">Manage your furry family</p></div><button onclick="openEditModal('pet', {})" class="bg-primary text-white font-bold px-4 py-2 rounded-lg flex items-center gap-2 text-sm sm:text-base"><span class="material-symbols-outlined">add</span>Add Pet</button></div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">${pets.length > 0 ? pets.map((pet, i) => `<div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-4 sm:p-6"><div class="flex gap-3 sm:gap-4"><div class="relative group">
                     <div class="w-20 h-20 sm:w-32 sm:h-32 rounded-xl sm:rounded-2xl bg-cover bg-center border-2 border-primary/20 shadow-lg flex-shrink-0" style="background-image: url('${pet.photo_url || 'https://via.placeholder.com/150'}')"></div>
-                </div><div class="flex-1 min-w-0"><div class="flex justify-between"><div class="min-w-0"><h3 class="text-lg sm:text-xl font-bold dark:text-white truncate">${pet.name}</h3><p class="text-text-sub-light dark:text-text-sub-dark text-sm truncate">${pet.breed || 'Unknown breed'}</p></div><button onclick="openEditModal('pet', ${i})" class="p-2 hover:bg-background-light dark:hover:bg-background-dark rounded-lg text-text-sub-light hover:text-primary flex-shrink-0"><span class="material-symbols-outlined">edit</span></button></div><span class="inline-block mt-2 px-3 py-1 bg-background-light dark:bg-background-dark rounded-full text-xs sm:text-sm dark:text-white">${pet.weight || '?'} lbs</span></div></div>${pet.grooming_notes ? `<div class="mt-3 sm:mt-4 p-3 bg-background-light dark:bg-background-dark rounded-lg text-xs sm:text-sm text-text-sub-light dark:text-text-sub-dark"><strong>Notes:</strong> ${pet.grooming_notes}</div>` : ''}</div>`).join('') : '<div class="col-span-2 text-center py-8 sm:py-12 bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark"><span class="material-symbols-outlined text-5xl sm:text-6xl text-text-sub-light mb-4">pets</span><p class="text-text-sub-light dark:text-text-sub-dark">No pets added yet</p><button onclick="openEditModal(\'pet\', {})" class="mt-4 bg-primary text-white font-bold px-4 py-2 rounded-lg">Add Your First Pet</button></div>'}</div>`;
+                </div><div class="flex-1 min-w-0"><div class="flex justify-between"><div class="min-w-0"><h3 class="text-lg sm:text-xl font-bold dark:text-white truncate">${escapeHtml(pet.name)}</h3><p class="text-text-sub-light dark:text-text-sub-dark text-sm truncate">${pet.breed || 'Unknown breed'}</p></div><button onclick="openEditModal('pet', ${i})" class="p-2 hover:bg-background-light dark:hover:bg-background-dark rounded-lg text-text-sub-light hover:text-primary flex-shrink-0"><span class="material-symbols-outlined">edit</span></button></div><span class="inline-block mt-2 px-3 py-1 bg-background-light dark:bg-background-dark rounded-full text-xs sm:text-sm dark:text-white">${pet.weight || '?'} lbs</span></div></div>${pet.grooming_notes ? `<div class="mt-3 sm:mt-4 p-3 bg-background-light dark:bg-background-dark rounded-lg text-xs sm:text-sm text-text-sub-light dark:text-text-sub-dark"><strong>Notes:</strong> ${pet.grooming_notes}</div>` : ''}</div>`).join('') : '<div class="col-span-2 text-center py-8 sm:py-12 bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark"><span class="material-symbols-outlined text-5xl sm:text-6xl text-text-sub-light mb-4">pets</span><p class="text-text-sub-light dark:text-text-sub-dark">No pets added yet</p><button onclick="openEditModal(\'pet\', {})" class="mt-4 bg-primary text-white font-bold px-4 py-2 rounded-lg">Add Your First Pet</button></div>'}</div>`;
             }
 
             if (state.currentTab === 'appointments') {
@@ -13113,7 +13311,7 @@
                                 <a href="${p.link}" target="_blank" class="flex-shrink-0 w-48 rounded-xl bg-primary/5 dark:bg-primary/10 border border-primary/20 overflow-hidden hover:shadow-lg transition-all group">
                                     <div class="w-full h-32 bg-cover bg-center" style="background-image: url('${p.image}');"></div>
                                     <div class="p-3">
-                                        <p class="font-bold text-sm dark:text-white truncate">${p.name}</p>
+                                        <p class="font-bold text-sm dark:text-white truncate">${escapeHtml(p.name)}</p>
                                         <div class="flex items-center justify-between mt-1">
                                             <span class="font-bold text-primary">$${p.price.toFixed(2)}</span>
                                             <span class="material-symbols-outlined text-primary text-sm">open_in_new</span>
@@ -13130,7 +13328,7 @@
                         <div class="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">${categories.map(cat => `<button onclick="setStoreCategory('${cat}')" class="flex h-10 shrink-0 items-center justify-center rounded-full px-5 text-sm font-medium transition-all ${state.storeCategory === cat ? 'bg-primary text-white' : 'bg-white dark:bg-surface-dark border border-border-light dark:border-border-dark dark:text-white'}">${cat.charAt(0).toUpperCase() + cat.slice(1)}</button>`).join('')}</div>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-8">
-                        ${filteredProducts.map(p => `<div class="flex flex-col rounded-xl bg-white dark:bg-surface-dark border border-border-light dark:border-border-dark overflow-hidden hover:shadow-lg transition-all group"><div class="relative w-full aspect-[4/3] bg-gray-100 dark:bg-slate-800 overflow-hidden">${p.badge ? `<div class="absolute top-3 left-3 z-10"><span class="${p.badge === 'groomer' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300' : p.badge === 'sale' ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300' : 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'} text-xs font-bold px-2 py-1 rounded">${p.badge === 'groomer' ? "Groomer's Choice" : p.badge === 'sale' ? 'Sale 20% Off' : 'New'}</span></div>` : ''}<div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-500" style="background-image: url('${p.image}');"></div></div><div class="flex flex-col flex-1 p-4 gap-3"><div class="flex-1"><h3 class="font-bold dark:text-white group-hover:text-primary transition-colors">${p.name}</h3><p class="text-sm text-text-sub-light dark:text-text-sub-dark">${p.description}</p></div><div class="flex items-center justify-between pt-2 border-t border-border-light dark:border-border-dark">${p.originalPrice ? `<div class="flex flex-col"><span class="text-xs line-through text-text-sub-light dark:text-text-sub-dark">$${p.originalPrice.toFixed(2)}</span><span class="text-lg font-bold text-red-600 dark:text-red-400">$${p.price.toFixed(2)}</span></div>` : `<span class="text-lg font-bold dark:text-white">$${p.price.toFixed(2)}</span>`}<a href="${p.link}" class="flex items-center gap-1 bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold">Buy <span class="material-symbols-outlined text-base">open_in_new</span></a></div></div></div>`).join('')}
+                        ${filteredProducts.map(p => `<div class="flex flex-col rounded-xl bg-white dark:bg-surface-dark border border-border-light dark:border-border-dark overflow-hidden hover:shadow-lg transition-all group"><div class="relative w-full aspect-[4/3] bg-gray-100 dark:bg-slate-800 overflow-hidden">${p.badge ? `<div class="absolute top-3 left-3 z-10"><span class="${p.badge === 'groomer' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300' : p.badge === 'sale' ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300' : 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'} text-xs font-bold px-2 py-1 rounded">${p.badge === 'groomer' ? "Groomer's Choice" : p.badge === 'sale' ? 'Sale 20% Off' : 'New'}</span></div>` : ''}<div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-500" style="background-image: url('${p.image}');"></div></div><div class="flex flex-col flex-1 p-4 gap-3"><div class="flex-1"><h3 class="font-bold dark:text-white group-hover:text-primary transition-colors">${escapeHtml(p.name)}</h3><p class="text-sm text-text-sub-light dark:text-text-sub-dark">${p.description}</p></div><div class="flex items-center justify-between pt-2 border-t border-border-light dark:border-border-dark">${p.originalPrice ? `<div class="flex flex-col"><span class="text-xs line-through text-text-sub-light dark:text-text-sub-dark">$${p.originalPrice.toFixed(2)}</span><span class="text-lg font-bold text-red-600 dark:text-red-400">$${p.price.toFixed(2)}</span></div>` : `<span class="text-lg font-bold dark:text-white">$${p.price.toFixed(2)}</span>`}<a href="${p.link}" class="flex items-center gap-1 bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold">Buy <span class="material-symbols-outlined text-base">open_in_new</span></a></div></div></div>`).join('')}
                     </div>
                     <footer class="text-center py-6 border-t border-border-light dark:border-border-dark"><p class="text-xs text-text-sub-light dark:text-text-sub-dark"><strong>Affiliate Disclosure:</strong> We may earn a commission at no extra cost to you.</p></footer>
                 </div>`;
@@ -13274,13 +13472,13 @@
                             <label class="block">
                                 <span class="text-sm font-semibold mb-2 block dark:text-white">Select Pet</span>
                                 <select id="booking-pet" class="w-full h-12 px-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark dark:text-white">
-                                    ${pets.length > 0 ? pets.map(p => `<option value="${p.id}" ${preselect.petId === p.id ? 'selected' : ''}>${p.name} (${p.breed || 'Unknown'})</option>`).join('') : '<option value="">No pets - please add a pet first</option>'}
+                                    ${pets.length > 0 ? pets.map(p => `<option value="${p.id}" ${preselect.petId === p.id ? 'selected' : ''}>${escapeHtml(p.name)} (${p.breed || 'Unknown'})</option>`).join('') : '<option value="">No pets - please add a pet first</option>'}
                                 </select>
                             </label>
                             <label class="block">
                                 <span class="text-sm font-semibold mb-2 block dark:text-white">Service</span>
                                 <select id="booking-service-select" onchange="showServiceDescription(this)" class="w-full h-12 px-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark dark:text-white">
-                                    ${hasRealServices ? services.filter(s => !s.is_addon).map(s => `<option value="${s.id}" data-name="${s.name}" data-price="${s.base_price}" data-duration="${s.duration_minutes || 60}" data-description="${(s.description || '').replace(/"/g, '&quot;')}" ${preselect.serviceId === s.id ? 'selected' : ''}>${s.name} - $${s.base_price}</option>`).join('') : '<option value="default" data-name="Full Groom" data-price="85" data-duration="90" data-description="Complete grooming including bath, brush, haircut, nail trim, and ear cleaning.">Full Groom - $85</option><option value="default" data-name="Bath & Brush" data-price="45" data-duration="45" data-description="Thorough bath with premium shampoo and complete brush out.">Bath & Brush - $45</option>'}
+                                    ${hasRealServices ? services.filter(s => !s.is_addon).map(s => `<option value="${s.id}" data-name="${escapeHtml(s.name)}" data-price="${s.base_price}" data-duration="${s.duration_minutes || 60}" data-description="${(s.description || '').replace(/"/g, '&quot;')}" ${preselect.serviceId === s.id ? 'selected' : ''}>${escapeHtml(s.name)} - $${s.base_price}</option>`).join('') : '<option value="default" data-name="Full Groom" data-price="85" data-duration="90" data-description="Complete grooming including bath, brush, haircut, nail trim, and ear cleaning.">Full Groom - $85</option><option value="default" data-name="Bath & Brush" data-price="45" data-duration="45" data-description="Thorough bath with premium shampoo and complete brush out.">Bath & Brush - $45</option>'}
                                 </select>
                             </label>
                         </div>
@@ -13300,20 +13498,15 @@
                         <div class="space-y-3">
                             <label class="block">
                                 <span class="text-sm font-semibold mb-2 block dark:text-white">Service Address</span>
-                                <div class="flex gap-2">
-                                    <input type="text" id="booking-address" value="${fullAddress}" placeholder="Street address, City, ZIP" 
-                                        oninput="debounceAddressChange()"
-                                        class="flex-1 h-12 px-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark dark:text-white" required>
-                                    <button type="button" onclick="reloadSmartDatePicker()" class="h-12 px-4 bg-primary text-white rounded-lg font-semibold text-sm hover:bg-primary/90 active:scale-95 transition-all flex items-center gap-1.5 flex-shrink-0">
-                                        <span class="material-symbols-outlined text-lg">search</span>
-                                        <span class="hidden sm:inline">Find Times</span>
-                                    </button>
-                                </div>
-                                <!-- Address status indicator (green checkmark / amber warning / red error) -->
-                                <div id="address-status" class="mt-1 text-xs hidden">
-                                    <span id="address-status-text"></span>
+                                <div class="relative">
+                                    <input type="text" id="booking-address" value="${fullAddress}" placeholder="Street address, City" class="w-full h-12 px-4 pr-12 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark dark:text-white" required oninput="debouncedAddressCheck()" onblur="checkAddressServiceArea()">
+                                    <div id="address-check-icon" class="absolute right-3 top-1/2 -translate-y-1/2 hidden">
+                                        <span class="material-symbols-outlined text-green-500 text-xl">check_circle</span>
+                                    </div>
                                 </div>
                             </label>
+                            <!-- Service Area Badge (shows after address verification) -->
+                            <div id="address-service-badge" class="hidden"></div>
                             <input type="hidden" id="booking-city" value="${userCity}">
                             <input type="hidden" id="booking-zip" value="${userZip}">
                         </div>
@@ -13402,11 +13595,9 @@
             
             if (error) {
                 return `
-                    <div class="p-4 bg-background-light dark:bg-background-dark rounded-xl">
-                        <label class="block">
-                            <span class="text-sm font-semibold mb-2 block dark:text-white">Select a Date</span>
-                            <input type="date" id="booking-date-fallback" min="${new Date().toISOString().split('T')[0]}" onchange="handleFallbackDateChange()" class="w-full h-12 px-4 rounded-lg bg-white dark:bg-slate-800 border border-border-light dark:border-border-dark dark:text-white">
-                        </label>
+                    <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl">
+                        <p class="text-red-800 dark:text-red-200">Error loading available times. Using standard date picker.</p>
+                        <input type="date" id="booking-date-fallback" min="${new Date().toISOString().split('T')[0]}" onchange="handleFallbackDateChange()" class="mt-3 w-full h-12 px-4 rounded-lg bg-white dark:bg-background-dark border border-border-light dark:border-border-dark dark:text-white">
                     </div>
                 `;
             }
@@ -13508,8 +13699,8 @@
                 if (timeWrapper) timeWrapper.classList.remove('hidden');
             }
             
-            // Enable Review & Confirm button
-            const submitBtn = document.getElementById('booking-review-btn');
+            // Enable submit button
+            const submitBtn = document.querySelector('form[onsubmit*="handleBookingSubmit"] button[type="submit"]');
             if (submitBtn) submitBtn.disabled = !dateStr;
             
             // Update the picker UI
@@ -13524,47 +13715,10 @@
             }
         }
         
-        // Debounce address input — auto-refresh smart picker 800ms after user stops typing
-        let addressDebounceTimer = null;
-        function debounceAddressChange() {
-            clearTimeout(addressDebounceTimer);
-            
-            // Clear status while typing
-            const addressStatus = document.getElementById('address-status');
-            if (addressStatus) addressStatus.classList.add('hidden');
-            
-            addressDebounceTimer = setTimeout(() => {
-                const address = document.getElementById('booking-address')?.value?.trim();
-                if (address && address.length >= 5) {
-                    reloadSmartDatePicker();
-                }
-            }, 800);
-        }
-        
-        // Reload smart date picker (when user changes address)
-        function reloadSmartDatePicker() {
-            // Clear previous smart booking data so it re-fetches
-            state.smartBookingData = null;
-            state.selectedBookingDate = null;
-            state.selectedBookingTime = null;
-            state.selectedBookingGroomer = null;
-            state.customerBookingCoords = null;
-            
-            // Disable review button until new slot selected
-            const submitBtn = document.getElementById('booking-review-btn');
-            if (submitBtn) submitBtn.disabled = true;
-            
-            // Clear geocode cache for the old address
-            // (new address needs fresh geocoding)
-            loadSmartDatePicker();
-        }
-        
         // Load smart date picker based on address
         async function loadSmartDatePicker() {
             const addressInput = document.getElementById('booking-address');
             const pickerContainer = document.getElementById('smart-date-picker');
-            const addressStatus = document.getElementById('address-status');
-            const addressStatusText = document.getElementById('address-status-text');
             
             if (!addressInput || !pickerContainer) return;
             
@@ -13583,140 +13737,86 @@
             `;
             pickerContainer.classList.remove('hidden');
             
-            // Reset address status
-            if (addressStatus) {
-                addressStatus.classList.add('hidden');
-                addressStatus.className = 'mt-1 text-xs hidden';
-            }
-            
             try {
-                // Smart address parsing: detect zip codes, handle various formats
-                let street = address;
-                let city = '';
-                let zip = '';
-                
-                // Try to extract zip code (5 digits or 5+4 format)
-                const zipMatch = address.match(/\b(\d{5})(?:-\d{4})?\b/);
-                if (zipMatch) {
-                    zip = zipMatch[1];
-                    street = address.replace(/\b\d{5}(?:-\d{4})?\b/, '').trim();
-                }
-                
-                // Try to extract city from comma-separated parts
-                const parts = street.split(',').map(p => p.trim());
-                if (parts.length > 1) {
-                    street = parts[0];
-                    const cityPart = parts[1].replace(/\b(CA|California)\b/gi, '').trim();
-                    if (cityPart) city = cityPart;
-                }
-                
-                // Use user's saved data as fallback
-                if (!city) city = state.currentUser?.city || '';
-                if (!zip) zip = state.currentUser?.zip || '';
-                
-                console.log('Parsed address:', { street, city, zip, original: address });
+                // Parse address to extract city and zip if possible
+                const parts = address.split(',').map(p => p.trim());
+                const street = parts[0] || address;
+                const city = state.currentUser?.city || parts[1] || '';
+                const zip = state.currentUser?.zip || '';
                 
                 // Geocode the address
                 const coords = await geocodeAddress(street, city, 'CA', zip);
                 
+                // Update service area badge
+                const badgeContainer = document.getElementById('address-service-badge');
+                const checkIcon = document.getElementById('address-check-icon');
+                
                 if (!coords) {
-                    // Show error status
-                    if (addressStatus) {
-                        addressStatus.classList.remove('hidden');
-                        addressStatus.className = 'mt-1 text-xs text-red-600 dark:text-red-400';
-                        if (addressStatusText) addressStatusText.textContent = '❌ Could not find this address';
-                    }
                     state.smartBookingData = { noCoordinates: true };
                     pickerContainer.innerHTML = renderSmartDatePicker(state.smartBookingData, null);
+                    // Show error badge
+                    if (badgeContainer) {
+                        badgeContainer.classList.remove('hidden');
+                        badgeContainer.innerHTML = renderServiceAreaBadge(null, null, true);
+                    }
+                    if (checkIcon) checkIcon.classList.add('hidden');
                     return;
                 }
                 
-                console.log('Customer coords:', coords);
+                _log('Customer coords:', coords);
                 
-                // Service area check (50 miles from LA center)
-                const distFromBase = calculateDistance(
+                // Store coordinates for later
+                state.customerBookingCoords = coords;
+                
+                // Calculate distance and get tier for badge
+                const distance = calculateDistance(
                     coords.latitude, coords.longitude,
                     businessHomeBase.latitude, businessHomeBase.longitude
                 );
+                const tier = getTravelFeeTier(distance);
                 
-                if (distFromBase > (smartBookingSettings.max_service_radius_miles || 50)) {
-                    // Outside service area
-                    if (addressStatus) {
-                        addressStatus.classList.remove('hidden');
-                        addressStatus.className = 'mt-1 text-xs text-red-600 dark:text-red-400';
-                        if (addressStatusText) addressStatusText.textContent = `❌ Outside service area (${Math.round(distFromBase)} miles from LA)`;
+                // Show the service area badge
+                if (badgeContainer) {
+                    badgeContainer.classList.remove('hidden');
+                    badgeContainer.innerHTML = renderServiceAreaBadge(tier, distance, false);
+                }
+                
+                // Update check icon
+                if (checkIcon) {
+                    if (tier.fee_amount >= 0) {
+                        checkIcon.classList.remove('hidden');
+                        checkIcon.innerHTML = `<span class="material-symbols-outlined ${tier.color_class} text-xl">${tier.icon}</span>`;
+                    } else {
+                        checkIcon.classList.add('hidden');
                     }
-                    state.smartBookingData = { outsideArea: true, distance: Math.round(distFromBase) };
+                }
+                
+                // If outside service area, don't load dates
+                if (tier.fee_amount < 0) {
+                    state.smartBookingData = { outOfArea: true };
                     pickerContainer.innerHTML = `
-                        <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl">
-                            <div class="flex items-start gap-3">
-                                <span class="material-symbols-outlined text-red-600">wrong_location</span>
-                                <div>
-                                    <p class="font-semibold text-red-800 dark:text-red-200">Outside Service Area</p>
-                                    <p class="text-sm text-red-700 dark:text-red-300 mt-1">This address is approximately ${Math.round(distFromBase)} miles from our service area (Los Angeles). We currently serve within ${smartBookingSettings.max_service_radius_miles || 50} miles.</p>
-                                    <p class="text-sm text-red-600 dark:text-red-400 mt-2">📍 Please enter an address in the LA area.</p>
-                                </div>
-                            </div>
+                        <div class="p-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl text-center">
+                            <span class="material-symbols-outlined text-4xl text-red-400 mb-2">wrong_location</span>
+                            <p class="text-red-800 dark:text-red-200 font-medium">This address is outside our service area</p>
+                            <p class="text-sm text-red-600 dark:text-red-400 mt-1">Please try a different address or call us at (626) 863-6926</p>
                         </div>
                     `;
                     return;
                 }
-                
-                // Address is valid — show green checkmark status
-                if (addressStatus) {
-                    addressStatus.classList.remove('hidden');
-                    
-                    // Extract zip from geocoded result
-                    const returnedZipMatch = coords.display_name?.match(/\b(\d{5})\b/);
-                    const returnedZip = returnedZipMatch ? returnedZipMatch[1] : null;
-                    
-                    // Extract neighborhood/city from display name
-                    const displayParts = coords.display_name?.split(',').map(p => p.trim()) || [];
-                    let detectedArea = '';
-                    for (let i = 1; i < Math.min(displayParts.length, 4); i++) {
-                        const part = displayParts[i];
-                        if (part && !part.match(/^\d+$/) && !part.match(/^(CA|California)$/i) && !part.match(/^\d{5}/)) {
-                            detectedArea = part;
-                            break;
-                        }
-                    }
-                    detectedArea = detectedArea || 'Los Angeles area';
-                    
-                    // Check if user-entered zip matches returned zip
-                    if (zip && returnedZip && zip !== returnedZip) {
-                        // ZIP MISMATCH - warn user
-                        addressStatus.className = 'mt-1 text-xs text-amber-600 dark:text-amber-400';
-                        if (addressStatusText) {
-                            addressStatusText.innerHTML = `⚠️ Found "${detectedArea}" (${returnedZip}) — You entered ${zip}. <span class="underline cursor-pointer" onclick="document.getElementById('booking-address').focus()">Check address?</span>`;
-                        }
-                    } else {
-                        // All good - show green checkmark
-                        addressStatus.className = 'mt-1 text-xs text-emerald-600 dark:text-emerald-400';
-                        const zipDisplay = returnedZip || zip || '';
-                        if (addressStatusText) addressStatusText.textContent = `✓ Found: ${detectedArea}${zipDisplay ? ' (' + zipDisplay + ')' : ''}`;
-                    }
-                }
-                
-                // Store coordinates for later
-                state.customerBookingCoords = coords;
                 
                 // Get smart date recommendations
                 const recommendations = await getSmartDateRecommendations(coords.latitude, coords.longitude);
                 
                 state.smartBookingData = recommendations;
                 state.selectedBookingDate = null;
-                state.bookingTravelFee = 0;
+                state.bookingTravelFee = tier.fee_amount;
                 
                 pickerContainer.innerHTML = renderSmartDatePicker(recommendations, null);
                 
             } catch (err) {
                 console.error('Error loading smart date picker:', err);
-                // Gracefully fall back to standard date picker
                 state.smartBookingData = { error: true };
                 pickerContainer.innerHTML = renderSmartDatePicker(state.smartBookingData, null);
-                // Auto-show time picker wrapper
-                const timeWrapper = document.getElementById('time-selection-wrapper');
-                if (timeWrapper) timeWrapper.classList.remove('hidden');
             }
         }
         
@@ -13788,7 +13888,7 @@
                 const timeWrapper = document.getElementById('time-selection-wrapper');
                 if (timeWrapper) timeWrapper.classList.remove('hidden');
                 
-                const submitBtn = document.getElementById('booking-review-btn');
+                const submitBtn = document.querySelector('#booking-form button[type="submit"]');
                 if (submitBtn) submitBtn.disabled = false;
                 
                 handleBookingDateChange();
@@ -13820,7 +13920,7 @@
                 
                 if (slots.length === 0) {
                     // Check if it's a closed day
-                    const dayOfWeek = new Date(selectedDate + 'T12:00:00').getDay();
+                    const dayOfWeek = new Date(selectedDate).getDay();
                     const hours = state.businessHours.find(h => h.day_of_week === dayOfWeek);
                     
                     if (!hours || hours.is_closed) {
@@ -14653,14 +14753,14 @@
                                         ${customer.email ? `<span class="flex items-center gap-1 truncate"><span class="material-symbols-outlined text-sm">mail</span>${customer.email}</span>` : ''}
                                     </div>
                                     
-                                    ${customer.address ? `<p class="text-xs text-slate-400 mb-3 truncate"><span class="material-symbols-outlined text-xs align-middle">location_on</span> ${customer.address}</p>` : ''}
+                                    ${customer.address ? `<p class="text-xs text-slate-400 mb-3 truncate"><span class="material-symbols-outlined text-xs align-middle">location_on</span> ${escapeHtml(customer.address)}</p>` : ''}
                                     
                                     <!-- Pets -->
                                     <div class="flex items-center gap-2 mb-3">
                                         <span class="text-xs font-bold text-slate-400 uppercase">Pets:</span>
                                         ${customerPets.length > 0 ? customerPets.slice(0, 3).map(pet => `
                                             <span class="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300">
-                                                <span class="material-symbols-outlined text-xs">pets</span>${pet.name}
+                                                <span class="material-symbols-outlined text-xs">pets</span>${escapeHtml(pet.name)}
                                             </span>
                                         `).join('') + (customerPets.length > 3 ? `<span class="text-xs text-slate-400">+${customerPets.length - 3} more</span>` : '') : '<span class="text-xs text-slate-400">No pets</span>'}
                                     </div>
@@ -15276,7 +15376,7 @@
                     .limit(50);
                 
                 if (error) {
-                    console.log('Notifications table may not exist yet:', error.message);
+                    _log('Notifications table may not exist yet:', error.message);
                     state.notifications = [];
                     state.unreadNotifications = 0;
                     return;
@@ -15357,8 +15457,8 @@
                     state.notifications.unshift({
                         local_id: dueId,
                         id: dueId,
-                        title: `${pet.name} Needs a Groom`,
-                        message: `It's been ${weeksSince} weeks since ${pet.name}'s last groom. Book an appointment to keep them looking great!`,
+                        title: `${escapeHtml(pet.name)} Needs a Groom`,
+                        message: `It's been ${weeksSince} weeks since ${escapeHtml(pet.name)}'s last groom. Book an appointment to keep them looking great!`,
                         type: 'reminder',
                         is_read: false,
                         created_at: now.toISOString()
@@ -15369,11 +15469,21 @@
         }
         
         // Start periodic reminder check (every 30 min)
-        setInterval(() => {
-            if (state.currentUser && state.currentUser.role !== 'admin') {
-                checkAppointmentReminders();
+        let reminderInterval = null;
+        function startReminderInterval() {
+            if (reminderInterval) clearInterval(reminderInterval);
+            reminderInterval = setInterval(() => {
+                if (state.currentUser && state.currentUser.role !== 'admin') {
+                    checkAppointmentReminders();
+                }
+            }, 30 * 60 * 1000);
+        }
+        function stopReminderInterval() {
+            if (reminderInterval) {
+                clearInterval(reminderInterval);
+                reminderInterval = null;
             }
-        }, 30 * 60 * 1000);
+        }
         
         // Toggle notifications panel
         function toggleNotifications() {
@@ -15728,7 +15838,7 @@
                     });
                 
                 if (error) {
-                    console.log('Capacity check function not available:', error);
+                    _log('Capacity check function not available:', error);
                     return { can_accept: true };
                 }
                 
@@ -15783,7 +15893,7 @@
                 
                 if (error) {
                     // Fallback to direct update
-                    console.log('fulfill_redemption RPC not available, using direct update');
+                    _log('fulfill_redemption RPC not available, using direct update');
                     const { error: updateError } = await supabaseClient
                         .from('reward_redemptions')
                         .update({
@@ -15843,7 +15953,7 @@
                 
                 if (error) {
                     // Fallback to direct update with manual refund
-                    console.log('cancel_redemption RPC not available, using direct update');
+                    _log('cancel_redemption RPC not available, using direct update');
                     
                     // Get redemption details first
                     const { data: redemption } = await supabaseClient
@@ -16024,7 +16134,7 @@
                         return `
                         <div class="flex ${isAdmin ? 'justify-end' : 'justify-start'}">
                             <div class="max-w-[70%] ${isAdmin ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white'} rounded-2xl px-4 py-3">
-                                <p class="text-sm">${m.message}</p>
+                                <p class="text-sm">${escapeHtml(m.message)}</p>
                                 <p class="text-[10px] ${isAdmin ? 'text-primary-200 opacity-70' : 'text-slate-400'} mt-1">${time}</p>
                             </div>
                         </div>`;
@@ -16073,7 +16183,7 @@
                     state.adminMessages = data;
                 }
             } catch (err) {
-                console.log('Messages table may not exist yet');
+                _log('Messages table may not exist yet');
                 state.adminMessages = [];
             }
         }
@@ -16096,7 +16206,7 @@
                     });
                 
                 if (error) {
-                    console.log('Messages table may not exist:', error);
+                    _log('Messages table may not exist:', error);
                 }
                 
                 // Add to local state for immediate feedback
@@ -16236,7 +16346,7 @@
             const servicePrice = parseFloat(selectedOption?.dataset?.price) || 85;
             const serviceDuration = parseInt(selectedOption?.dataset?.duration) || 60;
             const date = document.getElementById('booking-date')?.value;
-            const time = document.getElementById('booking-time')?.value || state.selectedBookingTime || '';
+            const time = document.getElementById('booking-time')?.value;
             const address = document.getElementById('booking-address')?.value;
             const notes = document.getElementById('booking-notes')?.value || '';
             
@@ -16294,7 +16404,7 @@
             }
             hideLoading();
             
-            console.log('Booking appointment:', { petId, serviceId, serviceName, servicePrice, serviceDuration, date, time, address, notes, customerCoords, selectedGroomerId });
+            _log('Booking appointment:', { petId, serviceId, serviceName, servicePrice, serviceDuration, date, time, address, notes, customerCoords, selectedGroomerId });
             
             // Create the appointment with coordinates and groomer assignment
             const result = await createAppointment({
@@ -16447,11 +16557,9 @@
         
         function closeBookingModal() { 
             state.showBookingModal = false;
-            // Reset ALL smart booking state
+            // Reset smart booking state
             state.smartBookingData = null;
             state.selectedBookingDate = null;
-            state.selectedBookingTime = null;
-            state.selectedBookingGroomer = null;
             state.customerBookingCoords = null;
             state.bookingPreselect = null;
             render(); 
@@ -16644,7 +16752,7 @@
             window.addEventListener('load', async () => {
                 try {
                     const registration = await navigator.serviceWorker.register('sw.js');
-                    console.log('ServiceWorker registered:', registration.scope);
+                    _log('ServiceWorker registered:', registration.scope);
                     
                     // Check for updates
                     registration.addEventListener('updatefound', () => {
@@ -16659,7 +16767,7 @@
                         });
                     });
                 } catch (error) {
-                    console.log('ServiceWorker registration failed:', error);
+                    _log('ServiceWorker registration failed:', error);
                 }
             });
         }
@@ -16681,7 +16789,7 @@
                 deferredPrompt.prompt();
                 deferredPrompt.userChoice.then((choiceResult) => {
                     if (choiceResult.outcome === 'accepted') {
-                        console.log('PWA installed');
+                        _log('PWA installed');
                         showToast('App installed successfully!', 'success');
                     }
                     deferredPrompt = null;
