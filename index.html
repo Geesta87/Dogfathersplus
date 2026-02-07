@@ -1234,30 +1234,13 @@
         // Check address and show service area badge
         async function checkAddressServiceArea() {
             const addressInput = document.getElementById('booking-address');
-            const badgeContainer = document.getElementById('address-service-badge');
-            const checkIcon = document.getElementById('address-check-icon');
             
-            if (!addressInput || !badgeContainer) return;
+            if (!addressInput) return;
             
             const address = addressInput.value.trim();
             if (!address || address.length < 5) {
-                badgeContainer.classList.add('hidden');
-                badgeContainer.innerHTML = '';
-                if (checkIcon) checkIcon.classList.add('hidden');
                 return;
             }
-            
-            // Show loading state
-            badgeContainer.classList.remove('hidden');
-            badgeContainer.innerHTML = `
-                <div class="flex items-center gap-2 p-3 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                    <svg class="animate-spin h-4 w-4 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span class="text-sm text-slate-600 dark:text-slate-400">Checking service area...</span>
-                </div>
-            `;
             
             try {
                 // Parse address
@@ -1270,8 +1253,6 @@
                 const coords = await geocodeAddress(street, city, 'CA', zip);
                 
                 if (!coords) {
-                    badgeContainer.innerHTML = renderServiceAreaBadge(null, null, true);
-                    if (checkIcon) checkIcon.classList.add('hidden');
                     return;
                 }
                 
@@ -1287,19 +1268,6 @@
                 // Get the tier for this distance
                 const tier = getTravelFeeTier(distance);
                 
-                // Show the badge
-                badgeContainer.innerHTML = renderServiceAreaBadge(tier, distance, false);
-                
-                // Show/hide check icon based on service availability
-                if (checkIcon) {
-                    if (tier.fee_amount >= 0) {
-                        checkIcon.classList.remove('hidden');
-                        checkIcon.innerHTML = `<span class="material-symbols-outlined ${tier.color_class} text-xl">${tier.icon}</span>`;
-                    } else {
-                        checkIcon.classList.add('hidden');
-                    }
-                }
-                
                 // Reload smart date picker with new coordinates (if in service area)
                 if (tier.fee_amount >= 0) {
                     state.smartBookingData = null; // Clear stale data
@@ -1308,8 +1276,6 @@
                 
             } catch (err) {
                 console.error('Error checking service area:', err);
-                badgeContainer.innerHTML = renderServiceAreaBadge(null, null, true);
-                if (checkIcon) checkIcon.classList.add('hidden');
             }
         }
         
@@ -13511,7 +13477,7 @@
                                     </div>
                                 </div>
                             </label>
-                            <!-- Service Area Badge (shows after address verification) -->
+                            <!-- Service Area Check (hidden from customer, used internally) -->
                             <div id="address-service-badge" class="hidden"></div>
                             <input type="hidden" id="booking-city" value="${userCity}">
                             <input type="hidden" id="booking-zip" value="${userZip}">
@@ -13753,19 +13719,9 @@
                 // Geocode the address
                 const coords = await geocodeAddress(street, city, 'CA', zip);
                 
-                // Update service area badge
-                const badgeContainer = document.getElementById('address-service-badge');
-                const checkIcon = document.getElementById('address-check-icon');
-                
                 if (!coords) {
                     state.smartBookingData = { noCoordinates: true };
                     pickerContainer.innerHTML = renderSmartDatePicker(state.smartBookingData, null);
-                    // Show error badge
-                    if (badgeContainer) {
-                        badgeContainer.classList.remove('hidden');
-                        badgeContainer.innerHTML = renderServiceAreaBadge(null, null, true);
-                    }
-                    if (checkIcon) checkIcon.classList.add('hidden');
                     return;
                 }
                 
@@ -13781,29 +13737,13 @@
                 );
                 const tier = getTravelFeeTier(distance);
                 
-                // Show the service area badge
-                if (badgeContainer) {
-                    badgeContainer.classList.remove('hidden');
-                    badgeContainer.innerHTML = renderServiceAreaBadge(tier, distance, false);
-                }
-                
-                // Update check icon
-                if (checkIcon) {
-                    if (tier.fee_amount >= 0) {
-                        checkIcon.classList.remove('hidden');
-                        checkIcon.innerHTML = `<span class="material-symbols-outlined ${tier.color_class} text-xl">${tier.icon}</span>`;
-                    } else {
-                        checkIcon.classList.add('hidden');
-                    }
-                }
-                
                 // If outside service area, don't load dates
                 if (tier.fee_amount < 0) {
                     state.smartBookingData = { outOfArea: true };
                     pickerContainer.innerHTML = `
                         <div class="p-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl text-center">
                             <span class="material-symbols-outlined text-4xl text-red-400 mb-2">wrong_location</span>
-                            <p class="text-red-800 dark:text-red-200 font-medium">This address is outside our service area</p>
+                            <p class="text-red-800 dark:text-red-200 font-medium">We don't currently service this area</p>
                             <p class="text-sm text-red-600 dark:text-red-400 mt-1">Please try a different address or call us at (626) 863-6926</p>
                         </div>
                     `;
