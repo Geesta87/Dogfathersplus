@@ -1300,6 +1300,12 @@
                     }
                 }
                 
+                // Reload smart date picker with new coordinates (if in service area)
+                if (tier.fee_amount >= 0) {
+                    state.smartBookingData = null; // Clear stale data
+                    loadSmartDatePicker();
+                }
+                
             } catch (err) {
                 console.error('Error checking service area:', err);
                 badgeContainer.innerHTML = renderServiceAreaBadge(null, null, true);
@@ -1344,8 +1350,8 @@
             };
             
             const style = tierStyles[tier.tier_order] || tierStyles[1];
-            const feeText = tier.fee_amount === 0 ? 'No travel fee!' : `+$${tier.fee_amount} travel fee`;
-            const distanceText = distance !== null ? `${distance.toFixed(1)} mi` : '';
+            const distanceText = distance !== null ? `${distance.toFixed(1)} mi away` : '';
+            const statusText = tier.tier_order === 1 ? 'We service your area!' : 'Within our service area';
             
             return `
                 <div class="flex items-center gap-3 p-3 ${style.bg} ${style.border} border rounded-lg">
@@ -1357,7 +1363,7 @@
                             <p class="text-sm font-bold ${style.text}">${tier.label || 'In Service Area'}</p>
                             ${tier.tier_order === 1 ? '<span class="material-symbols-outlined text-emerald-500 text-base fill-1">verified</span>' : ''}
                         </div>
-                        <p class="text-xs ${style.subtext}">${distanceText}${distanceText && feeText ? ' — ' : ''}${feeText}</p>
+                        <p class="text-xs ${style.subtext}">${distanceText}${distanceText ? ' — ' : ''}${statusText}</p>
                     </div>
                     ${tier.tier_order === 1 ? '<span class="material-symbols-outlined text-emerald-500 text-2xl">check_circle</span>' : ''}
                 </div>
@@ -13607,7 +13613,7 @@
                 // Handle both old format (date only) and new format (date + time)
                 const hasTime = slot.time || slot.displayTime;
                 const slotKey = hasTime ? `${slot.date}_${slot.time}` : slot.date;
-                const selectedKey = typeof selectedSlot === 'object' ? `${selectedSlot.date}_${selectedSlot.time}` : selectedSlot;
+                const selectedKey = (selectedSlot && typeof selectedSlot === 'object') ? `${selectedSlot.date}_${selectedSlot.time}` : selectedSlot;
                 const isSlotSelected = slotKey === selectedKey || slot.date === selectedSlot;
                 
                 // Format display
@@ -13809,7 +13815,6 @@
                 
                 state.smartBookingData = recommendations;
                 state.selectedBookingDate = null;
-                state.bookingTravelFee = tier.fee_amount;
                 
                 pickerContainer.innerHTML = renderSmartDatePicker(recommendations, null);
                 
