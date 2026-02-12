@@ -2203,8 +2203,8 @@ function selectBookingSlot(dateStr, timeStr, groomerId) {
         if (timeWrapper) timeWrapper.classList.remove('hidden');
     }
     
-    // Enable submit button
-    const submitBtn = document.querySelector('form[onsubmit*="handleBookingSubmit"] button[type="submit"]');
+    // Enable Review & Confirm button
+    const submitBtn = document.getElementById('booking-review-btn');
     if (submitBtn) submitBtn.disabled = !dateStr;
     
     // Update the picker UI
@@ -2365,7 +2365,7 @@ function handleFallbackDateChange() {
         const timeWrapper = document.getElementById('time-selection-wrapper');
         if (timeWrapper) timeWrapper.classList.remove('hidden');
         
-        const submitBtn = document.querySelector('#booking-form button[type="submit"]');
+        const submitBtn = document.getElementById('booking-review-btn');
         if (submitBtn) submitBtn.disabled = false;
         
         handleBookingDateChange();
