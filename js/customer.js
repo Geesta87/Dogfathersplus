@@ -1367,7 +1367,7 @@ function renderCustomerContent() {
     };
     
     // Business phone number (you can make this configurable)
-    const businessPhone = '(323) 304-7618';
+    const businessPhone = '(626) 863-6926';
     const businessPhoneClean = businessPhone.replace(/\D/g, '');
     
     // Contextual subtitle for greeting
