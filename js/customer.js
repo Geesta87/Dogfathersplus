@@ -2266,8 +2266,12 @@ async function loadSmartDatePicker() {
         const detectedCity = coords.city || state.currentUser?.city || '';
         const region = getRegionForCity(detectedCity);
         
-        // If outside coverage area, don't load dates
-        if (!region || !region.enabled) {
+        // Check coverage: region must exist AND have groomers assigned
+        // If no regions in system at all, allow booking (not configured yet)
+        const regionsExist = serviceRegions.length > 0;
+        const hasCoverage = region ? getGroomersForRegion(region.id).length > 0 : false;
+        
+        if (regionsExist && !hasCoverage) {
             state.smartBookingData = { outOfArea: true };
             pickerContainer.innerHTML = `
                 <div class="p-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl text-center">

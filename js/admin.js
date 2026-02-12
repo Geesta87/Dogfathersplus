@@ -204,8 +204,8 @@ function renderAddGroomerModal() {
                 <!-- Coverage Regions -->
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Coverage Regions</label>
-                    <div class="grid grid-cols-1 gap-2">
-                        ${serviceRegions.filter(r => r.enabled).map(r => `
+                    <div class="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto">
+                        ${serviceRegions.map(r => `
                             <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-border-dark hover:border-blue-300 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 cursor-pointer transition-all">
                                 <input type="checkbox" name="groomer-region" value="${r.id}" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
                                 <div>
@@ -1078,8 +1078,8 @@ function renderEditGroomerModal() {
                 <!-- Coverage Regions -->
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Coverage Regions</label>
-                    <div class="grid grid-cols-1 gap-2">
-                        ${serviceRegions.filter(r => r.enabled).map(r => `
+                    <div class="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto">
+                        ${serviceRegions.map(r => `
                             <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-border-dark hover:border-blue-300 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 cursor-pointer transition-all">
                                 <input type="checkbox" name="edit-groomer-region" value="${r.id}" ${currentRegions.includes(r.id) ? 'checked' : ''} class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
                                 <div>
@@ -1696,52 +1696,6 @@ async function toggleGroomerActive(groomerId, currentlyActive) {
 }
 
 // Toggle a coverage region on/off for the entire business
-async function toggleAdminRegion(regionId, enable) {
-    const region = serviceRegions.find(r => r.id === regionId);
-    if (!region) return;
-    
-    const action = enable ? 'enable' : 'disable';
-    if (!enable) {
-        const assignedGroomers = (state.groomers || []).filter(g => 
-            g.is_active && g.service_regions && g.service_regions.includes(regionId)
-        );
-        if (assignedGroomers.length > 0 && !confirm(
-            `Disabling "${region.name}" will affect ${assignedGroomers.length} groomer(s) assigned to this region. Continue?`
-        )) return;
-    }
-    
-    showLoading();
-    
-    try {
-        // Update local state
-        region.enabled = enable;
-        
-        // Save to database
-        const { error } = await supabaseClient
-            .from('business_settings')
-            .update({
-                setting_value: { regions: serviceRegions }
-            })
-            .eq('setting_key', 'service_regions');
-        
-        if (error) {
-            region.enabled = !enable; // Revert
-            hideLoading();
-            showToast(`Failed to ${action} region: ` + error.message, 'error');
-            return;
-        }
-        
-        hideLoading();
-        showToast(`${region.name} ${action}d!`, 'success');
-        render();
-        
-    } catch (err) {
-        region.enabled = !enable; // Revert
-        hideLoading();
-        console.error('Toggle region error:', err);
-        showToast(`Failed to ${action} region`, 'error');
-    }
-}
 
 
 // =============================================
@@ -5010,63 +4964,114 @@ function renderAdminContent() {
 
     // Coverage Regions Tab
     if (state.currentTab === 'coverage') {
-        const enabledRegions = serviceRegions.filter(r => r.enabled);
-        const disabledRegions = serviceRegions.filter(r => !r.enabled);
+        // Group regions by coverage status (based on groomer assignments)
+        const coveredRegions = serviceRegions.filter(r => {
+            const groomers = getGroomersForRegion(r.id);
+            return groomers.length > 0;
+        });
+        const uncoveredRegions = serviceRegions.filter(r => {
+            const groomers = getGroomersForRegion(r.id);
+            return groomers.length === 0;
+        });
         
         return `
         <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
             <div>
-                <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white">Coverage Regions</h1>
-                <p class="text-slate-500 dark:text-slate-400 mt-1">Manage which areas your business serves and assign groomers to regions</p>
+                <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white">Coverage Overview</h1>
+                <p class="text-slate-500 dark:text-slate-400 mt-1">See where your business has groomer coverage. Assign regions when adding or editing groomers.</p>
             </div>
         </div>
         
-        <!-- Active Regions -->
+        <!-- Summary Stats -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <div class="bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-xl p-5 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Total Regions</p>
+                        <p class="text-3xl font-bold text-slate-900 dark:text-white mt-1">${serviceRegions.length}</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-blue-600">map</span>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-xl p-5 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Covered</p>
+                        <p class="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">${coveredRegions.length}</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-emerald-600">check_circle</span>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-xl p-5 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">No Coverage</p>
+                        <p class="text-3xl font-bold ${uncoveredRegions.length > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'} mt-1">${uncoveredRegions.length}</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-amber-600">warning</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Covered Regions -->
+        ${coveredRegions.length > 0 ? `
         <div class="mb-8">
             <h2 class="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                 <span class="material-symbols-outlined text-emerald-500">check_circle</span>
-                Active Regions (${enabledRegions.length})
+                Active Coverage (${coveredRegions.length})
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                ${enabledRegions.map(region => {
-                    const assignedGroomers = (state.groomers || []).filter(g => 
-                        g.is_active && g.service_regions && g.service_regions.includes(region.id)
-                    );
+                ${coveredRegions.map(region => {
+                    const assignedGroomers = getGroomersForRegion(region.id);
                     return `
                     <div class="bg-white dark:bg-surface-dark border border-emerald-200 dark:border-emerald-800 rounded-2xl overflow-hidden shadow-sm">
                         <div class="p-5">
-                            <div class="flex items-center justify-between mb-3">
-                                <h3 class="text-lg font-bold text-slate-900 dark:text-white">${escapeHtml(region.name)}</h3>
-                                <button onclick="toggleAdminRegion('${region.id}', false)" class="px-3 py-1.5 text-xs font-bold text-red-600 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 transition-colors">Disable</button>
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                                    <span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400">location_on</span>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-slate-900 dark:text-white">${escapeHtml(region.name)}</h3>
+                                    <p class="text-xs text-emerald-600 dark:text-emerald-400 font-medium">${assignedGroomers.length} groomer${assignedGroomers.length !== 1 ? 's' : ''} assigned</p>
+                                </div>
                             </div>
                             <p class="text-xs text-slate-500 dark:text-slate-400 mb-3 leading-relaxed">${(region.cities || []).join(', ')}</p>
-                            <div class="flex items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-700">
-                                <span class="material-symbols-outlined text-sm text-blue-500">person</span>
-                                ${assignedGroomers.length > 0 ? `
-                                    <span class="text-xs text-slate-600 dark:text-slate-300">${assignedGroomers.map(g => escapeHtml(g.full_name)).join(', ')}</span>
-                                ` : `
-                                    <span class="text-xs text-amber-600 dark:text-amber-400 font-medium">⚠️ No groomers assigned</span>
-                                `}
+                            <div class="flex flex-wrap gap-1.5 pt-3 border-t border-slate-100 dark:border-slate-700">
+                                ${assignedGroomers.map(g => `
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                                        <span class="material-symbols-outlined text-xs">person</span>
+                                        ${escapeHtml(g.full_name)}
+                                    </span>
+                                `).join('')}
                             </div>
                         </div>
                     </div>`;
                 }).join('')}
             </div>
-        </div>
+        </div>` : ''}
         
-        <!-- Inactive Regions -->
-        ${disabledRegions.length > 0 ? `
+        <!-- Uncovered Regions -->
+        ${uncoveredRegions.length > 0 ? `
         <div>
             <h2 class="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                <span class="material-symbols-outlined text-slate-400">block</span>
-                Available Regions (${disabledRegions.length})
+                <span class="material-symbols-outlined text-amber-500">warning</span>
+                No Coverage (${uncoveredRegions.length})
             </h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">These regions have no groomers assigned. Customers in these areas cannot book. Assign groomers via the Groomers tab → Edit.</p>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                ${disabledRegions.map(region => `
-                    <div class="bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-xl p-4 opacity-75 hover:opacity-100 transition-all">
-                        <div class="flex items-center justify-between mb-2">
+                ${uncoveredRegions.map(region => `
+                    <div class="bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-xl p-4">
+                        <div class="flex items-center gap-3 mb-2">
+                            <div class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-slate-400 text-sm">location_off</span>
+                            </div>
                             <h3 class="font-bold text-slate-700 dark:text-slate-300">${escapeHtml(region.name)}</h3>
-                            <button onclick="toggleAdminRegion('${region.id}', true)" class="px-3 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg hover:bg-emerald-100 transition-colors">Enable</button>
                         </div>
                         <p class="text-xs text-slate-400 leading-relaxed">${(region.cities || []).slice(0, 5).join(', ')}${(region.cities || []).length > 5 ? '...' : ''}</p>
                     </div>

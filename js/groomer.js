@@ -3461,36 +3461,43 @@ function renderGroomerAvailabilityContent() {
                     </div>
                     <div>
                         <h2 class="font-bold text-slate-900 dark:text-white">My Coverage Regions</h2>
-                        <p class="text-sm text-slate-500 dark:text-slate-400">Toggle the areas you service</p>
+                        <p class="text-sm text-slate-500 dark:text-slate-400">Assigned by admin</p>
                     </div>
                 </div>
             </div>
             
-            <div class="p-5 space-y-3">
-                ${serviceRegions.filter(r => r.enabled).map(region => {
+            <div class="p-5">
+                ${(() => {
                     const myRegions = state.currentUser?.serviceRegions || [];
-                    const isAssigned = myRegions.includes(region.id);
-                    return `
-                        <label class="flex items-center justify-between p-3 rounded-xl border ${isAssigned ? 'border-blue-300 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-700' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50'} cursor-pointer transition-all hover:shadow-sm" onclick="toggleGroomerRegion('${region.id}')">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg ${isAssigned ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-600'} flex items-center justify-center transition-colors">
-                                    <span class="material-symbols-outlined text-white text-sm">${isAssigned ? 'check' : 'close'}</span>
-                                </div>
-                                <div>
-                                    <p class="font-semibold text-sm text-slate-900 dark:text-white">${escapeHtml(region.name)}</p>
-                                    <p class="text-xs text-slate-500 dark:text-slate-400">${(region.cities || []).slice(0, 4).join(', ')}${(region.cities || []).length > 4 ? '...' : ''}</p>
-                                </div>
+                    const assignedRegions = serviceRegions.filter(r => myRegions.includes(r.id));
+                    
+                    if (assignedRegions.length === 0) {
+                        return `
+                            <div class="text-center py-6 text-slate-500 dark:text-slate-400">
+                                <span class="material-symbols-outlined text-3xl mb-2">map</span>
+                                <p class="text-sm">No coverage regions assigned yet.</p>
+                                <p class="text-xs text-slate-400 mt-1">Contact your admin to get assigned to regions.</p>
                             </div>
-                            <span class="text-xs font-bold ${isAssigned ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}">${isAssigned ? 'ACTIVE' : 'OFF'}</span>
-                        </label>
+                        `;
+                    }
+                    
+                    return `
+                        <div class="space-y-2">
+                            ${assignedRegions.map(region => `
+                                <div class="flex items-center gap-3 p-3 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
+                                    <div class="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center flex-shrink-0">
+                                        <span class="material-symbols-outlined text-white text-sm">check</span>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="font-semibold text-sm text-slate-900 dark:text-white">${escapeHtml(region.name)}</p>
+                                        <p class="text-xs text-slate-500 dark:text-slate-400">${(region.cities || []).slice(0, 4).join(', ')}${(region.cities || []).length > 4 ? '...' : ''}</p>
+                                    </div>
+                                    <span class="text-xs font-bold text-blue-600 dark:text-blue-400">ACTIVE</span>
+                                </div>
+                            `).join('')}
+                        </div>
                     `;
-                }).join('')}
-                ${serviceRegions.filter(r => r.enabled).length === 0 ? `
-                    <div class="text-center py-6 text-slate-500 dark:text-slate-400">
-                        <span class="material-symbols-outlined text-3xl mb-2">map</span>
-                        <p class="text-sm">No coverage regions set up yet. Contact your admin.</p>
-                    </div>
-                ` : ''}
+                })()}
             </div>
         </div>
         
@@ -3663,49 +3670,6 @@ async function updateGroomerSetting(key, value) {
     } catch (err) {
         console.error('Failed to update setting:', err);
         showToast('Failed to update setting', 'error');
-    }
-}
-
-// Toggle a coverage region for this groomer
-async function toggleGroomerRegion(regionId) {
-    if (!state.currentUser) return;
-    
-    const currentRegions = state.currentUser.serviceRegions || [];
-    let newRegions;
-    
-    if (currentRegions.includes(regionId)) {
-        newRegions = currentRegions.filter(r => r !== regionId);
-    } else {
-        newRegions = [...currentRegions, regionId];
-    }
-    
-    try {
-        const { error } = await supabaseClient
-            .from('profiles')
-            .update({ service_regions: newRegions })
-            .eq('id', state.currentUser.id);
-        
-        if (error) {
-            console.error('Failed to update regions:', error);
-            showToast('Failed to update coverage region', 'error');
-            return;
-        }
-        
-        state.currentUser.serviceRegions = newRegions;
-        
-        const region = serviceRegions.find(r => r.id === regionId);
-        const regionName = region ? region.name : regionId;
-        
-        if (newRegions.includes(regionId)) {
-            showToast(`Added ${regionName} to your coverage`, 'success');
-        } else {
-            showToast(`Removed ${regionName} from your coverage`, 'info');
-        }
-        
-        render();
-    } catch (err) {
-        console.error('Error toggling region:', err);
-        showToast('Failed to update coverage region', 'error');
     }
 }
 

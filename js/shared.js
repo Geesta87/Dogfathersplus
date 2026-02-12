@@ -619,22 +619,31 @@ function getRegionForCity(cityName) {
     return null;
 }
 
-// Check if a region is enabled for booking
-function isRegionEnabled(regionId) {
-    const region = serviceRegions.find(r => r.id === regionId);
-    return region ? region.enabled : false;
+// Check if a region has any active groomer assigned
+function isRegionCovered(regionId) {
+    return (state.groomers || []).some(g => 
+        g.is_active !== false && 
+        g.service_regions && 
+        g.service_regions.includes(regionId)
+    );
 }
 
-// Get all enabled region IDs
-function getEnabledRegionIds() {
-    return serviceRegions.filter(r => r.enabled).map(r => r.id);
+// Get all region IDs that have at least one groomer assigned
+function getCoveredRegionIds() {
+    const covered = new Set();
+    (state.groomers || []).forEach(g => {
+        if (g.is_active !== false && g.service_regions) {
+            g.service_regions.forEach(rId => covered.add(rId));
+        }
+    });
+    return Array.from(covered);
 }
 
 // Get groomers who cover a specific region
 function getGroomersForRegion(regionId) {
     if (!regionId) return [];
     return (state.groomers || []).filter(g => 
-        g.is_active && 
+        g.is_active !== false && 
         g.service_regions && 
         g.service_regions.includes(regionId)
     );
@@ -1095,15 +1104,26 @@ async function checkAddressServiceArea() {
         const displayZip = coords.zip || zip || state.currentUser?.zip || '';
         const region = getRegionForCity(detectedCity);
         
+        // Determine coverage: region exists AND has groomers assigned
+        const hasCoverage = region ? getGroomersForRegion(region.id).length > 0 : false;
+        // If no regions in database at all, allow booking (system not configured yet)
+        const regionsExist = serviceRegions.length > 0;
+        const inCoverage = !regionsExist || hasCoverage;
+        
         // Show the badge
         if (badge) {
-            badge.innerHTML = renderServiceAreaBadge(region, detectedCity, displayZip);
+            if (!regionsExist) {
+                // No regions set up yet — just show address confirmed
+                badge.innerHTML = renderServiceAreaBadge(region, detectedCity, displayZip, true);
+            } else {
+                badge.innerHTML = renderServiceAreaBadge(region, detectedCity, displayZip, hasCoverage);
+            }
             badge.classList.remove('hidden');
         }
         
         // Show green checkmark on input if in coverage
         if (checkIcon) {
-            if (region && region.enabled) {
+            if (inCoverage) {
                 checkIcon.classList.remove('hidden');
             } else {
                 checkIcon.classList.add('hidden');
@@ -1111,7 +1131,7 @@ async function checkAddressServiceArea() {
         }
         
         // Reload smart date picker if in coverage area
-        if (region && region.enabled) {
+        if (inCoverage) {
             state.customerBookingRegion = region;
             state.smartBookingData = null;
             loadSmartDatePicker();
@@ -1123,7 +1143,7 @@ async function checkAddressServiceArea() {
 }
 
 // Render the service area badge UI
-function renderServiceAreaBadge(region, city = '', zip = '') {
+function renderServiceAreaBadge(region, city = '', zip = '', hasCoverage = false) {
     // Couldn't geocode
     if (!region && !city) {
         return `
@@ -1137,8 +1157,8 @@ function renderServiceAreaBadge(region, city = '', zip = '') {
         `;
     }
     
-    // No matching region found or region is disabled
-    if (!region || !region.enabled) {
+    // No matching region or no groomers covering it
+    if (!hasCoverage) {
         return `
             <div class="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg">
                 <span class="material-symbols-outlined text-red-600 dark:text-red-400">wrong_location</span>
@@ -1169,7 +1189,7 @@ function renderServiceAreaBadge(region, city = '', zip = '') {
                     <span class="material-symbols-outlined text-emerald-500 text-base fill-1">verified</span>
                 </div>
                 ${locationText ? `<p class="text-sm font-semibold text-emerald-700 dark:text-emerald-300">${escapeHtml(locationText)}</p>` : ''}
-                <p class="text-xs text-emerald-600 dark:text-emerald-400">${escapeHtml(region.name)} coverage area</p>
+                ${region && region.name ? `<p class="text-xs text-emerald-600 dark:text-emerald-400">${escapeHtml(region.name)} coverage area</p>` : ''}
             </div>
         </div>
     `;
