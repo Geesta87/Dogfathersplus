@@ -1,11 +1,17 @@
 // Dogfathers Plus Service Worker
-const CACHE_NAME = 'dogfathers-plus-v1';
-const DYNAMIC_CACHE = 'dogfathers-dynamic-v1';
+const CACHE_NAME = 'dogfathers-plus-v2';
+const DYNAMIC_CACHE = 'dogfathers-dynamic-v2';
 
 // Assets to cache on install
 const STATIC_ASSETS = [
   '/',
   '/index.html',
+  '/js/shared.js',
+  '/js/auth.js',
+  '/js/customer.js',
+  '/js/admin.js',
+  '/js/groomer.js',
+  '/js/app.js',
   '/manifest.json',
   'https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap',
   'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap'
