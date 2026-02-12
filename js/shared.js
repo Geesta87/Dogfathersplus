@@ -548,38 +548,32 @@ const GROOMER_SPECIALTIES = [
 // SMART LOCATION-BASED BOOKING SYSTEM
 // =============================================
 
-// Default travel fee tiers (will be loaded from database)
-let travelFeeTiers = [
-    { tier_order: 1, min_distance_miles: 0, max_distance_miles: 5, fee_amount: 0, label: 'In Your Area', color_class: 'text-emerald-600', icon: 'star' },
-    { tier_order: 2, min_distance_miles: 5, max_distance_miles: 10, fee_amount: 10, label: 'Nearby', color_class: 'text-blue-600', icon: 'near_me' },
-    { tier_order: 3, min_distance_miles: 10, max_distance_miles: 15, fee_amount: 20, label: 'Moderate Distance', color_class: 'text-amber-600', icon: 'directions_car' },
-    { tier_order: 4, min_distance_miles: 15, max_distance_miles: 25, fee_amount: 35, label: 'Extended Area', color_class: 'text-orange-600', icon: 'route' },
-    { tier_order: 5, min_distance_miles: 25, max_distance_miles: 999, fee_amount: -1, label: 'Outside Service Area', color_class: 'text-red-600', icon: 'wrong_location' }
-];
+// Service Regions (loaded from database, these are defaults)
+let serviceRegions = [];
 
 // Business home base (default - will be loaded from settings)
 let businessHomeBase = { latitude: 34.2381, longitude: -118.5365, address: 'Northridge, CA' };
-let smartBookingSettings = { enabled: true, max_service_radius_miles: 25 };
+let smartBookingSettings = { enabled: true };
 
 // Cache for geocoded addresses
 const geocodeCache = new Map();
 
-// Load smart booking settings from database
+// Load smart booking settings and regions from database
 async function loadSmartBookingSettings() {
     try {
-        // Load travel fee tiers
-        const { data: tiers, error: tiersError } = await supabaseClient
-            .from('travel_fee_tiers')
+        // Load service regions
+        const { data: regionSettings, error: regionError } = await supabaseClient
+            .from('business_settings')
             .select('*')
-            .eq('is_active', true)
-            .order('tier_order');
+            .eq('setting_key', 'service_regions')
+            .single();
         
-        if (!tiersError && tiers && tiers.length > 0) {
-            travelFeeTiers = tiers;
-            _log('Loaded travel fee tiers:', tiers.length);
+        if (!regionError && regionSettings && regionSettings.setting_value?.regions) {
+            serviceRegions = regionSettings.setting_value.regions;
+            _log('Loaded service regions:', serviceRegions.length);
         }
         
-        // Load business settings
+        // Load business settings (home base etc.)
         const { data: settings, error: settingsError } = await supabaseClient
             .from('business_settings')
             .select('*')
@@ -589,8 +583,7 @@ async function loadSmartBookingSettings() {
         if (!settingsError && settings) {
             const value = settings.setting_value;
             smartBookingSettings = {
-                enabled: value.enabled ?? true,
-                max_service_radius_miles: value.max_service_radius_miles ?? 25
+                enabled: value.enabled ?? true
             };
             if (value.home_base) {
                 businessHomeBase = value.home_base;
@@ -600,6 +593,51 @@ async function loadSmartBookingSettings() {
     } catch (err) {
         _log('Smart booking settings not available, using defaults');
     }
+}
+
+// Match a city name to a service region
+function getRegionForCity(cityName) {
+    if (!cityName || !serviceRegions.length) return null;
+    
+    const cityLower = cityName.toLowerCase().trim();
+    
+    for (const region of serviceRegions) {
+        if (!region.cities) continue;
+        const match = region.cities.some(c => c.toLowerCase() === cityLower);
+        if (match) return region;
+    }
+    
+    // Partial match fallback (e.g. "North Hollywood" in address parsed as "North Hollywood")
+    for (const region of serviceRegions) {
+        if (!region.cities) continue;
+        const match = region.cities.some(c => 
+            cityLower.includes(c.toLowerCase()) || c.toLowerCase().includes(cityLower)
+        );
+        if (match) return region;
+    }
+    
+    return null;
+}
+
+// Check if a region is enabled for booking
+function isRegionEnabled(regionId) {
+    const region = serviceRegions.find(r => r.id === regionId);
+    return region ? region.enabled : false;
+}
+
+// Get all enabled region IDs
+function getEnabledRegionIds() {
+    return serviceRegions.filter(r => r.enabled).map(r => r.id);
+}
+
+// Get groomers who cover a specific region
+function getGroomersForRegion(regionId) {
+    if (!regionId) return [];
+    return (state.groomers || []).filter(g => 
+        g.is_active && 
+        g.service_regions && 
+        g.service_regions.includes(regionId)
+    );
 }
 
 // Haversine formula - Calculate distance between two coordinates in miles
@@ -624,21 +662,6 @@ function toRadians(degrees) {
     return degrees * (Math.PI / 180);
 }
 
-// Get travel fee tier for a given distance
-function getTravelFeeTier(distanceMiles) {
-    if (distanceMiles === null || distanceMiles === undefined) {
-        return travelFeeTiers[0]; // Default to first tier if no distance
-    }
-    
-    for (const tier of travelFeeTiers) {
-        if (distanceMiles >= tier.min_distance_miles && distanceMiles < tier.max_distance_miles) {
-            return tier;
-        }
-    }
-    
-    // Return last tier (out of area) if no match
-    return travelFeeTiers[travelFeeTiers.length - 1];
-}
 
 // Geocode an address using OpenStreetMap Nominatim (free)
 async function geocodeAddress(address, city, state = 'CA', zip = '') {
@@ -657,20 +680,23 @@ async function geocodeAddress(address, city, state = 'CA', zip = '') {
         // Try OpenStreetMap Nominatim first
         const query = encodeURIComponent(fullAddress);
         const response = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1&countrycodes=us`,
+            `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1&countrycodes=us&addressdetails=1`,
             { headers: { 'User-Agent': 'DogfathersPlus-App/1.0' } }
         );
         
         if (response.ok) {
             const data = await response.json();
             if (data && data.length > 0) {
+                const addr = data[0].address || {};
                 const result = {
                     latitude: parseFloat(data[0].lat),
                     longitude: parseFloat(data[0].lon),
-                    display_name: data[0].display_name
+                    display_name: data[0].display_name,
+                    zip: addr.postcode || zip || '',
+                    city: addr.city || addr.town || addr.village || addr.suburb || city || ''
                 };
                 geocodeCache.set(fullAddress, result);
-                _log('Geocoded:', fullAddress, '→', result.latitude, result.longitude);
+                _log('Geocoded:', fullAddress, '→', result.latitude, result.longitude, 'ZIP:', result.zip);
                 return result;
             }
         }
@@ -809,13 +835,27 @@ async function calculateAvailableSlotsJS(customerLat, customerLng, startDate, en
     // 1. Get all active groomers with their availability
     const { data: groomers, error: groomersError } = await supabaseClient
         .from('profiles')
-        .select('id, full_name, home_latitude, home_longitude')
+        .select('id, full_name, home_latitude, home_longitude, service_regions')
         .eq('role', 'groomer')
         .eq('is_active', true);
     
     if (groomersError || !groomers?.length) {
         console.error('No groomers found:', groomersError);
         return { bestAvailable: [], moreAvailable: [], error: true };
+    }
+    
+    // Filter groomers by customer's region (if region is set)
+    const customerRegion = state.customerBookingRegion;
+    let eligibleGroomers = groomers;
+    if (customerRegion) {
+        eligibleGroomers = groomers.filter(g => 
+            g.service_regions && g.service_regions.includes(customerRegion.id)
+        );
+        _log('Filtered groomers for region', customerRegion.id, ':', eligibleGroomers.length, 'of', groomers.length);
+    }
+    
+    if (!eligibleGroomers.length) {
+        return { bestAvailable: [], moreAvailable: [], noGroomersInRegion: true };
     }
     
     // 2. Get groomer availability schedules
@@ -874,7 +914,7 @@ async function calculateAvailableSlotsJS(customerLat, customerLng, startDate, en
         const dateStr = currentDate.toISOString().split('T')[0];
         const dayOfWeek = currentDate.getDay();
         
-        for (const groomer of groomers) {
+        for (const groomer of eligibleGroomers) {
             // Check if groomer works this day
             const groomerAvail = availabilityMap[groomer.id]?.[dayOfWeek];
             if (!groomerAvail) continue;
@@ -996,12 +1036,6 @@ function formatDistance(miles) {
     return `${miles.toFixed(1)} mi`;
 }
 
-// Format travel fee for display
-function formatTravelFee(fee) {
-    if (fee === null || fee === undefined || fee < 0) return '';
-    if (fee === 0) return 'FREE';
-    return `+$${fee}`;
-}
 
 // =============================================
 // ADDRESS SERVICE AREA VERIFICATION
@@ -1022,11 +1056,15 @@ const debouncedAddressCheck = debounce(checkAddressServiceArea, 400);
 // Check address and show service area badge
 async function checkAddressServiceArea() {
     const addressInput = document.getElementById('booking-address');
+    const badge = document.getElementById('address-service-badge');
+    const checkIcon = document.getElementById('address-check-icon');
     
     if (!addressInput) return;
     
     const address = addressInput.value.trim();
     if (!address || address.length < 5) {
+        if (badge) { badge.innerHTML = ''; badge.classList.add('hidden'); }
+        if (checkIcon) checkIcon.classList.add('hidden');
         return;
     }
     
@@ -1041,24 +1079,41 @@ async function checkAddressServiceArea() {
         const coords = await geocodeAddress(street, city, 'CA', zip);
         
         if (!coords) {
+            if (badge) {
+                badge.innerHTML = renderServiceAreaBadge(null, null);
+                badge.classList.remove('hidden');
+            }
+            if (checkIcon) checkIcon.classList.add('hidden');
             return;
         }
         
         // Store coordinates for booking
         state.customerBookingCoords = coords;
         
-        // Calculate distance from business home base
-        const distance = calculateDistance(
-            coords.latitude, coords.longitude,
-            businessHomeBase.latitude, businessHomeBase.longitude
-        );
+        // Match city to a region
+        const detectedCity = coords.city || city || state.currentUser?.city || '';
+        const displayZip = coords.zip || zip || state.currentUser?.zip || '';
+        const region = getRegionForCity(detectedCity);
         
-        // Get the tier for this distance
-        const tier = getTravelFeeTier(distance);
+        // Show the badge
+        if (badge) {
+            badge.innerHTML = renderServiceAreaBadge(region, detectedCity, displayZip);
+            badge.classList.remove('hidden');
+        }
         
-        // Reload smart date picker with new coordinates (if in service area)
-        if (tier.fee_amount >= 0) {
-            state.smartBookingData = null; // Clear stale data
+        // Show green checkmark on input if in coverage
+        if (checkIcon) {
+            if (region && region.enabled) {
+                checkIcon.classList.remove('hidden');
+            } else {
+                checkIcon.classList.add('hidden');
+            }
+        }
+        
+        // Reload smart date picker if in coverage area
+        if (region && region.enabled) {
+            state.customerBookingRegion = region;
+            state.smartBookingData = null;
             loadSmartDatePicker();
         }
         
@@ -1068,8 +1123,9 @@ async function checkAddressServiceArea() {
 }
 
 // Render the service area badge UI
-function renderServiceAreaBadge(tier, distance, error) {
-    if (error || !tier) {
+function renderServiceAreaBadge(region, city = '', zip = '') {
+    // Couldn't geocode
+    if (!region && !city) {
         return `
             <div class="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg">
                 <span class="material-symbols-outlined text-amber-600 dark:text-amber-400">location_off</span>
@@ -1081,45 +1137,40 @@ function renderServiceAreaBadge(tier, distance, error) {
         `;
     }
     
-    // Outside service area
-    if (tier.fee_amount < 0) {
+    // No matching region found or region is disabled
+    if (!region || !region.enabled) {
         return `
             <div class="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg">
-                <span class="material-symbols-outlined text-red-600 dark:text-red-400">${tier.icon || 'wrong_location'}</span>
+                <span class="material-symbols-outlined text-red-600 dark:text-red-400">wrong_location</span>
                 <div class="flex-1">
-                    <p class="text-sm font-medium text-red-800 dark:text-red-200">${tier.label || 'Outside Service Area'}</p>
-                    <p class="text-xs text-red-600 dark:text-red-400">${distance ? distance.toFixed(1) + ' miles away — ' : ''}We don't currently serve this area</p>
+                    <p class="text-sm font-medium text-red-800 dark:text-red-200">Outside Coverage Area</p>
+                    <p class="text-xs text-red-600 dark:text-red-400">${city ? escapeHtml(city) + ' — ' : ''}We don't currently serve this area</p>
+                    <p class="text-sm text-red-600 dark:text-red-400 mt-1">Please try a different address or call us at (626) 863-6926</p>
                 </div>
             </div>
         `;
     }
     
-    // Determine badge styling based on tier
-    const tierStyles = {
-        1: { bg: 'bg-emerald-50 dark:bg-emerald-900/30', border: 'border-emerald-200 dark:border-emerald-700', text: 'text-emerald-800 dark:text-emerald-200', subtext: 'text-emerald-600 dark:text-emerald-400' },
-        2: { bg: 'bg-blue-50 dark:bg-blue-900/30', border: 'border-blue-200 dark:border-blue-700', text: 'text-blue-800 dark:text-blue-200', subtext: 'text-blue-600 dark:text-blue-400' },
-        3: { bg: 'bg-amber-50 dark:bg-amber-900/30', border: 'border-amber-200 dark:border-amber-700', text: 'text-amber-800 dark:text-amber-200', subtext: 'text-amber-600 dark:text-amber-400' },
-        4: { bg: 'bg-orange-50 dark:bg-orange-900/30', border: 'border-orange-200 dark:border-orange-700', text: 'text-orange-800 dark:text-orange-200', subtext: 'text-orange-600 dark:text-orange-400' },
-        5: { bg: 'bg-red-50 dark:bg-red-900/30', border: 'border-red-200 dark:border-red-700', text: 'text-red-800 dark:text-red-200', subtext: 'text-red-600 dark:text-red-400' }
-    };
+    // Build location text with zip
+    const locationParts = [];
+    if (city) locationParts.push(city);
+    if (zip) locationParts.push('CA ' + zip);
+    const locationText = locationParts.length > 0 ? locationParts.join(', ') : '';
     
-    const style = tierStyles[tier.tier_order] || tierStyles[1];
-    const distanceText = distance !== null ? `${distance.toFixed(1)} mi away` : '';
-    const statusText = tier.tier_order === 1 ? 'We service your area!' : 'Within our service area';
-    
+    // In coverage area — show green confirmed badge
     return `
-        <div class="flex items-center gap-3 p-3 ${style.bg} ${style.border} border rounded-lg">
-            <div class="w-10 h-10 rounded-full ${style.bg} flex items-center justify-center">
-                <span class="material-symbols-outlined ${tier.color_class || style.text} text-xl">${tier.icon || 'check_circle'}</span>
+        <div class="flex items-center gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 rounded-lg">
+            <div class="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-800/40 flex items-center justify-center flex-shrink-0">
+                <span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-xl fill-1">check_circle</span>
             </div>
             <div class="flex-1">
-                <div class="flex items-center gap-2">
-                    <p class="text-sm font-bold ${style.text}">${tier.label || 'In Service Area'}</p>
-                    ${tier.tier_order === 1 ? '<span class="material-symbols-outlined text-emerald-500 text-base fill-1">verified</span>' : ''}
+                <div class="flex items-center gap-1.5">
+                    <p class="text-sm font-bold text-emerald-800 dark:text-emerald-200">Address Confirmed</p>
+                    <span class="material-symbols-outlined text-emerald-500 text-base fill-1">verified</span>
                 </div>
-                <p class="text-xs ${style.subtext}">${distanceText}${distanceText ? ' — ' : ''}${statusText}</p>
+                ${locationText ? `<p class="text-sm font-semibold text-emerald-700 dark:text-emerald-300">${escapeHtml(locationText)}</p>` : ''}
+                <p class="text-xs text-emerald-600 dark:text-emerald-400">${escapeHtml(region.name)} coverage area</p>
             </div>
-            ${tier.tier_order === 1 ? '<span class="material-symbols-outlined text-emerald-500 text-2xl">check_circle</span>' : ''}
         </div>
     `;
 }

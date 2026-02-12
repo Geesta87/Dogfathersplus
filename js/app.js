@@ -385,7 +385,8 @@ async function loadUserProfile(userId) {
                 avatar: profile.avatar_url,
                 address: profile.address,
                 city: profile.city,
-                zip: profile.zip_code
+                zip: profile.zip_code,
+                serviceRegions: profile.service_regions || []
             };
             
             // Load user-specific data based on role
@@ -673,7 +674,7 @@ async function loadAdminData() {
         // Load all groomers with full details
         const { data: groomers, error: groomersError } = await supabaseClient
             .from('profiles')
-            .select('id, full_name, phone, email, specialties, is_active, hired_date, admin_notes, created_at')
+            .select('id, full_name, phone, email, specialties, service_regions, is_active, hired_date, admin_notes, created_at')
             .eq('role', 'groomer')
             .order('full_name', { ascending: true });
         if (groomersError) console.error('Groomers load error:', groomersError);
@@ -716,7 +717,10 @@ async function loadAdminData() {
                 revenueThisMonth: monthRevenue,
                 // Parse specialties if stored as string
                 specialties: Array.isArray(g.specialties) ? g.specialties : 
-                    (g.specialties ? JSON.parse(g.specialties) : [])
+                    (g.specialties ? JSON.parse(g.specialties) : []),
+                // Parse service_regions if stored as string
+                service_regions: Array.isArray(g.service_regions) ? g.service_regions :
+                    (g.service_regions ? JSON.parse(g.service_regions) : [])
             };
         });
         

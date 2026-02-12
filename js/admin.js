@@ -14,6 +14,11 @@ function renderGroomerCard(g) {
         return spec ? spec.label : s;
     });
     
+    const regionLabels = (g.service_regions || []).map(rId => {
+        const region = serviceRegions.find(r => r.id === rId);
+        return region ? region.name : rId;
+    });
+    
     return `
     <div class="bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all ${g.is_active === false ? 'opacity-60' : ''}">
         <div class="p-6">
@@ -58,6 +63,22 @@ function renderGroomerCard(g) {
                     </span>
                 `).join('')}
             </div>` : ''}
+            
+            <!-- Coverage Regions -->
+            ${regionLabels.length > 0 ? `
+            <div class="flex flex-wrap gap-1.5 mb-4">
+                <span class="material-symbols-outlined text-blue-500 text-sm mr-0.5">location_on</span>
+                ${regionLabels.map(r => `
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-xs font-medium text-blue-700 dark:text-blue-300">
+                        ${r}
+                    </span>
+                `).join('')}
+            </div>` : `
+            <div class="flex items-center gap-1.5 mb-4 text-xs text-amber-600 dark:text-amber-400">
+                <span class="material-symbols-outlined text-sm">warning</span>
+                No coverage regions assigned
+            </div>
+            `}
             
             <!-- Stats -->
             <div class="grid grid-cols-2 gap-3 p-4 bg-slate-50 dark:bg-background-dark rounded-xl mb-4">
@@ -175,6 +196,22 @@ function renderAddGroomerModal() {
                             <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-border-dark hover:border-emerald-300 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 cursor-pointer transition-all">
                                 <input type="checkbox" name="groomer-specialty" value="${s.id}" class="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
                                 <span class="text-sm text-slate-700 dark:text-slate-300">${s.icon} ${s.label}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <!-- Coverage Regions -->
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Coverage Regions</label>
+                    <div class="grid grid-cols-1 gap-2">
+                        ${serviceRegions.filter(r => r.enabled).map(r => `
+                            <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-border-dark hover:border-blue-300 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 cursor-pointer transition-all">
+                                <input type="checkbox" name="groomer-region" value="${r.id}" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                                <div>
+                                    <span class="text-sm font-medium text-slate-700 dark:text-slate-300">${escapeHtml(r.name)}</span>
+                                    <p class="text-xs text-slate-400">${(r.cities || []).slice(0, 3).join(', ')}${(r.cities || []).length > 3 ? '...' : ''}</p>
+                                </div>
                             </label>
                         `).join('')}
                     </div>
@@ -973,6 +1010,7 @@ function renderEditGroomerModal() {
     
     const g = state.editingGroomer;
     const currentSpecialties = g.specialties || [];
+    const currentRegions = g.service_regions || [];
     
     return `
     <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onmousedown="if(event.target === this) closeEditGroomerModal()">
@@ -1032,6 +1070,22 @@ function renderEditGroomerModal() {
                             <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-border-dark hover:border-blue-300 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 cursor-pointer transition-all">
                                 <input type="checkbox" name="edit-groomer-specialty" value="${s.id}" ${currentSpecialties.includes(s.id) ? 'checked' : ''} class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
                                 <span class="text-sm text-slate-700 dark:text-slate-300">${s.icon} ${s.label}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <!-- Coverage Regions -->
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Coverage Regions</label>
+                    <div class="grid grid-cols-1 gap-2">
+                        ${serviceRegions.filter(r => r.enabled).map(r => `
+                            <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-border-dark hover:border-blue-300 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 cursor-pointer transition-all">
+                                <input type="checkbox" name="edit-groomer-region" value="${r.id}" ${currentRegions.includes(r.id) ? 'checked' : ''} class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                                <div>
+                                    <span class="text-sm font-medium text-slate-700 dark:text-slate-300">${escapeHtml(r.name)}</span>
+                                    <p class="text-xs text-slate-400">${(r.cities || []).slice(0, 3).join(', ')}${(r.cities || []).length > 3 ? '...' : ''}</p>
+                                </div>
                             </label>
                         `).join('')}
                     </div>
@@ -1410,6 +1464,10 @@ async function handleAddGroomer(e) {
         const specialtyCheckboxes = document.querySelectorAll('input[name="groomer-specialty"]:checked');
         const specialties = Array.from(specialtyCheckboxes).map(cb => cb.value);
         
+        // Get selected coverage regions
+        const regionCheckboxes = document.querySelectorAll('input[name="groomer-region"]:checked');
+        const regions = Array.from(regionCheckboxes).map(cb => cb.value);
+        
         // First, check if user already exists in profiles
         const { data: existingProfile } = await supabaseClient
             .from('profiles')
@@ -1447,6 +1505,7 @@ async function handleAddGroomer(e) {
                     phone: phone || null,
                     role: 'groomer',
                     specialties: specialties,
+                    service_regions: regions,
                     is_active: true,
                     hired_date: hiredDate || null,
                     admin_notes: adminNotes || null
@@ -1524,6 +1583,7 @@ async function handleAddGroomer(e) {
                 phone: phone || null,
                 role: 'groomer',
                 specialties: specialties,
+                service_regions: regions,
                 is_active: true,
                 hired_date: hiredDate || null,
                 admin_notes: adminNotes || null
@@ -1567,12 +1627,17 @@ async function handleEditGroomer(e) {
         const specialtyCheckboxes = document.querySelectorAll('input[name="edit-groomer-specialty"]:checked');
         const specialties = Array.from(specialtyCheckboxes).map(cb => cb.value);
         
+        // Get selected coverage regions
+        const regionCheckboxes = document.querySelectorAll('input[name="edit-groomer-region"]:checked');
+        const regions = Array.from(regionCheckboxes).map(cb => cb.value);
+        
         const { error } = await supabaseClient
             .from('profiles')
             .update({
                 full_name: name,
                 phone: phone || null,
                 specialties: specialties,
+                service_regions: regions,
                 hired_date: hiredDate || null,
                 admin_notes: adminNotes || null
             })
@@ -1627,6 +1692,54 @@ async function toggleGroomerActive(groomerId, currentlyActive) {
         hideLoading();
         console.error('Toggle groomer active error:', err);
         showToast(`Failed to ${action} groomer`, 'error');
+    }
+}
+
+// Toggle a coverage region on/off for the entire business
+async function toggleAdminRegion(regionId, enable) {
+    const region = serviceRegions.find(r => r.id === regionId);
+    if (!region) return;
+    
+    const action = enable ? 'enable' : 'disable';
+    if (!enable) {
+        const assignedGroomers = (state.groomers || []).filter(g => 
+            g.is_active && g.service_regions && g.service_regions.includes(regionId)
+        );
+        if (assignedGroomers.length > 0 && !confirm(
+            `Disabling "${region.name}" will affect ${assignedGroomers.length} groomer(s) assigned to this region. Continue?`
+        )) return;
+    }
+    
+    showLoading();
+    
+    try {
+        // Update local state
+        region.enabled = enable;
+        
+        // Save to database
+        const { error } = await supabaseClient
+            .from('business_settings')
+            .update({
+                setting_value: { regions: serviceRegions }
+            })
+            .eq('setting_key', 'service_regions');
+        
+        if (error) {
+            region.enabled = !enable; // Revert
+            hideLoading();
+            showToast(`Failed to ${action} region: ` + error.message, 'error');
+            return;
+        }
+        
+        hideLoading();
+        showToast(`${region.name} ${action}d!`, 'success');
+        render();
+        
+    } catch (err) {
+        region.enabled = !enable; // Revert
+        hideLoading();
+        console.error('Toggle region error:', err);
+        showToast(`Failed to ${action} region`, 'error');
     }
 }
 
@@ -3794,6 +3907,7 @@ function renderAdminDashboard() {
         {id:'appointments',label:'Appointments',icon:'calendar_month'},
         {id:'customers',label:'Customers',icon:'group'},
         {id:'groomers',label:'Groomers',icon:'content_cut'},
+        {id:'coverage',label:'Coverage',icon:'map'},
         {id:'loyalty',label:'Loyalty',icon:'favorite', badge: state.pendingRedemptions?.length || 0},
         {id:'messages',label:'Messages',icon:'chat_bubble', badge: state.adminMessages?.filter(m => !m.is_read && m.to_admin)?.length || 0},
         {id:'services',label:'Services/Products',icon:'storefront'}
@@ -4892,6 +5006,74 @@ function renderAdminContent() {
     // Messages Tab - Admin-Groomer Communication
     if (state.currentTab === 'messages') {
         return renderAdminMessagesTab();
+    }
+
+    // Coverage Regions Tab
+    if (state.currentTab === 'coverage') {
+        const enabledRegions = serviceRegions.filter(r => r.enabled);
+        const disabledRegions = serviceRegions.filter(r => !r.enabled);
+        
+        return `
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+            <div>
+                <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white">Coverage Regions</h1>
+                <p class="text-slate-500 dark:text-slate-400 mt-1">Manage which areas your business serves and assign groomers to regions</p>
+            </div>
+        </div>
+        
+        <!-- Active Regions -->
+        <div class="mb-8">
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-emerald-500">check_circle</span>
+                Active Regions (${enabledRegions.length})
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ${enabledRegions.map(region => {
+                    const assignedGroomers = (state.groomers || []).filter(g => 
+                        g.is_active && g.service_regions && g.service_regions.includes(region.id)
+                    );
+                    return `
+                    <div class="bg-white dark:bg-surface-dark border border-emerald-200 dark:border-emerald-800 rounded-2xl overflow-hidden shadow-sm">
+                        <div class="p-5">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="text-lg font-bold text-slate-900 dark:text-white">${escapeHtml(region.name)}</h3>
+                                <button onclick="toggleAdminRegion('${region.id}', false)" class="px-3 py-1.5 text-xs font-bold text-red-600 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 transition-colors">Disable</button>
+                            </div>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mb-3 leading-relaxed">${(region.cities || []).join(', ')}</p>
+                            <div class="flex items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-700">
+                                <span class="material-symbols-outlined text-sm text-blue-500">person</span>
+                                ${assignedGroomers.length > 0 ? `
+                                    <span class="text-xs text-slate-600 dark:text-slate-300">${assignedGroomers.map(g => escapeHtml(g.full_name)).join(', ')}</span>
+                                ` : `
+                                    <span class="text-xs text-amber-600 dark:text-amber-400 font-medium">⚠️ No groomers assigned</span>
+                                `}
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>
+        
+        <!-- Inactive Regions -->
+        ${disabledRegions.length > 0 ? `
+        <div>
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-slate-400">block</span>
+                Available Regions (${disabledRegions.length})
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                ${disabledRegions.map(region => `
+                    <div class="bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-xl p-4 opacity-75 hover:opacity-100 transition-all">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="font-bold text-slate-700 dark:text-slate-300">${escapeHtml(region.name)}</h3>
+                            <button onclick="toggleAdminRegion('${region.id}', true)" class="px-3 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg hover:bg-emerald-100 transition-colors">Enable</button>
+                        </div>
+                        <p class="text-xs text-slate-400 leading-relaxed">${(region.cities || []).slice(0, 5).join(', ')}${(region.cities || []).length > 5 ? '...' : ''}</p>
+                    </div>
+                `).join('')}
+            </div>
+        </div>` : ''}
+        `;
     }
 
     // Combined Services/Products Tab

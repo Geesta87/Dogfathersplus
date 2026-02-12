@@ -3449,19 +3449,10 @@ function renderGroomerAvailabilityContent() {
                     </select>
                     <p class="text-xs text-slate-500">Travel time between appointments</p>
                 </div>
-                
-                <!-- Max Travel Distance -->
-                <div class="space-y-2">
-                    <label class="text-sm font-bold text-slate-700 dark:text-slate-300">Max Travel Distance</label>
-                    <select id="maxDistance" onchange="updateGroomerSetting('max_travel_miles', this.value)" class="w-full h-12 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 border-0 focus:ring-2 focus:ring-groomer-primary text-slate-900 dark:text-white font-medium">
-                        ${[5,10,15,20,25,30,40,50].map(n => `<option value="${n}" ${(groomerSettings.max_travel_miles || 20) == n ? 'selected' : ''}>${n} miles</option>`).join('')}
-                    </select>
-                    <p class="text-xs text-slate-500">Maximum distance for bookings</p>
-                </div>
             </div>
         </div>
         
-        <!-- Service Area Section - NEW -->
+        <!-- Coverage Regions Section -->
         <div class="bg-white dark:bg-surface-dark rounded-2xl border border-slate-200 dark:border-border-dark shadow-sm overflow-hidden">
             <div class="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                 <div class="flex items-center gap-3">
@@ -3469,30 +3460,37 @@ function renderGroomerAvailabilityContent() {
                         <span class="material-symbols-outlined text-blue-600 dark:text-blue-400">location_on</span>
                     </div>
                     <div>
-                        <h2 class="font-bold text-slate-900 dark:text-white">Service Area</h2>
-                        <p class="text-sm text-slate-500 dark:text-slate-400">Define where you service</p>
+                        <h2 class="font-bold text-slate-900 dark:text-white">My Coverage Regions</h2>
+                        <p class="text-sm text-slate-500 dark:text-slate-400">Toggle the areas you service</p>
                     </div>
                 </div>
             </div>
             
-            <div class="p-5">
-                <label class="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 block">Zip Codes I Service</label>
-                <div class="flex flex-wrap gap-2 mb-4" id="serviceZipCodes">
-                    ${(groomerSettings.service_zip_codes || ['90001', '90002', '90003']).map(zip => `
-                        <span class="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium">
-                            ${zip}
-                            <button onclick="removeServiceZip('${zip}')" class="hover:text-red-500 transition-colors">
-                                <span class="material-symbols-outlined text-sm">close</span>
-                            </button>
-                        </span>
-                    `).join('')}
-                </div>
-                <div class="flex gap-2">
-                    <input type="text" id="newZipCode" placeholder="Enter zip code" maxlength="5" class="flex-1 h-10 px-4 rounded-lg bg-slate-100 dark:bg-slate-800 border-0 focus:ring-2 focus:ring-blue-500 text-sm"/>
-                    <button onclick="addServiceZip()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm transition-colors">
-                        Add Zip
-                    </button>
-                </div>
+            <div class="p-5 space-y-3">
+                ${serviceRegions.filter(r => r.enabled).map(region => {
+                    const myRegions = state.currentUser?.serviceRegions || [];
+                    const isAssigned = myRegions.includes(region.id);
+                    return `
+                        <label class="flex items-center justify-between p-3 rounded-xl border ${isAssigned ? 'border-blue-300 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-700' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50'} cursor-pointer transition-all hover:shadow-sm" onclick="toggleGroomerRegion('${region.id}')">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg ${isAssigned ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-600'} flex items-center justify-center transition-colors">
+                                    <span class="material-symbols-outlined text-white text-sm">${isAssigned ? 'check' : 'close'}</span>
+                                </div>
+                                <div>
+                                    <p class="font-semibold text-sm text-slate-900 dark:text-white">${escapeHtml(region.name)}</p>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">${(region.cities || []).slice(0, 4).join(', ')}${(region.cities || []).length > 4 ? '...' : ''}</p>
+                                </div>
+                            </div>
+                            <span class="text-xs font-bold ${isAssigned ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}">${isAssigned ? 'ACTIVE' : 'OFF'}</span>
+                        </label>
+                    `;
+                }).join('')}
+                ${serviceRegions.filter(r => r.enabled).length === 0 ? `
+                    <div class="text-center py-6 text-slate-500 dark:text-slate-400">
+                        <span class="material-symbols-outlined text-3xl mb-2">map</span>
+                        <p class="text-sm">No coverage regions set up yet. Contact your admin.</p>
+                    </div>
+                ` : ''}
             </div>
         </div>
         
@@ -3668,34 +3666,47 @@ async function updateGroomerSetting(key, value) {
     }
 }
 
-// Service zip code management
-function addServiceZip() {
-    const input = document.getElementById('newZipCode');
-    const zip = input?.value?.trim();
-    if (!zip || zip.length !== 5 || !/^\d+$/.test(zip)) {
-        showToast('Please enter a valid 5-digit zip code', 'error');
-        return;
+// Toggle a coverage region for this groomer
+async function toggleGroomerRegion(regionId) {
+    if (!state.currentUser) return;
+    
+    const currentRegions = state.currentUser.serviceRegions || [];
+    let newRegions;
+    
+    if (currentRegions.includes(regionId)) {
+        newRegions = currentRegions.filter(r => r !== regionId);
+    } else {
+        newRegions = [...currentRegions, regionId];
     }
     
-    if (!state.groomerSettings) state.groomerSettings = {};
-    if (!state.groomerSettings.service_zip_codes) state.groomerSettings.service_zip_codes = [];
-    
-    if (state.groomerSettings.service_zip_codes.includes(zip)) {
-        showToast('Zip code already added', 'error');
-        return;
+    try {
+        const { error } = await supabaseClient
+            .from('profiles')
+            .update({ service_regions: newRegions })
+            .eq('id', state.currentUser.id);
+        
+        if (error) {
+            console.error('Failed to update regions:', error);
+            showToast('Failed to update coverage region', 'error');
+            return;
+        }
+        
+        state.currentUser.serviceRegions = newRegions;
+        
+        const region = serviceRegions.find(r => r.id === regionId);
+        const regionName = region ? region.name : regionId;
+        
+        if (newRegions.includes(regionId)) {
+            showToast(`Added ${regionName} to your coverage`, 'success');
+        } else {
+            showToast(`Removed ${regionName} from your coverage`, 'info');
+        }
+        
+        render();
+    } catch (err) {
+        console.error('Error toggling region:', err);
+        showToast('Failed to update coverage region', 'error');
     }
-    
-    state.groomerSettings.service_zip_codes.push(zip);
-    input.value = '';
-    showToast('Zip code added', 'success');
-    render();
-}
-
-function removeServiceZip(zip) {
-    if (!state.groomerSettings?.service_zip_codes) return;
-    state.groomerSettings.service_zip_codes = state.groomerSettings.service_zip_codes.filter(z => z !== zip);
-    showToast('Zip code removed', 'success');
-    render();
 }
 
 // Time off request modal

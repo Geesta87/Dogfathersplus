@@ -1995,7 +1995,7 @@ function renderBookingModal() {
                             </div>
                         </div>
                     </label>
-                    <!-- Service Area Check (hidden from customer, used internally) -->
+                    <!-- Service Area Verification Badge -->
                     <div id="address-service-badge" class="hidden"></div>
                     <input type="hidden" id="booking-city" value="${userCity}">
                     <input type="hidden" id="booking-zip" value="${userZip}">
@@ -2063,7 +2063,7 @@ function renderSmartDatePicker(smartData, selectedSlot) {
     if (!smartData) return '';
     
     // Support both old and new format
-    const { bestAvailable, moreAvailable, recommended, goodOptions, available, noCoordinates, error } = smartData;
+    const { bestAvailable, moreAvailable, recommended, goodOptions, available, noCoordinates, noGroomersInRegion, error } = smartData;
     
     // Use new format if available, otherwise fall back to old
     const best = bestAvailable || recommended || [];
@@ -2077,6 +2077,20 @@ function renderSmartDatePicker(smartData, selectedSlot) {
                     <div>
                         <p class="font-semibold text-amber-800 dark:text-amber-200">Location not found</p>
                         <p class="text-sm text-amber-700 dark:text-amber-300 mt-1">We couldn't find your address. Please enter a valid address with city and try again.</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    if (noGroomersInRegion) {
+        return `
+            <div class="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl">
+                <div class="flex items-start gap-3">
+                    <span class="material-symbols-outlined text-amber-600">person_off</span>
+                    <div>
+                        <p class="font-semibold text-amber-800 dark:text-amber-200">No groomers available in your area</p>
+                        <p class="text-sm text-amber-700 dark:text-amber-300 mt-1">We're working on expanding coverage to your area. Please call us at (626) 863-6926 to schedule.</p>
                     </div>
                 </div>
             </div>
@@ -2248,25 +2262,25 @@ async function loadSmartDatePicker() {
         // Store coordinates for later
         state.customerBookingCoords = coords;
         
-        // Calculate distance and get tier for badge
-        const distance = calculateDistance(
-            coords.latitude, coords.longitude,
-            businessHomeBase.latitude, businessHomeBase.longitude
-        );
-        const tier = getTravelFeeTier(distance);
+        // Match customer's city to a coverage region
+        const detectedCity = coords.city || state.currentUser?.city || '';
+        const region = getRegionForCity(detectedCity);
         
-        // If outside service area, don't load dates
-        if (tier.fee_amount < 0) {
+        // If outside coverage area, don't load dates
+        if (!region || !region.enabled) {
             state.smartBookingData = { outOfArea: true };
             pickerContainer.innerHTML = `
                 <div class="p-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl text-center">
                     <span class="material-symbols-outlined text-4xl text-red-400 mb-2">wrong_location</span>
                     <p class="text-red-800 dark:text-red-200 font-medium">We don't currently service this area</p>
-                    <p class="text-sm text-red-600 dark:text-red-400 mt-1">Please try a different address or call us at (626) 863-6926</p>
+                    <p class="text-sm text-red-600 dark:text-red-400 mt-1">${detectedCity ? escapeHtml(detectedCity) + ' — ' : ''}Please try a different address or call us at (626) 863-6926</p>
                 </div>
             `;
             return;
         }
+        
+        // Store region for booking flow
+        state.customerBookingRegion = region;
         
         // Get smart date recommendations
         const recommendations = await getSmartDateRecommendations(coords.latitude, coords.longitude);
