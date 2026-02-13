@@ -2869,7 +2869,7 @@ function renderDayModalAppointmentCard(apt, isCompleted = false) {
                     Mark Done
                 </button>
             ` : apt.status === 'confirmed' || apt.status === 'pending' ? `
-                <button onclick="event.stopPropagation(); startAppointment('${apt.id}')" class="px-3 py-1.5 bg-tech-purple hover:bg-purple-700 text-white text-xs font-bold rounded-lg transition-colors">
+                <button onclick="event.stopPropagation(); startGroomingAppointment('${apt.id}')" class="px-3 py-1.5 bg-tech-purple hover:bg-purple-700 text-white text-xs font-bold rounded-lg transition-colors">
                     Start
                 </button>
             ` : ''}
