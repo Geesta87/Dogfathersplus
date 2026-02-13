@@ -841,30 +841,36 @@ function formatSlotForDisplay(slot) {
 
 // JavaScript fallback calculation for available slots
 async function calculateAvailableSlotsJS(customerLat, customerLng, startDate, endDate) {
-    // 1. Get all active groomers with their availability
+    // 1. Get all groomers (exclude only explicitly deactivated)
     const { data: groomers, error: groomersError } = await supabaseClient
         .from('profiles')
         .select('id, full_name, home_latitude, home_longitude, service_regions')
         .eq('role', 'groomer')
-        .eq('is_active', true);
+        .or('is_active.is.null,is_active.eq.true');
     
     if (groomersError || !groomers?.length) {
         console.error('No groomers found:', groomersError);
         return { bestAvailable: [], moreAvailable: [], error: true };
     }
     
-    // Filter groomers by customer's region (if region is set)
+    // Filter groomers by customer's region (only if groomers have regions assigned)
     const customerRegion = state.customerBookingRegion;
     let eligibleGroomers = groomers;
-    if (customerRegion) {
+    
+    // Only apply region filter if at least one groomer has regions configured
+    const anyGroomerHasRegions = groomers.some(g => g.service_regions && g.service_regions.length > 0);
+    
+    if (customerRegion && anyGroomerHasRegions) {
         eligibleGroomers = groomers.filter(g => 
             g.service_regions && g.service_regions.includes(customerRegion.id)
         );
         _log('Filtered groomers for region', customerRegion.id, ':', eligibleGroomers.length, 'of', groomers.length);
-    }
-    
-    if (!eligibleGroomers.length) {
-        return { bestAvailable: [], moreAvailable: [], noGroomersInRegion: true };
+        
+        if (!eligibleGroomers.length) {
+            return { bestAvailable: [], moreAvailable: [], noGroomersInRegion: true };
+        }
+    } else if (customerRegion && !anyGroomerHasRegions) {
+        _log('No groomers have regions assigned yet — showing all groomers');
     }
     
     // 2. Get groomer availability schedules
