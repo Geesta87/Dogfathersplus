@@ -2392,7 +2392,7 @@ function renderTodayView(todayAppts, today) {
 
 // WEEKLY VIEW - Calendar week grid
 function renderWeeklyView(today) {
-    const weekDates = getWeekDates(state.calendarStartDate);
+    const weekDates = getWeekDatesFromStart(state.calendarStartDate);
     const appointmentCounts = getAppointmentCountsByDate();
     const weekLabel = getWeekRangeLabel(state.calendarStartDate);
     

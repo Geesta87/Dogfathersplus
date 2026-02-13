@@ -400,7 +400,7 @@ function getWeekStart(dateStr) {
 }
 
 // Get array of 7 dates for a week starting from given date
-function getWeekDates(startDateStr) {
+function getWeekDatesFromStart(startDateStr) {
     const dates = [];
     const startDate = new Date(startDateStr + 'T12:00:00');
     for (let i = 0; i < 7; i++) {
