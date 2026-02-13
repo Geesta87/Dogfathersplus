@@ -1700,7 +1700,7 @@ function renderCustomerContent() {
                         <span class="material-symbols-outlined text-base">cancel</span>Cancel
                     </button>
                 </div>
-            </div>`).join('') : '<div class="text-center py-12 bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark"><span class="material-symbols-outlined text-6xl text-text-sub-light mb-4">calendar_month</span><p class="text-text-sub-light dark:text-text-sub-dark">No upcoming appointments</p><button onclick="openBookingModal()" class="mt-4 bg-primary text-white font-bold px-4 py-2 rounded-lg">Book Your First Appointment</button></div>'}</div>
+            </div>`).join('') : '<div class="text-center py-12 bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark"><span class="material-symbols-outlined text-6xl text-text-sub-light mb-4">calendar_month</span><p class="text-text-sub-light dark:text-text-sub-dark">No upcoming appointments</p><button onclick="openBookingModal()" class="mt-4 bg-primary text-white font-bold px-4 py-2 rounded-lg">' + (pastAppts.length > 0 ? 'Book New Appointment' : 'Book Your First Appointment') + '</button></div>'}</div>
         
         ${pastAppts.length > 0 ? `
         <h3 class="text-lg font-bold mb-4 dark:text-white flex items-center gap-2"><span class="material-symbols-outlined text-slate-400">history</span>Past Appointments (${pastAppts.length})</h3>
