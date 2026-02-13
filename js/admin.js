@@ -248,6 +248,9 @@ function openAdminAddAppointment() {
     state.adminSelectedPet = null;
     state.adminNewCustomer = null;
     state.adminNewPet = null;
+    state.adminSmartSlots = null;
+    state.adminSelectedSlot = null;
+    state.adminManualBooking = false;
     render();
 }
 
@@ -260,6 +263,10 @@ function closeAdminAddAppointment() {
     state.adminSelectedPet = null;
     state.adminNewCustomer = null;
     state.adminNewPet = null;
+    state.adminSmartSlots = null;
+    state.adminSelectedSlot = null;
+    state.adminManualBooking = false;
+    state.customerBookingRegion = null;
     render();
 }
 
@@ -897,15 +904,25 @@ function renderAdminAppointmentStep3() {
     const services = (state.services || []).filter(s => s.is_active !== false);
     const groomers = state.groomers?.filter(g => g.is_active !== false) || [];
     const today = getTodayPacific();
+    const smartSlots = state.adminSmartSlots;
+    const selectedSlot = state.adminSelectedSlot;
+    const manualMode = state.adminManualBooking || false;
     
-    // Time slots (2-hour increments)
-    const timeSlots = ['07:00', '09:00', '11:00', '13:00', '15:00', '17:00'];
+    // Detect region from customer address
+    const customerCity = customer?.city || '';
+    const customerRegion = getRegionForCity(customerCity);
+    const regionGroomers = customerRegion ? getGroomersForRegion(customerRegion.id) : groomers;
+    
+    // Auto-load smart slots on first render
+    if (!smartSlots && !manualMode && customer?.address && customer?.city) {
+        setTimeout(() => loadAdminSmartSlots(), 50);
+    }
     
     return `
     <div class="space-y-5">
         <!-- Customer & Pet Summary -->
         <div class="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-4 flex-wrap">
                 <div class="flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary text-sm">person</span>
                     <span class="font-semibold text-slate-900 dark:text-white">${customer.full_name}</span>
@@ -918,8 +935,179 @@ function renderAdminAppointmentStep3() {
                 </div>
                 <button onclick="adminAppointmentBack()" class="ml-auto text-sm text-primary hover:underline">Change</button>
             </div>
+            ${customerCity ? `
+            <div class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                <span class="material-symbols-outlined text-sm ${customerRegion ? 'text-emerald-500' : 'text-slate-400'}">location_on</span>
+                <span class="text-sm text-slate-600 dark:text-slate-300">${escapeHtml(customer.address || '')}${customer.address ? ', ' : ''}${escapeHtml(customerCity)}</span>
+                ${customerRegion ? `<span class="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 text-xs rounded-full font-medium">${escapeHtml(customerRegion.name)}</span>` : ''}
+            </div>` : ''}
         </div>
         
+        <!-- Mode Toggle -->
+        <div class="flex items-center justify-between">
+            <span class="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                ${manualMode ? 'Manual Scheduling' : 'Smart Availability'}
+            </span>
+            <button type="button" onclick="toggleAdminBookingMode()" class="text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${manualMode ? 'bg-primary/10 text-primary hover:bg-primary/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}">
+                ${manualMode ? '← Smart Mode' : 'Manual Override →'}
+            </button>
+        </div>
+        
+        ${manualMode ? renderAdminManualBooking(services, groomers, today) : renderAdminSmartBooking(services, groomers, regionGroomers, today, smartSlots, selectedSlot)}
+    </div>`;
+}
+
+// Smart booking mode — shows recommended slots
+function renderAdminSmartBooking(services, groomers, regionGroomers, today, smartSlots, selectedSlot) {
+    return `
+        <!-- Smart Date/Time Picker -->
+        <div id="admin-smart-picker" class="bg-slate-50 dark:bg-slate-800/30 rounded-xl p-4">
+            ${!smartSlots ? `
+                <div class="flex items-center justify-center gap-3 py-8">
+                    <div class="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                    <span class="text-sm text-slate-500">Loading smart availability...</span>
+                </div>
+            ` : smartSlots.error ? `
+                <div class="text-center py-6">
+                    <span class="material-symbols-outlined text-3xl text-amber-400 mb-2">warning</span>
+                    <p class="text-sm text-slate-600 dark:text-slate-300">Couldn't load smart availability. Use manual mode.</p>
+                </div>
+            ` : smartSlots.noGroomersInRegion ? `
+                <div class="text-center py-6">
+                    <span class="material-symbols-outlined text-3xl text-amber-400 mb-2">person_off</span>
+                    <p class="text-sm text-slate-600 dark:text-slate-300">No groomers cover this customer's area.</p>
+                    <p class="text-xs text-slate-400 mt-1">Switch to manual mode to assign any groomer.</p>
+                </div>
+            ` : (() => {
+                const best = smartSlots.bestAvailable || [];
+                const more = smartSlots.moreAvailable || [];
+                const allSlots = [...best, ...more];
+                
+                if (allSlots.length === 0) {
+                    return `
+                        <div class="text-center py-6">
+                            <span class="material-symbols-outlined text-3xl text-slate-400 mb-2">event_busy</span>
+                            <p class="text-sm text-slate-600 dark:text-slate-300">No available slots found in the next 30 days.</p>
+                            <p class="text-xs text-slate-400 mt-1">Try manual mode to pick a specific date.</p>
+                        </div>
+                    `;
+                }
+                
+                return `
+                    ${best.length > 0 ? `
+                        <p class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-3">★ Best Matches (Nearby Appointments)</p>
+                        <div class="flex gap-2 overflow-x-auto pb-3 mb-4 -mx-1 px-1 snap-x">
+                            ${best.slice(0, 8).map(slot => {
+                                const isSelected = selectedSlot && selectedSlot.date === slot.date && selectedSlot.time === slot.time;
+                                return `
+                                    <button type="button" onclick="selectAdminSmartSlot('${slot.date}', '${slot.time}', '${slot.groomerId}')"
+                                        class="flex flex-col items-center p-3 rounded-xl border-2 transition-all min-w-[100px] snap-start ${isSelected ? 'border-primary bg-primary/10' : 'border-slate-200 dark:border-slate-600 hover:border-primary/50 bg-white dark:bg-slate-800'}">
+                                        <span class="text-xs font-bold ${isSelected ? 'text-primary' : 'text-slate-700 dark:text-slate-200'}">${slot.displayDate}</span>
+                                        <span class="text-sm font-bold ${isSelected ? 'text-primary' : 'text-slate-900 dark:text-white'} mt-0.5">${slot.displayTime}</span>
+                                        <span class="text-[10px] ${isSelected ? 'text-primary/70' : 'text-slate-400'} mt-1">${slot.groomerName || ''}</span>
+                                    </button>
+                                `;
+                            }).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    ${more.length > 0 ? `
+                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">More Available</p>
+                        <div class="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 snap-x">
+                            ${more.slice(0, 12).map(slot => {
+                                const isSelected = selectedSlot && selectedSlot.date === slot.date && selectedSlot.time === slot.time;
+                                return `
+                                    <button type="button" onclick="selectAdminSmartSlot('${slot.date}', '${slot.time}', '${slot.groomerId}')"
+                                        class="flex flex-col items-center p-3 rounded-xl border-2 transition-all min-w-[100px] snap-start ${isSelected ? 'border-primary bg-primary/10' : 'border-slate-200 dark:border-slate-600 hover:border-primary/50 bg-white dark:bg-slate-800'}">
+                                        <span class="text-xs font-bold ${isSelected ? 'text-primary' : 'text-slate-700 dark:text-slate-200'}">${slot.displayDate}</span>
+                                        <span class="text-sm font-bold ${isSelected ? 'text-primary' : 'text-slate-900 dark:text-white'} mt-0.5">${slot.displayTime}</span>
+                                        <span class="text-[10px] ${isSelected ? 'text-primary/70' : 'text-slate-400'} mt-1">${slot.groomerName || ''}</span>
+                                    </button>
+                                `;
+                            }).join('')}
+                        </div>
+                    ` : ''}
+                `;
+            })()}
+        </div>
+        
+        <!-- Selected slot summary + form fields -->
+        <form onsubmit="createAdminAppointment(event)" class="space-y-4">
+            <input type="hidden" id="admin-appt-date" value="${selectedSlot?.date || ''}">
+            <input type="hidden" id="admin-appt-time" value="${selectedSlot?.time || ''}">
+            
+            ${selectedSlot ? `
+                <div class="p-3 bg-primary/5 border border-primary/20 rounded-xl flex items-center gap-3">
+                    <span class="material-symbols-outlined text-primary">event_available</span>
+                    <div>
+                        <p class="font-bold text-slate-900 dark:text-white text-sm">${selectedSlot.displayDate} at ${selectedSlot.displayTime}</p>
+                        <p class="text-xs text-slate-500">Groomer: ${selectedSlot.groomerName || 'Unassigned'}</p>
+                    </div>
+                </div>
+            ` : `
+                <p class="text-sm text-amber-600 dark:text-amber-400 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-sm">info</span>
+                    Select a time slot above to continue
+                </p>
+            `}
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Groomer (auto-filled but overridable) -->
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Groomer *</label>
+                    <select id="admin-appt-groomer" required
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all">
+                        <option value="">Select groomer</option>
+                        ${groomers.map(g => `<option value="${g.id}" ${selectedSlot?.groomerId === g.id ? 'selected' : ''}>${g.full_name}</option>`).join('')}
+                    </select>
+                </div>
+                
+                <!-- Service -->
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Service</label>
+                    <select id="admin-appt-service" onchange="updateAdminApptPrice()"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all">
+                        <option value="">Select service</option>
+                        ${services.filter(s => !s.is_addon).map(s => `<option value="${s.id}" data-price="${s.base_price}">${escapeHtml(s.name)} - $${s.base_price}</option>`).join('')}
+                    </select>
+                </div>
+                
+                <!-- Price -->
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Price ($)</label>
+                    <input type="number" id="admin-appt-price" step="0.01" min="0"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+                        placeholder="0.00">
+                </div>
+                
+                <!-- Notes -->
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Notes</label>
+                    <textarea id="admin-appt-notes" rows="2"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all resize-none"
+                        placeholder="Any special instructions..."></textarea>
+                </div>
+            </div>
+            
+            <div class="flex gap-3 pt-4">
+                <button type="button" onclick="adminAppointmentBack()" class="flex-1 py-3 border border-slate-200 dark:border-border-dark text-slate-700 dark:text-slate-300 font-semibold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
+                    <span class="material-symbols-outlined text-sm mr-1">arrow_back</span>
+                    Back
+                </button>
+                <button type="submit" class="flex-1 py-3 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" ${!selectedSlot ? 'disabled' : ''}>
+                    <span class="material-symbols-outlined">check</span>
+                    Create Appointment
+                </button>
+            </div>
+        </form>
+    `;
+}
+
+// Manual booking mode — original dropdowns
+function renderAdminManualBooking(services, groomers, today) {
+    const timeSlots = ['07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+    
+    return `
         <form onsubmit="createAdminAppointment(event)" class="space-y-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- Date -->
@@ -987,7 +1175,66 @@ function renderAdminAppointmentStep3() {
                 </button>
             </div>
         </form>
-    </div>`;
+    `;
+}
+
+// Load smart slots for admin booking
+async function loadAdminSmartSlots() {
+    const customer = state.adminSelectedCustomer;
+    if (!customer?.address || !customer?.city) {
+        state.adminSmartSlots = { error: true };
+        render();
+        return;
+    }
+    
+    try {
+        // Geocode customer address
+        const coords = await geocodeAddress(customer.address, customer.city, 'CA', customer.zip_code);
+        if (!coords) {
+            state.adminSmartSlots = { error: true };
+            render();
+            return;
+        }
+        
+        // Detect region and set for groomer filtering
+        const detectedCity = coords.city || customer.city;
+        const region = getRegionForCity(detectedCity);
+        state.customerBookingRegion = region;
+        
+        // Get smart recommendations
+        const recommendations = await getSmartDateRecommendations(coords.latitude, coords.longitude);
+        state.adminSmartSlots = recommendations;
+        render();
+        
+    } catch (err) {
+        console.error('Error loading admin smart slots:', err);
+        state.adminSmartSlots = { error: true };
+        render();
+    }
+}
+
+// Select a smart slot in admin booking
+function selectAdminSmartSlot(date, time, groomerId) {
+    const slots = [...(state.adminSmartSlots?.bestAvailable || []), ...(state.adminSmartSlots?.moreAvailable || [])];
+    const slot = slots.find(s => s.date === date && s.time === time);
+    
+    state.adminSelectedSlot = {
+        date: date,
+        time: time,
+        groomerId: groomerId,
+        groomerName: slot?.groomerName || '',
+        displayDate: slot?.displayDate || date,
+        displayTime: slot?.displayTime || formatTime(time)
+    };
+    
+    render();
+}
+
+// Toggle between smart and manual booking modes
+function toggleAdminBookingMode() {
+    state.adminManualBooking = !state.adminManualBooking;
+    state.adminSelectedSlot = null;
+    render();
 }
 
 // Update price when service is selected
