@@ -1003,7 +1003,9 @@ function renderAdminSmartBooking(services, groomers, regionGroomers, today, smar
             ` : smartSlots.error ? `
                 <div class="text-center py-6">
                     <span class="material-symbols-outlined text-3xl text-amber-400 mb-2">warning</span>
-                    <p class="text-sm text-slate-600 dark:text-slate-300">Couldn't load smart availability. Use manual mode.</p>
+                    <p class="text-sm text-slate-600 dark:text-slate-300">Couldn't load smart availability.</p>
+                    ${smartSlots.reason ? `<p class="text-xs text-slate-400 mt-1">${escapeHtml(smartSlots.reason)}</p>` : ''}
+                    <p class="text-xs text-slate-400 mt-1">Use manual mode or check browser console for details.</p>
                 </div>
             ` : smartSlots.noGroomersInRegion ? `
                 <div class="text-center py-6">
@@ -1215,7 +1217,7 @@ function renderAdminManualBooking(services, groomers, today) {
 async function loadAdminSmartSlots() {
     const customer = state.adminSelectedCustomer;
     if (!customer?.address || !customer?.city) {
-        state.adminSmartSlots = { error: true };
+        state.adminSmartSlots = { error: true, reason: 'No address or city on customer' };
         render();
         return;
     }
@@ -1224,24 +1226,36 @@ async function loadAdminSmartSlots() {
         // Geocode customer address
         const coords = await geocodeAddress(customer.address, customer.city, 'CA', customer.zip_code);
         if (!coords) {
-            state.adminSmartSlots = { error: true };
+            state.adminSmartSlots = { error: true, reason: 'Geocode failed' };
             render();
             return;
         }
+        
+        _log('Admin smart booking - coords:', coords.latitude, coords.longitude, 'city:', coords.city);
         
         // Detect region and set for groomer filtering
         const detectedCity = coords.city || customer.city;
         const region = getRegionForCity(detectedCity);
         state.customerBookingRegion = region;
         
+        _log('Admin smart booking - region:', region?.name || 'none');
+        
         // Get smart recommendations
         const recommendations = await getSmartDateRecommendations(coords.latitude, coords.longitude);
+        
+        _log('Admin smart booking - results:', {
+            best: recommendations?.bestAvailable?.length || 0,
+            more: recommendations?.moreAvailable?.length || 0,
+            error: recommendations?.error,
+            noGroomers: recommendations?.noGroomersInRegion
+        });
+        
         state.adminSmartSlots = recommendations;
         render();
         
     } catch (err) {
         console.error('Error loading admin smart slots:', err);
-        state.adminSmartSlots = { error: true };
+        state.adminSmartSlots = { error: true, reason: err.message || 'Unknown error' };
         render();
     }
 }

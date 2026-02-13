@@ -841,14 +841,16 @@ function formatSlotForDisplay(slot) {
 
 // JavaScript fallback calculation for available slots
 async function calculateAvailableSlotsJS(customerLat, customerLng, startDate, endDate) {
-    // 1. Get all groomers (exclude only explicitly deactivated)
-    const { data: groomers, error: groomersError } = await supabaseClient
+    // 1. Get all groomers
+    const { data: rawGroomers, error: groomersError } = await supabaseClient
         .from('profiles')
-        .select('id, full_name, home_latitude, home_longitude, service_regions')
-        .eq('role', 'groomer')
-        .or('is_active.is.null,is_active.eq.true');
+        .select('id, full_name, home_latitude, home_longitude, service_regions, is_active')
+        .eq('role', 'groomer');
     
-    if (groomersError || !groomers?.length) {
+    // Filter out explicitly deactivated groomers in JS (avoids NULL issues in SQL)
+    const groomers = (rawGroomers || []).filter(g => g.is_active !== false);
+    
+    if (groomersError || !groomers.length) {
         console.error('No groomers found:', groomersError);
         return { bestAvailable: [], moreAvailable: [], error: true };
     }
