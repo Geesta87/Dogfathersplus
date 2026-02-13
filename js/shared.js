@@ -673,11 +673,11 @@ function toRadians(degrees) {
 
 
 // Geocode an address using OpenStreetMap Nominatim (free)
-async function geocodeAddress(address, city, state = 'CA', zip = '') {
-    if (!address && !zip) return null;
+async function geocodeAddress(address, city, stateCode = 'CA', zip = '') {
+    if (!address && !zip && !city) return null;
     
     // Build full address string
-    const fullAddress = [address, city, state, zip].filter(Boolean).join(', ');
+    const fullAddress = [address, city, stateCode, zip].filter(Boolean).join(', ');
     
     // Check cache first
     if (geocodeCache.has(fullAddress)) {
@@ -686,7 +686,7 @@ async function geocodeAddress(address, city, state = 'CA', zip = '') {
     }
     
     try {
-        // Try OpenStreetMap Nominatim first
+        // Try OpenStreetMap Nominatim
         const query = encodeURIComponent(fullAddress);
         const response = await fetch(
             `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1&countrycodes=us&addressdetails=1`,
@@ -713,44 +713,168 @@ async function geocodeAddress(address, city, state = 'CA', zip = '') {
         _warn('Nominatim geocoding failed:', err);
     }
     
-    // Fallback: Try zip code centroid
-    if (zip) {
-        const centroid = await getZipCodeCentroid(zip);
-        if (centroid) {
-            geocodeCache.set(fullAddress, centroid);
-            return centroid;
-        }
+    // Fallback: city-based approximate coordinates for LA-area cities
+    const cityCoord = getCityFallbackCoordinates(city);
+    if (cityCoord) {
+        const result = {
+            latitude: cityCoord.latitude,
+            longitude: cityCoord.longitude,
+            display_name: `${city}, ${stateCode} ${zip}`.trim(),
+            zip: zip || '',
+            city: city || ''
+        };
+        geocodeCache.set(fullAddress, result);
+        _log('Using city fallback coords for:', city, '→', result.latitude, result.longitude);
+        return result;
     }
     
     return null;
 }
 
-// Get zip code centroid from database
-async function getZipCodeCentroid(zipCode) {
-    if (!zipCode) return null;
+// City-based fallback coordinates for LA County + Orange County areas
+function getCityFallbackCoordinates(city) {
+    if (!city) return null;
+    const normalized = city.toLowerCase().trim();
     
-    // Clean zip code (take first 5 digits)
-    const zip = zipCode.toString().substring(0, 5);
+    const cityCoords = {
+        // San Fernando Valley
+        'northridge': { latitude: 34.2381, longitude: -118.5365 },
+        'reseda': { latitude: 34.2012, longitude: -118.5370 },
+        'encino': { latitude: 34.1584, longitude: -118.5014 },
+        'tarzana': { latitude: 34.1717, longitude: -118.5500 },
+        'woodland hills': { latitude: 34.1681, longitude: -118.6059 },
+        'canoga park': { latitude: 34.2011, longitude: -118.5973 },
+        'chatsworth': { latitude: 34.2572, longitude: -118.5951 },
+        'granada hills': { latitude: 34.2743, longitude: -118.5006 },
+        'porter ranch': { latitude: 34.2810, longitude: -118.5637 },
+        'north hills': { latitude: 34.2364, longitude: -118.4810 },
+        'van nuys': { latitude: 34.1864, longitude: -118.4490 },
+        'sherman oaks': { latitude: 34.1508, longitude: -118.4489 },
+        'studio city': { latitude: 34.1435, longitude: -118.3952 },
+        'north hollywood': { latitude: 34.1870, longitude: -118.3813 },
+        'sun valley': { latitude: 34.2267, longitude: -118.3724 },
+        'panorama city': { latitude: 34.2262, longitude: -118.4412 },
+        'arleta': { latitude: 34.2362, longitude: -118.4384 },
+        'pacoima': { latitude: 34.2567, longitude: -118.4173 },
+        'sylmar': { latitude: 34.3086, longitude: -118.4468 },
+        'mission hills': { latitude: 34.2724, longitude: -118.4580 },
+        'lake balboa': { latitude: 34.1832, longitude: -118.5015 },
+        'winnetka': { latitude: 34.2132, longitude: -118.5712 },
+        'west hills': { latitude: 34.2037, longitude: -118.6412 },
+        // Burbank / Glendale
+        'burbank': { latitude: 34.1808, longitude: -118.3090 },
+        'glendale': { latitude: 34.1425, longitude: -118.2551 },
+        'la crescenta': { latitude: 34.2325, longitude: -118.2359 },
+        'montrose': { latitude: 34.2092, longitude: -118.2295 },
+        'la canada flintridge': { latitude: 34.2122, longitude: -118.1878 },
+        'sunland': { latitude: 34.2645, longitude: -118.3015 },
+        'tujunga': { latitude: 34.2518, longitude: -118.2876 },
+        'shadow hills': { latitude: 34.2654, longitude: -118.3507 },
+        // Pasadena Area
+        'pasadena': { latitude: 34.1478, longitude: -118.1445 },
+        'south pasadena': { latitude: 34.1161, longitude: -118.1502 },
+        'altadena': { latitude: 34.1897, longitude: -118.1310 },
+        'san marino': { latitude: 34.1215, longitude: -118.1065 },
+        'sierra madre': { latitude: 34.1617, longitude: -118.0529 },
+        'arcadia': { latitude: 34.1397, longitude: -118.0353 },
+        'monrovia': { latitude: 34.1442, longitude: -117.9990 },
+        'duarte': { latitude: 34.1395, longitude: -117.9773 },
+        'temple city': { latitude: 34.1073, longitude: -118.0579 },
+        // Westside
+        'santa monica': { latitude: 34.0195, longitude: -118.4912 },
+        'beverly hills': { latitude: 34.0736, longitude: -118.4004 },
+        'west hollywood': { latitude: 34.0900, longitude: -118.3617 },
+        'culver city': { latitude: 34.0211, longitude: -118.3965 },
+        'brentwood': { latitude: 34.0594, longitude: -118.4755 },
+        'pacific palisades': { latitude: 34.0428, longitude: -118.5268 },
+        'westwood': { latitude: 34.0586, longitude: -118.4451 },
+        'century city': { latitude: 34.0565, longitude: -118.4180 },
+        'playa del rey': { latitude: 33.9564, longitude: -118.4427 },
+        'marina del rey': { latitude: 33.9803, longitude: -118.4517 },
+        'venice': { latitude: 33.9850, longitude: -118.4695 },
+        'mar vista': { latitude: 34.0039, longitude: -118.4283 },
+        'west los angeles': { latitude: 34.0368, longitude: -118.4384 },
+        'palms': { latitude: 34.0178, longitude: -118.4118 },
+        // Central / Downtown LA
+        'los angeles': { latitude: 34.0522, longitude: -118.2437 },
+        'downtown': { latitude: 34.0407, longitude: -118.2468 },
+        'echo park': { latitude: 34.0782, longitude: -118.2606 },
+        'silver lake': { latitude: 34.0869, longitude: -118.2702 },
+        'los feliz': { latitude: 34.1083, longitude: -118.2847 },
+        'atwater village': { latitude: 34.1157, longitude: -118.2619 },
+        'eagle rock': { latitude: 34.1386, longitude: -118.2142 },
+        'highland park': { latitude: 34.1113, longitude: -118.1901 },
+        'glassell park': { latitude: 34.1203, longitude: -118.2286 },
+        'mount washington': { latitude: 34.0967, longitude: -118.2138 },
+        'koreatown': { latitude: 34.0577, longitude: -118.3015 },
+        'mid-wilshire': { latitude: 34.0624, longitude: -118.3285 },
+        'hancock park': { latitude: 34.0736, longitude: -118.3368 },
+        // South Bay
+        'torrance': { latitude: 33.8358, longitude: -118.3406 },
+        'redondo beach': { latitude: 33.8492, longitude: -118.3884 },
+        'manhattan beach': { latitude: 33.8847, longitude: -118.4109 },
+        'hermosa beach': { latitude: 33.8622, longitude: -118.3995 },
+        'el segundo': { latitude: 33.9192, longitude: -118.4165 },
+        'hawthorne': { latitude: 33.9164, longitude: -118.3526 },
+        'gardena': { latitude: 33.8883, longitude: -118.3090 },
+        'carson': { latitude: 33.8317, longitude: -118.2818 },
+        'lomita': { latitude: 33.7926, longitude: -118.3151 },
+        'palos verdes': { latitude: 33.7444, longitude: -118.3870 },
+        'rancho palos verdes': { latitude: 33.7444, longitude: -118.3870 },
+        'rolling hills': { latitude: 33.7584, longitude: -118.3576 },
+        // Santa Clarita Valley
+        'santa clarita': { latitude: 34.3917, longitude: -118.5426 },
+        'valencia': { latitude: 34.4436, longitude: -118.6115 },
+        'newhall': { latitude: 34.3844, longitude: -118.5310 },
+        'saugus': { latitude: 34.3956, longitude: -118.5287 },
+        'stevenson ranch': { latitude: 34.3875, longitude: -118.5768 },
+        'castaic': { latitude: 34.4894, longitude: -118.6288 },
+        'canyon country': { latitude: 34.4217, longitude: -118.4500 },
+        'agua dulce': { latitude: 34.4964, longitude: -118.3269 },
+        // San Gabriel Valley
+        'alhambra': { latitude: 34.0953, longitude: -118.1270 },
+        'monterey park': { latitude: 34.0625, longitude: -118.1228 },
+        'rosemead': { latitude: 34.0806, longitude: -118.0728 },
+        'el monte': { latitude: 34.0686, longitude: -118.0276 },
+        'san gabriel': { latitude: 34.0961, longitude: -118.1058 },
+        'west covina': { latitude: 34.0686, longitude: -117.9390 },
+        'covina': { latitude: 34.0900, longitude: -117.8903 },
+        'glendora': { latitude: 34.1361, longitude: -117.8653 },
+        'azusa': { latitude: 34.1336, longitude: -117.9076 },
+        'baldwin park': { latitude: 34.0853, longitude: -117.9609 },
+        'irwindale': { latitude: 34.1070, longitude: -117.9353 },
+        // North Orange County
+        'anaheim': { latitude: 33.8366, longitude: -117.9143 },
+        'fullerton': { latitude: 33.8703, longitude: -117.9243 },
+        'brea': { latitude: 33.9167, longitude: -117.9001 },
+        'yorba linda': { latitude: 33.8886, longitude: -117.8131 },
+        'placentia': { latitude: 33.8722, longitude: -117.8703 },
+        'buena park': { latitude: 33.8675, longitude: -117.9981 },
+        'la habra': { latitude: 33.9319, longitude: -117.9462 },
+        'orange': { latitude: 33.7878, longitude: -117.8531 },
+        // South Orange County
+        'irvine': { latitude: 33.6846, longitude: -117.8265 },
+        'mission viejo': { latitude: 33.6000, longitude: -117.6720 },
+        'laguna beach': { latitude: 33.5427, longitude: -117.7854 },
+        'laguna niguel': { latitude: 33.5225, longitude: -117.7076 },
+        'lake forest': { latitude: 33.6469, longitude: -117.6892 },
+        'rancho santa margarita': { latitude: 33.6409, longitude: -117.6031 },
+        'san clemente': { latitude: 33.4270, longitude: -117.6120 },
+        'dana point': { latitude: 33.4672, longitude: -117.6981 },
+        'aliso viejo': { latitude: 33.5676, longitude: -117.7256 },
+        'ladera ranch': { latitude: 33.5572, longitude: -117.6364 },
+        // Conejo Valley / Simi
+        'thousand oaks': { latitude: 34.1705, longitude: -118.8376 },
+        'simi valley': { latitude: 34.2694, longitude: -118.7815 },
+        'moorpark': { latitude: 34.2856, longitude: -118.8820 },
+        'newbury park': { latitude: 34.1847, longitude: -118.9103 },
+        'agoura hills': { latitude: 34.1364, longitude: -118.7748 },
+        'westlake village': { latitude: 34.1459, longitude: -118.8056 },
+        'calabasas': { latitude: 34.1578, longitude: -118.6387 },
+        'oak park': { latitude: 34.1792, longitude: -118.7626 }
+    };
     
-    try {
-        const { data, error } = await supabaseClient
-            .from('zip_code_centroids')
-            .select('*')
-            .eq('zip_code', zip)
-            .single();
-        
-        if (!error && data) {
-            return {
-                latitude: parseFloat(data.latitude),
-                longitude: parseFloat(data.longitude),
-                display_name: `${data.city}, ${data.state} ${zip}`
-            };
-        }
-    } catch (err) {
-        _warn('Zip centroid lookup failed:', err);
-    }
-    
-    return null;
+    return cityCoords[normalized] || null;
 }
 
 // Appointment slot configuration
