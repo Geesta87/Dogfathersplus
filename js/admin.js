@@ -3580,6 +3580,17 @@ function renderAdminPhotoGallery() {
         photoAppointments = photoAppointments.filter(a => a.appointment_date >= monthAgoStr);
     }
     
+    // Apply search filter
+    if (state.adminGallerySearch) {
+        const q = state.adminGallerySearch.toLowerCase().trim();
+        photoAppointments = photoAppointments.filter(a => {
+            return (a.petName || '').toLowerCase().includes(q) ||
+                   (a.customerName || '').toLowerCase().includes(q) ||
+                   (a.groomerName || '').toLowerCase().includes(q) ||
+                   (a.petBreed || '').toLowerCase().includes(q);
+        });
+    }
+    
     // Sort newest first
     photoAppointments.sort((a, b) => (b.appointment_date || '').localeCompare(a.appointment_date || ''));
     
@@ -3598,6 +3609,10 @@ function renderAdminPhotoGallery() {
     return `
         <!-- Gallery Filters -->
         <div class="flex flex-wrap items-center gap-3 mb-1">
+            <div class="relative flex-1 min-w-[180px] max-w-xs">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-lg">search</span>
+                <input oninput="state.adminGallerySearch = this.value; render();" value="${state.adminGallerySearch || ''}" class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none" placeholder="Search pet, customer, groomer..." type="text"/>
+            </div>
             <div class="flex bg-slate-100 rounded-lg p-1">
                 <button onclick="setAdminGalleryDateFilter('all')" class="px-3 py-1.5 rounded-md text-xs font-bold transition-all ${state.adminGalleryDateFilter === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}">All Time</button>
                 <button onclick="setAdminGalleryDateFilter('month')" class="px-3 py-1.5 rounded-md text-xs font-bold transition-all ${state.adminGalleryDateFilter === 'month' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}">This Month</button>
