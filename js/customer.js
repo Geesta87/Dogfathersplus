@@ -2138,7 +2138,7 @@ function renderSmartDatePicker(smartData, selectedSlot) {
                     <span class="font-semibold text-emerald-700 dark:text-emerald-400">Best Available Times</span>
                 </div>
                 <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                    ${best.slice(0, 8).map(s => renderSlotCard(s, selectedSlot)).join('')}
+                    ${best.slice(0, 20).map(s => renderSlotCard(s, selectedSlot)).join('')}
                 </div>
             </div>
         `;
@@ -2153,7 +2153,7 @@ function renderSmartDatePicker(smartData, selectedSlot) {
                     <span class="font-semibold text-slate-700 dark:text-slate-300">More Available Times</span>
                 </div>
                 <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                    ${more.slice(0, 12).map(s => renderSlotCard(s, selectedSlot)).join('')}
+                    ${more.slice(0, 30).map(s => renderSlotCard(s, selectedSlot)).join('')}
                 </div>
             </div>
         `;

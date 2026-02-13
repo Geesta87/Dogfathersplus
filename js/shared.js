@@ -934,12 +934,12 @@ function processAvailableSlots(slots, customerLat, customerLng) {
     // Categorize: Best (<10 miles) vs More Available
     const bestAvailable = sortedSlots
         .filter(s => s.distance_from_prev !== null && s.distance_from_prev < 10)
-        .slice(0, 10)
+        .slice(0, 60)
         .map(s => formatSlotForDisplay(s));
     
     const moreAvailable = sortedSlots
         .filter(s => s.distance_from_prev === null || s.distance_from_prev >= 10)
-        .slice(0, 20)
+        .slice(0, 120)
         .map(s => formatSlotForDisplay(s));
     
     _log('Smart booking results:', { bestAvailable: bestAvailable.length, moreAvailable: moreAvailable.length });

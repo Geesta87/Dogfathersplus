@@ -1032,7 +1032,7 @@ function renderAdminSmartBooking(services, groomers, regionGroomers, today, smar
                     ${best.length > 0 ? `
                         <p class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-3">★ Best Matches (Nearby Appointments)</p>
                         <div class="flex gap-2 overflow-x-auto pb-3 mb-4 -mx-1 px-1 snap-x">
-                            ${best.slice(0, 8).map(slot => {
+                            ${best.slice(0, 20).map(slot => {
                                 const isSelected = selectedSlot && selectedSlot.date === slot.date && selectedSlot.time === slot.time;
                                 return `
                                     <button type="button" onclick="selectAdminSmartSlot('${slot.date}', '${slot.time}', '${slot.groomerId}')"
@@ -1049,7 +1049,7 @@ function renderAdminSmartBooking(services, groomers, regionGroomers, today, smar
                     ${more.length > 0 ? `
                         <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">More Available</p>
                         <div class="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 snap-x">
-                            ${more.slice(0, 12).map(slot => {
+                            ${more.slice(0, 30).map(slot => {
                                 const isSelected = selectedSlot && selectedSlot.date === slot.date && selectedSlot.time === slot.time;
                                 return `
                                     <button type="button" onclick="selectAdminSmartSlot('${slot.date}', '${slot.time}', '${slot.groomerId}')"
