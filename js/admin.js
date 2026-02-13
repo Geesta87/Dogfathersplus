@@ -3526,7 +3526,181 @@ function nextAppointmentPage() {
     }
 }
 
-// Mini calendar functions
+// Photo Gallery functions
+function setAdminAppointmentsView(view) {
+    state.adminAppointmentsView = view;
+    render();
+}
+
+function setAdminGalleryGroomerFilter(groomerId) {
+    state.adminGalleryGroomerFilter = groomerId;
+    render();
+}
+
+function setAdminGalleryDateFilter(range) {
+    state.adminGalleryDateFilter = range;
+    render();
+}
+
+function openPhotoLightbox(appointmentId) {
+    const apt = data.appointments.find(a => a.id === appointmentId);
+    if (apt) {
+        state.adminGalleryLightbox = apt;
+        render();
+    }
+}
+
+function closePhotoLightbox() {
+    state.adminGalleryLightbox = null;
+    render();
+}
+
+function renderAdminPhotoGallery() {
+    const today = new Date();
+    const todayStr = getTodayPacific();
+    
+    // Filter appointments that have photos
+    let photoAppointments = data.appointments.filter(a => a.before_photo_url || a.after_photo_url);
+    
+    // Apply groomer filter
+    if (state.adminGalleryGroomerFilter) {
+        photoAppointments = photoAppointments.filter(a => a.assigned_groomer_id === state.adminGalleryGroomerFilter);
+    }
+    
+    // Apply date filter
+    if (state.adminGalleryDateFilter === 'week') {
+        const weekAgo = new Date(today);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        const weekAgoStr = weekAgo.toISOString().split('T')[0];
+        photoAppointments = photoAppointments.filter(a => a.appointment_date >= weekAgoStr);
+    } else if (state.adminGalleryDateFilter === 'month') {
+        const monthAgo = new Date(today);
+        monthAgo.setDate(monthAgo.getDate() - 30);
+        const monthAgoStr = monthAgo.toISOString().split('T')[0];
+        photoAppointments = photoAppointments.filter(a => a.appointment_date >= monthAgoStr);
+    }
+    
+    // Sort newest first
+    photoAppointments.sort((a, b) => (b.appointment_date || '').localeCompare(a.appointment_date || ''));
+    
+    // Get unique groomers for filter
+    const groomersWithPhotos = [];
+    const seenGroomers = new Set();
+    data.appointments.filter(a => a.before_photo_url || a.after_photo_url).forEach(a => {
+        if (a.assigned_groomer_id && !seenGroomers.has(a.assigned_groomer_id)) {
+            seenGroomers.add(a.assigned_groomer_id);
+            groomersWithPhotos.push({ id: a.assigned_groomer_id, name: a.groomerName || 'Unknown' });
+        }
+    });
+    
+    const lightbox = state.adminGalleryLightbox;
+    
+    return `
+        <!-- Gallery Filters -->
+        <div class="flex flex-wrap items-center gap-3 mb-1">
+            <div class="flex bg-slate-100 rounded-lg p-1">
+                <button onclick="setAdminGalleryDateFilter('all')" class="px-3 py-1.5 rounded-md text-xs font-bold transition-all ${state.adminGalleryDateFilter === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}">All Time</button>
+                <button onclick="setAdminGalleryDateFilter('month')" class="px-3 py-1.5 rounded-md text-xs font-bold transition-all ${state.adminGalleryDateFilter === 'month' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}">This Month</button>
+                <button onclick="setAdminGalleryDateFilter('week')" class="px-3 py-1.5 rounded-md text-xs font-bold transition-all ${state.adminGalleryDateFilter === 'week' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}">This Week</button>
+            </div>
+            ${groomersWithPhotos.length > 1 ? `
+            <select onchange="setAdminGalleryGroomerFilter(this.value)" class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 cursor-pointer">
+                <option value="" ${!state.adminGalleryGroomerFilter ? 'selected' : ''}>All Groomers</option>
+                ${groomersWithPhotos.map(g => `<option value="${g.id}" ${state.adminGalleryGroomerFilter === g.id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('')}
+            </select>
+            ` : ''}
+            <span class="text-xs text-slate-400 font-medium ml-auto">${photoAppointments.length} photo${photoAppointments.length !== 1 ? 's' : ''}</span>
+        </div>
+        
+        ${photoAppointments.length === 0 ? `
+        <div class="bg-white rounded-xl border border-slate-200 p-12 text-center">
+            <span class="material-symbols-outlined text-5xl text-slate-300 mb-3">photo_camera</span>
+            <h3 class="text-lg font-bold text-slate-700 mb-1">No photos yet</h3>
+            <p class="text-sm text-slate-400">Before &amp; after photos will appear here once groomers start uploading them during appointments.</p>
+        </div>
+        ` : `
+        <!-- Photo Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            ${photoAppointments.map(apt => {
+                const dateObj = new Date(apt.appointment_date + 'T12:00:00');
+                const dateLabel = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const petName = apt.petName || apt.pet?.name || 'Pet';
+                const groomerName = (apt.groomerName || apt.groomer?.full_name || 'Groomer').split(' ')[0];
+                const hasBoth = apt.before_photo_url && apt.after_photo_url;
+                
+                return `
+                <div onclick="openPhotoLightbox('${apt.id}')" class="bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer hover:shadow-md hover:border-slate-300 transition-all group">
+                    <div class="grid ${hasBoth ? 'grid-cols-2' : 'grid-cols-1'} gap-0.5 bg-slate-100">
+                        ${apt.before_photo_url ? `
+                        <div class="relative aspect-[4/3] overflow-hidden">
+                            <img src="${apt.before_photo_url}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="Before"/>
+                            <span class="absolute top-2 left-2 px-2 py-0.5 bg-black/60 text-white text-[10px] font-bold rounded-full uppercase">Before</span>
+                        </div>
+                        ` : ''}
+                        ${apt.after_photo_url ? `
+                        <div class="relative aspect-[4/3] overflow-hidden">
+                            <img src="${apt.after_photo_url}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="After"/>
+                            <span class="absolute top-2 left-2 px-2 py-0.5 bg-emerald-500/80 text-white text-[10px] font-bold rounded-full uppercase">After</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    <div class="px-3 py-2.5 flex items-center justify-between">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="material-symbols-outlined text-base text-slate-400">pets</span>
+                            <span class="text-sm font-bold text-slate-800 truncate">${escapeHtml(petName)}</span>
+                        </div>
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            <span class="text-xs text-slate-400">${escapeHtml(groomerName)}</span>
+                            <span class="text-xs text-slate-400">·</span>
+                            <span class="text-xs text-slate-400">${dateLabel}</span>
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('')}
+        </div>
+        `}
+        
+        ${lightbox ? `
+        <!-- Photo Lightbox -->
+        <div class="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onclick="closePhotoLightbox()">
+            <div class="bg-white dark:bg-surface-dark rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
+                <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+                    <div>
+                        <h3 class="font-bold text-slate-900 dark:text-white">${escapeHtml(lightbox.petName || lightbox.pet?.name || 'Pet')} — Grooming Photos</h3>
+                        <p class="text-sm text-slate-500">${new Date(lightbox.appointment_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} · ${escapeHtml((lightbox.groomerName || 'Groomer').split(' ')[0])}</p>
+                    </div>
+                    <button onclick="closePhotoLightbox()" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                <div class="p-4 space-y-4">
+                    <div class="grid ${lightbox.before_photo_url && lightbox.after_photo_url ? 'grid-cols-2' : 'grid-cols-1'} gap-3">
+                        ${lightbox.before_photo_url ? `
+                        <div class="relative">
+                            <img src="${lightbox.before_photo_url}" class="w-full rounded-xl border border-slate-200" alt="Before"/>
+                            <span class="absolute bottom-3 left-3 px-3 py-1 bg-black/60 text-white text-xs font-bold rounded-lg">Before</span>
+                        </div>
+                        ` : ''}
+                        ${lightbox.after_photo_url ? `
+                        <div class="relative">
+                            <img src="${lightbox.after_photo_url}" class="w-full rounded-xl border border-slate-200" alt="After"/>
+                            <span class="absolute bottom-3 left-3 px-3 py-1 bg-emerald-500/80 text-white text-xs font-bold rounded-lg">After ✨</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    <div class="flex flex-wrap gap-4 text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4">
+                        <div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-base text-slate-400">person</span>${escapeHtml(lightbox.customerName || 'Customer')}</div>
+                        <div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-base text-slate-400">pets</span>${escapeHtml(lightbox.petName || 'Pet')}${lightbox.petBreed ? ' · ' + escapeHtml(lightbox.petBreed) : ''}</div>
+                        ${lightbox.serviceName ? `<div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-base text-slate-400">content_cut</span>${escapeHtml(lightbox.serviceName)}</div>` : ''}
+                        ${lightbox.groomer_notes ? `<div class="w-full pt-2 border-t border-slate-200 dark:border-slate-700"><span class="font-medium text-slate-700 dark:text-slate-300">Notes:</span> ${escapeHtml(lightbox.groomer_notes)}</div>` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+        ` : ''}
+    `;
+}
 function getMiniCalendarMonthLabel() {
     const date = state.miniCalendarDate ? new Date(state.miniCalendarDate + 'T12:00:00') : new Date();
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -4574,12 +4748,23 @@ function renderAdminContent() {
                         <h1 class="text-2xl font-extrabold text-slate-900">Appointments</h1>
                         <p class="text-slate-500 text-sm">Manage your grooming schedule and bookings</p>
                     </div>
-                    <button onclick="openAdminAddAppointment()" class="flex items-center gap-2 bg-primary hover:bg-sky-600 text-white px-5 py-2.5 rounded-lg shadow-sm transition-all">
-                        <span class="material-symbols-outlined text-lg">add</span>
-                        <span class="text-sm font-bold">New Appointment</span>
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <div class="flex bg-slate-100 rounded-lg p-1">
+                            <button onclick="setAdminAppointmentsView('list')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-bold transition-all ${state.adminAppointmentsView === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}">
+                                <span class="material-symbols-outlined text-base">list</span>List
+                            </button>
+                            <button onclick="setAdminAppointmentsView('gallery')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-bold transition-all ${state.adminAppointmentsView === 'gallery' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}">
+                                <span class="material-symbols-outlined text-base">photo_library</span>Photos
+                            </button>
+                        </div>
+                        <button onclick="openAdminAddAppointment()" class="flex items-center gap-2 bg-primary hover:bg-sky-600 text-white px-5 py-2.5 rounded-lg shadow-sm transition-all">
+                            <span class="material-symbols-outlined text-lg">add</span>
+                            <span class="text-sm font-bold">New Appointment</span>
+                        </button>
+                    </div>
                 </div>
 
+                ${state.adminAppointmentsView === 'gallery' ? renderAdminPhotoGallery() : `
                 <!-- Filters -->
                 <div class="flex flex-col sm:flex-row gap-4">
                     <div class="relative flex-1">
@@ -4803,6 +4988,7 @@ function renderAdminContent() {
                         </div>
                     </div>
                 </div>
+                `}
             </div>
 
             <!-- Right: Calendar Widget -->

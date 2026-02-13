@@ -167,6 +167,10 @@ let state = {
     appointmentSearchQuery: '',
     appointmentStatusFilter: '',
     appointmentPage: 1,
+    adminAppointmentsView: 'list', // 'list' or 'gallery'
+    adminGalleryGroomerFilter: '',
+    adminGalleryDateFilter: 'all', // 'all', 'week', 'month'
+    adminGalleryLightbox: null, // appointment object for fullscreen view
     filteredAppointmentsCount: 0,
     // Quick View Modal
     quickViewAppointment: null,
