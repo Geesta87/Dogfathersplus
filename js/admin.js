@@ -276,7 +276,8 @@ async function searchCustomersForAppointment(query) {
     
     if (!query || query.length < 2) {
         state.adminCustomerSearchResults = [];
-        render();
+        const container = document.getElementById('admin-customer-search-results');
+        if (container) container.innerHTML = '';
         return;
     }
     
@@ -296,7 +297,39 @@ async function searchCustomersForAppointment(query) {
         } else {
             state.adminCustomerSearchResults = data || [];
         }
-        render();
+        
+        // Update only the results container, not the full page
+        const container = document.getElementById('admin-customer-search-results');
+        if (container) {
+            const results = state.adminCustomerSearchResults;
+            if (results.length > 0) {
+                container.innerHTML = `
+                    <p class="text-sm text-slate-500">Found ${results.length} customer(s):</p>
+                    ${results.map(c => `
+                        <button onclick="selectCustomerForAppointment('${c.id}')" class="w-full p-4 rounded-xl border border-slate-200 dark:border-border-dark hover:border-primary hover:bg-primary/5 text-left transition-all">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                                    <span class="material-symbols-outlined text-primary">person</span>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="font-bold text-slate-900 dark:text-white">${c.full_name}</p>
+                                    <p class="text-sm text-slate-500">${escapeHtml(c.phone || 'No phone')} ${c.email ? '• ' + c.email : ''}</p>
+                                    ${c.address ? `<p class="text-xs text-slate-400">${escapeHtml(c.address)}, ${escapeHtml(c.city || '')}</p>` : ''}
+                                </div>
+                                <span class="material-symbols-outlined text-slate-400">chevron_right</span>
+                            </div>
+                        </button>
+                    `).join('')}
+                `;
+                container.className = 'space-y-2';
+            } else {
+                container.innerHTML = `
+                    <span class="material-symbols-outlined text-4xl text-slate-300 mb-2">person_off</span>
+                    <p class="text-slate-500">No customers found matching "${escapeHtml(query)}"</p>
+                `;
+                container.className = 'text-center py-8';
+            }
+        }
     } catch (err) {
         console.error('Search failed:', err);
         state.adminCustomerSearchResults = [];
@@ -745,7 +778,7 @@ function renderAdminAppointmentStep1() {
         </div>
         
         ${searchResults.length > 0 ? `
-            <div class="space-y-2">
+            <div id="admin-customer-search-results" class="space-y-2">
                 <p class="text-sm text-slate-500">Found ${searchResults.length} customer(s):</p>
                 ${searchResults.map(c => `
                     <button onclick="selectCustomerForAppointment('${c.id}')" class="w-full p-4 rounded-xl border border-slate-200 dark:border-border-dark hover:border-primary hover:bg-primary/5 text-left transition-all">
@@ -764,11 +797,11 @@ function renderAdminAppointmentStep1() {
                 `).join('')}
             </div>
         ` : state.adminCustomerSearch && state.adminCustomerSearch.length >= 2 ? `
-            <div class="text-center py-8">
+            <div id="admin-customer-search-results" class="text-center py-8">
                 <span class="material-symbols-outlined text-4xl text-slate-300 mb-2">person_off</span>
-                <p class="text-slate-500">No customers found matching "${state.adminCustomerSearch}"</p>
+                <p class="text-slate-500">No customers found matching "${escapeHtml(state.adminCustomerSearch)}"</p>
             </div>
-        ` : ''}
+        ` : '<div id="admin-customer-search-results"></div>'}
         
         <div class="pt-4 border-t border-slate-100 dark:border-border-dark">
             <button onclick="startNewCustomerForAppointment()" class="w-full py-3 border-2 border-dashed border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 font-semibold rounded-xl hover:border-primary hover:text-primary transition-all flex items-center justify-center gap-2">
