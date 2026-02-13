@@ -251,6 +251,7 @@ function openAdminAddAppointment() {
     state.adminSmartSlots = null;
     state.adminSelectedSlot = null;
     state.adminManualBooking = false;
+    state.adminBookingWeekOffset = 0;
     render();
 }
 
@@ -266,6 +267,7 @@ function closeAdminAddAppointment() {
     state.adminSmartSlots = null;
     state.adminSelectedSlot = null;
     state.adminManualBooking = false;
+    state.adminBookingWeekOffset = 0;
     state.customerBookingRegion = null;
     render();
 }
@@ -992,76 +994,95 @@ function renderAdminAppointmentStep3() {
 
 // Smart booking mode — shows recommended slots
 function renderAdminSmartBooking(services, groomers, regionGroomers, today, smartSlots, selectedSlot) {
+    const weekOffset = state.adminBookingWeekOffset || 0;
+    
     return `
-        <!-- Smart Date/Time Picker -->
-        <div id="admin-smart-picker" class="bg-slate-50 dark:bg-slate-800/30 rounded-xl p-4">
+        <!-- Week Navigator -->
+        <div id="admin-smart-picker" class="bg-slate-50 dark:bg-slate-800/30 rounded-xl overflow-hidden">
             ${!smartSlots ? `
-                <div class="flex items-center justify-center gap-3 py-8">
+                <div class="flex items-center justify-center gap-3 py-12">
                     <div class="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                    <span class="text-sm text-slate-500">Loading smart availability...</span>
+                    <span class="text-sm text-slate-500">Loading availability...</span>
                 </div>
             ` : smartSlots.error ? `
-                <div class="text-center py-6">
+                <div class="text-center py-8 px-4">
                     <span class="material-symbols-outlined text-3xl text-amber-400 mb-2">warning</span>
-                    <p class="text-sm text-slate-600 dark:text-slate-300">Couldn't load smart availability.</p>
+                    <p class="text-sm text-slate-600 dark:text-slate-300">Couldn't load availability.</p>
                     ${smartSlots.reason ? `<p class="text-xs text-slate-400 mt-1">${escapeHtml(smartSlots.reason)}</p>` : ''}
-                    <p class="text-xs text-slate-400 mt-1">Use manual mode or check browser console for details.</p>
+                    <p class="text-xs text-slate-400 mt-1">Use manual mode instead.</p>
                 </div>
             ` : smartSlots.noGroomersInRegion ? `
-                <div class="text-center py-6">
+                <div class="text-center py-8 px-4">
                     <span class="material-symbols-outlined text-3xl text-amber-400 mb-2">person_off</span>
                     <p class="text-sm text-slate-600 dark:text-slate-300">No groomers cover this customer's area.</p>
                     <p class="text-xs text-slate-400 mt-1">Switch to manual mode to assign any groomer.</p>
                 </div>
             ` : (() => {
-                const best = smartSlots.bestAvailable || [];
-                const more = smartSlots.moreAvailable || [];
-                const allSlots = [...best, ...more];
-                
-                if (allSlots.length === 0) {
-                    return `
-                        <div class="text-center py-6">
-                            <span class="material-symbols-outlined text-3xl text-slate-400 mb-2">event_busy</span>
-                            <p class="text-sm text-slate-600 dark:text-slate-300">No available slots found in the next 30 days.</p>
-                            <p class="text-xs text-slate-400 mt-1">Try manual mode to pick a specific date.</p>
-                        </div>
-                    `;
-                }
+                const allSlots = [...(smartSlots.bestAvailable || []), ...(smartSlots.moreAvailable || [])];
+                const maxWeek = getMaxWeekOffset(allSlots);
+                const weekDates = getWeekDates(weekOffset);
+                const weekSlots = getSlotsForWeek(allSlots, weekOffset);
+                const grouped = groupSlotsByDate(weekSlots);
                 
                 return `
-                    ${best.length > 0 ? `
-                        <p class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-3">★ Best Matches (Nearby Appointments)</p>
-                        <div class="flex gap-2 overflow-x-auto pb-3 mb-4 -mx-1 px-1 snap-x">
-                            ${best.slice(0, 20).map(slot => {
-                                const isSelected = selectedSlot && selectedSlot.date === slot.date && selectedSlot.time === slot.time;
-                                return `
-                                    <button type="button" onclick="selectAdminSmartSlot('${slot.date}', '${slot.time}', '${slot.groomerId}')"
-                                        class="flex flex-col items-center p-3 rounded-xl border-2 transition-all min-w-[100px] snap-start ${isSelected ? 'border-primary bg-primary/10' : 'border-slate-200 dark:border-slate-600 hover:border-primary/50 bg-white dark:bg-slate-800'}">
-                                        <span class="text-xs font-bold ${isSelected ? 'text-primary' : 'text-slate-700 dark:text-slate-200'}">${slot.displayDate}</span>
-                                        <span class="text-sm font-bold ${isSelected ? 'text-primary' : 'text-slate-900 dark:text-white'} mt-0.5">${slot.displayTime}</span>
-                                        <span class="text-[10px] ${isSelected ? 'text-primary/70' : 'text-slate-400'} mt-1">${slot.groomerName || ''}</span>
-                                    </button>
-                                `;
-                            }).join('')}
+                    <!-- Week Header -->
+                    <div class="flex items-center justify-between px-4 py-3 bg-white dark:bg-surface-dark border-b border-slate-200 dark:border-slate-700">
+                        <button type="button" onclick="adminWeekNav(-1)" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors ${weekOffset <= 0 ? 'opacity-30 cursor-not-allowed' : ''}" ${weekOffset <= 0 ? 'disabled' : ''}>
+                            <span class="material-symbols-outlined text-slate-600 dark:text-slate-300">chevron_left</span>
+                        </button>
+                        <div class="text-center">
+                            <p class="font-bold text-slate-900 dark:text-white text-sm">${getWeekLabel(weekOffset)}</p>
+                            ${weekOffset === 0 ? '<p class="text-[10px] text-primary font-medium">This Week</p>' : ''}
                         </div>
-                    ` : ''}
+                        <button type="button" onclick="adminWeekNav(1)" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors ${weekOffset >= maxWeek ? 'opacity-30 cursor-not-allowed' : ''}" ${weekOffset >= maxWeek ? 'disabled' : ''}>
+                            <span class="material-symbols-outlined text-slate-600 dark:text-slate-300">chevron_right</span>
+                        </button>
+                    </div>
                     
-                    ${more.length > 0 ? `
-                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">More Available</p>
-                        <div class="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 snap-x">
-                            ${more.slice(0, 30).map(slot => {
-                                const isSelected = selectedSlot && selectedSlot.date === slot.date && selectedSlot.time === slot.time;
-                                return `
-                                    <button type="button" onclick="selectAdminSmartSlot('${slot.date}', '${slot.time}', '${slot.groomerId}')"
-                                        class="flex flex-col items-center p-3 rounded-xl border-2 transition-all min-w-[100px] snap-start ${isSelected ? 'border-primary bg-primary/10' : 'border-slate-200 dark:border-slate-600 hover:border-primary/50 bg-white dark:bg-slate-800'}">
-                                        <span class="text-xs font-bold ${isSelected ? 'text-primary' : 'text-slate-700 dark:text-slate-200'}">${slot.displayDate}</span>
-                                        <span class="text-sm font-bold ${isSelected ? 'text-primary' : 'text-slate-900 dark:text-white'} mt-0.5">${slot.displayTime}</span>
-                                        <span class="text-[10px] ${isSelected ? 'text-primary/70' : 'text-slate-400'} mt-1">${slot.groomerName || ''}</span>
-                                    </button>
-                                `;
-                            }).join('')}
-                        </div>
-                    ` : ''}
+                    <!-- Day Columns -->
+                    <div class="grid grid-cols-5 divide-x divide-slate-200 dark:divide-slate-700">
+                        ${weekDates.map(day => {
+                            const daySlots = grouped[day.dateStr] || [];
+                            const isToday = day.isToday;
+                            const isPast = day.isPast;
+                            
+                            return `
+                                <div class="flex flex-col ${isPast ? 'opacity-40' : ''}">
+                                    <!-- Day Header -->
+                                    <div class="px-1 py-2 text-center border-b border-slate-200 dark:border-slate-700 ${isToday ? 'bg-primary/10' : 'bg-white dark:bg-surface-dark'}">
+                                        <p class="text-[10px] font-bold uppercase tracking-wider ${isToday ? 'text-primary' : 'text-slate-400'}">${day.dayName}</p>
+                                        <p class="text-sm font-bold ${isToday ? 'text-primary' : 'text-slate-800 dark:text-white'}">${day.dayNum}</p>
+                                    </div>
+                                    
+                                    <!-- Time Slots -->
+                                    <div class="flex flex-col gap-1 p-1 min-h-[120px] bg-slate-50 dark:bg-slate-800/30">
+                                        ${daySlots.length > 0 ? daySlots.map(slot => {
+                                            const isSelected = selectedSlot && selectedSlot.date === slot.date && selectedSlot.time === slot.time;
+                                            return `
+                                                <button type="button" onclick="selectAdminSmartSlot('${slot.date}', '${slot.time}', '${slot.groomerId}')"
+                                                    class="w-full px-1 py-1.5 rounded-lg text-center transition-all ${isSelected 
+                                                        ? 'bg-primary text-white shadow-sm' 
+                                                        : 'bg-white dark:bg-slate-700 hover:bg-primary/10 hover:border-primary/30 border border-slate-200 dark:border-slate-600'}">
+                                                    <p class="text-xs font-bold ${isSelected ? 'text-white' : 'text-slate-800 dark:text-white'}">${slot.displayTime}</p>
+                                                    <p class="text-[9px] ${isSelected ? 'text-white/80' : 'text-slate-400'} truncate">${slot.groomerName?.split(' ')[0] || ''}</p>
+                                                </button>
+                                            `;
+                                        }).join('') : `
+                                            <div class="flex items-center justify-center h-full">
+                                                <p class="text-[10px] text-slate-300 dark:text-slate-600">${isPast ? 'Past' : 'No slots'}</p>
+                                            </div>
+                                        `}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                    
+                    <!-- Slot count -->
+                    <div class="px-4 py-2 bg-white dark:bg-surface-dark border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                        <p class="text-[10px] text-slate-400">${weekSlots.length} slot${weekSlots.length !== 1 ? 's' : ''} this week</p>
+                        <p class="text-[10px] text-slate-400">${allSlots.length} total over 3 months</p>
+                    </div>
                 `;
             })()}
         </div>
@@ -1281,6 +1302,22 @@ function selectAdminSmartSlot(date, time, groomerId) {
 function toggleAdminBookingMode() {
     state.adminManualBooking = !state.adminManualBooking;
     state.adminSelectedSlot = null;
+    state.adminBookingWeekOffset = 0;
+    render();
+}
+
+// Navigate weeks in admin smart booking
+function adminWeekNav(direction) {
+    const current = state.adminBookingWeekOffset || 0;
+    const newOffset = current + direction;
+    if (newOffset < 0) return;
+    
+    // Check max
+    const allSlots = [...(state.adminSmartSlots?.bestAvailable || []), ...(state.adminSmartSlots?.moreAvailable || [])];
+    const maxWeek = getMaxWeekOffset(allSlots);
+    if (newOffset > maxWeek) return;
+    
+    state.adminBookingWeekOffset = newOffset;
     render();
 }
 

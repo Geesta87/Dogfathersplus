@@ -882,7 +882,7 @@ const APPOINTMENT_SLOTS = ['07:00', '09:00', '11:00', '13:00', '15:00', '17:00']
 const SLOT_DURATION_MINUTES = 120;
 
 // Get smart date/time recommendations for booking (Multi-Groomer System)
-async function getSmartDateRecommendations(customerLat, customerLng, daysAhead = 30) {
+async function getSmartDateRecommendations(customerLat, customerLng, daysAhead = 90) {
     if (!customerLat || !customerLng) {
         _log('No customer coordinates for smart booking');
         return { bestAvailable: [], moreAvailable: [], noCoordinates: true };
@@ -931,15 +931,13 @@ function processAvailableSlots(slots, customerLat, customerLng) {
         return a.slot_time.localeCompare(b.slot_time);
     });
     
-    // Categorize: Best (<10 miles) vs More Available
+    // Categorize: Best (<10 miles) vs More Available — no artificial caps
     const bestAvailable = sortedSlots
         .filter(s => s.distance_from_prev !== null && s.distance_from_prev < 10)
-        .slice(0, 60)
         .map(s => formatSlotForDisplay(s));
     
     const moreAvailable = sortedSlots
         .filter(s => s.distance_from_prev === null || s.distance_from_prev >= 10)
-        .slice(0, 120)
         .map(s => formatSlotForDisplay(s));
     
     _log('Smart booking results:', { bestAvailable: bestAvailable.length, moreAvailable: moreAvailable.length });
@@ -961,6 +959,77 @@ function formatSlotForDisplay(slot) {
         displayDate: dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
         displayTime: formatTime(slot.slot_time)
     };
+}
+
+// Get the Monday of a given week offset (0 = this week, 1 = next week, etc.)
+function getWeekStartDate(weekOffset = 0) {
+    const now = new Date();
+    const day = now.getDay(); // 0=Sun, 1=Mon...
+    const diffToMonday = day === 0 ? -6 : 1 - day; // If Sunday, go back 6 days
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + diffToMonday + (weekOffset * 7));
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+}
+
+// Get week date range label (e.g. "Feb 17 - Feb 21")
+function getWeekLabel(weekOffset) {
+    const monday = getWeekStartDate(weekOffset);
+    const friday = new Date(monday);
+    friday.setDate(monday.getDate() + 4);
+    
+    const opts = { month: 'short', day: 'numeric' };
+    return `${monday.toLocaleDateString('en-US', opts)} - ${friday.toLocaleDateString('en-US', opts)}`;
+}
+
+// Get all dates (Mon-Fri) for a given week offset
+function getWeekDates(weekOffset) {
+    const monday = getWeekStartDate(weekOffset);
+    const dates = [];
+    for (let i = 0; i < 5; i++) { // Mon-Fri
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        dates.push({
+            dateStr: d.toISOString().split('T')[0],
+            dayName: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'][i],
+            dayNum: d.getDate(),
+            monthShort: d.toLocaleDateString('en-US', { month: 'short' }),
+            isToday: d.toISOString().split('T')[0] === new Date().toISOString().split('T')[0],
+            isPast: d < new Date(new Date().setHours(0,0,0,0))
+        });
+    }
+    return dates;
+}
+
+// Filter slots for a specific week
+function getSlotsForWeek(allSlots, weekOffset) {
+    const dates = getWeekDates(weekOffset);
+    const dateSet = new Set(dates.map(d => d.dateStr));
+    return allSlots.filter(s => dateSet.has(s.date));
+}
+
+// Group slots by date for week view
+function groupSlotsByDate(slots) {
+    const grouped = {};
+    slots.forEach(s => {
+        if (!grouped[s.date]) grouped[s.date] = [];
+        grouped[s.date].push(s);
+    });
+    // Sort times within each date
+    Object.keys(grouped).forEach(date => {
+        grouped[date].sort((a, b) => a.time.localeCompare(b.time));
+    });
+    return grouped;
+}
+
+// Get max week offset (how far ahead we have slots)
+function getMaxWeekOffset(allSlots) {
+    if (!allSlots || allSlots.length === 0) return 0;
+    const lastDate = allSlots.reduce((max, s) => s.date > max ? s.date : max, '');
+    const lastDateObj = new Date(lastDate + 'T12:00:00');
+    const now = new Date();
+    const diffWeeks = Math.ceil((lastDateObj - now) / (7 * 24 * 60 * 60 * 1000));
+    return Math.max(0, diffWeeks);
 }
 
 // JavaScript fallback calculation for available slots
@@ -1103,7 +1172,7 @@ async function calculateAvailableSlotsJS(customerLat, customerLng, startDate, en
 }
 
 // Legacy function for compatibility - redirects to new system
-async function getSmartDateRecommendationsLegacy(customerLat, customerLng, daysAhead = 30) {
+async function getSmartDateRecommendationsLegacy(customerLat, customerLng, daysAhead = 90) {
     const result = await getSmartDateRecommendations(customerLat, customerLng, daysAhead);
     
     // Convert new format to old format for backward compatibility

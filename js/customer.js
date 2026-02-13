@@ -2065,10 +2065,6 @@ function renderSmartDatePicker(smartData, selectedSlot) {
     // Support both old and new format
     const { bestAvailable, moreAvailable, recommended, goodOptions, available, noCoordinates, noGroomersInRegion, error } = smartData;
     
-    // Use new format if available, otherwise fall back to old
-    const best = bestAvailable || recommended || [];
-    const more = moreAvailable || [...(goodOptions || []), ...(available || [])];
-    
     if (noCoordinates) {
         return `
             <div class="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl">
@@ -2106,71 +2102,112 @@ function renderSmartDatePicker(smartData, selectedSlot) {
         `;
     }
     
-    // Render slot card (date + time)
-    const renderSlotCard = (slot, isSelected) => {
-        // Handle both old format (date only) and new format (date + time)
-        const hasTime = slot.time || slot.displayTime;
-        const slotKey = hasTime ? `${slot.date}_${slot.time}` : slot.date;
-        const selectedKey = (selectedSlot && typeof selectedSlot === 'object') ? `${selectedSlot.date}_${selectedSlot.time}` : selectedSlot;
-        const isSlotSelected = slotKey === selectedKey || slot.date === selectedSlot;
-        
-        // Format display
-        const displayDate = slot.displayDate || formatDate(slot.date, { weekday: 'short', month: 'short', day: 'numeric' });
-        const displayTime = slot.displayTime || (slot.time ? formatTime(slot.time) : '');
-        
+    // Merge all slots
+    const best = bestAvailable || recommended || [];
+    const more = moreAvailable || [...(goodOptions || []), ...(available || [])];
+    const allSlots = [...best, ...more];
+    
+    if (allSlots.length === 0) {
         return `
-            <button type="button" onclick="selectBookingSlot('${slot.date}', '${slot.time || ''}', '${slot.groomerId || ''}')" 
-                class="flex flex-col items-center p-4 rounded-xl border-2 transition-all min-w-[110px] min-h-[70px] touch-target active:scale-95 ${isSlotSelected ? 'border-primary bg-primary/10 dark:bg-primary/20' : 'border-slate-200 dark:border-slate-600 hover:border-primary/50 bg-white dark:bg-slate-800'}">
-                <span class="text-sm font-semibold ${isSlotSelected ? 'text-primary' : 'text-slate-700 dark:text-slate-200'}">${displayDate}</span>
-                ${displayTime ? `<span class="text-lg font-bold ${isSlotSelected ? 'text-primary' : 'text-slate-900 dark:text-white'} mt-1">${displayTime}</span>` : ''}
-            </button>
-        `;
-    };
-    
-    let html = '<div class="space-y-4">';
-    
-    // Best Available Times
-    if (best.length > 0) {
-        html += `
-            <div>
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="material-symbols-outlined text-emerald-600 fill-1">star</span>
-                    <span class="font-semibold text-emerald-700 dark:text-emerald-400">Best Available Times</span>
-                </div>
-                <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                    ${best.slice(0, 20).map(s => renderSlotCard(s, selectedSlot)).join('')}
-                </div>
-            </div>
-        `;
-    }
-    
-    // More Available Times
-    if (more.length > 0) {
-        html += `
-            <div>
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="material-symbols-outlined text-slate-500">calendar_today</span>
-                    <span class="font-semibold text-slate-700 dark:text-slate-300">More Available Times</span>
-                </div>
-                <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                    ${more.slice(0, 30).map(s => renderSlotCard(s, selectedSlot)).join('')}
-                </div>
-            </div>
-        `;
-    }
-    
-    // No times available message
-    if (best.length === 0 && more.length === 0) {
-        html += `
             <div class="p-4 bg-slate-100 dark:bg-slate-800 rounded-xl text-center">
                 <span class="material-symbols-outlined text-4xl text-slate-400 mb-2">event_busy</span>
-                <p class="text-slate-600 dark:text-slate-400">No available times in the next 30 days. Please call us to schedule.</p>
+                <p class="text-slate-600 dark:text-slate-400">No available times in the next 3 months. Please call us at (626) 863-6926 to schedule.</p>
             </div>
         `;
     }
     
-    html += '</div>';
-    return html;
+    // Week navigation
+    const weekOffset = state.customerBookingWeekOffset || 0;
+    const maxWeek = getMaxWeekOffset(allSlots);
+    const weekDates = getWeekDates(weekOffset);
+    const weekSlots = getSlotsForWeek(allSlots, weekOffset);
+    const grouped = groupSlotsByDate(weekSlots);
+    
+    return `
+        <div class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+            <!-- Week Header -->
+            <div class="flex items-center justify-between px-4 py-3 bg-white dark:bg-surface-dark border-b border-slate-200 dark:border-slate-700">
+                <button type="button" onclick="customerWeekNav(-1)" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors active:scale-95 ${weekOffset <= 0 ? 'opacity-30 pointer-events-none' : ''}" ${weekOffset <= 0 ? 'disabled' : ''}>
+                    <span class="material-symbols-outlined text-slate-600 dark:text-slate-300">chevron_left</span>
+                </button>
+                <div class="text-center">
+                    <p class="font-bold text-slate-900 dark:text-white text-sm">${getWeekLabel(weekOffset)}</p>
+                    ${weekOffset === 0 ? '<p class="text-[10px] text-primary font-medium">This Week</p>' : ''}
+                </div>
+                <button type="button" onclick="customerWeekNav(1)" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors active:scale-95 ${weekOffset >= maxWeek ? 'opacity-30 pointer-events-none' : ''}" ${weekOffset >= maxWeek ? 'disabled' : ''}>
+                    <span class="material-symbols-outlined text-slate-600 dark:text-slate-300">chevron_right</span>
+                </button>
+            </div>
+            
+            <!-- Day Columns -->
+            <div class="grid grid-cols-5 divide-x divide-slate-200 dark:divide-slate-700">
+                ${weekDates.map(day => {
+                    const daySlots = grouped[day.dateStr] || [];
+                    const isToday = day.isToday;
+                    const isPast = day.isPast;
+                    
+                    return `
+                        <div class="flex flex-col ${isPast ? 'opacity-40' : ''}">
+                            <!-- Day Header -->
+                            <div class="px-1 py-2 text-center border-b border-slate-200 dark:border-slate-700 ${isToday ? 'bg-primary/10' : 'bg-slate-50 dark:bg-slate-800/50'}">
+                                <p class="text-[10px] font-bold uppercase tracking-wider ${isToday ? 'text-primary' : 'text-slate-400'}">${day.dayName}</p>
+                                <p class="text-base font-bold ${isToday ? 'text-primary' : 'text-slate-800 dark:text-white'}">${day.dayNum}</p>
+                            </div>
+                            
+                            <!-- Time Slots -->
+                            <div class="flex flex-col gap-1.5 p-1.5 min-h-[140px] bg-white dark:bg-slate-800/30">
+                                ${daySlots.length > 0 && !isPast ? daySlots.map(slot => {
+                                    const isSelected = selectedSlot && selectedSlot.date === slot.date && selectedSlot.time === slot.time;
+                                    return `
+                                        <button type="button" onclick="selectBookingSlot('${slot.date}', '${slot.time}', '${slot.groomerId || ''}')"
+                                            class="w-full px-1 py-2 rounded-lg text-center transition-all active:scale-95 ${isSelected 
+                                                ? 'bg-primary text-white shadow-sm' 
+                                                : 'bg-slate-50 dark:bg-slate-700 hover:bg-primary/10 border border-slate-200 dark:border-slate-600'}">
+                                            <p class="text-xs font-bold ${isSelected ? 'text-white' : 'text-slate-800 dark:text-white'}">${slot.displayTime}</p>
+                                        </button>
+                                    `;
+                                }).join('') : `
+                                    <div class="flex items-center justify-center h-full">
+                                        <p class="text-[10px] text-slate-300 dark:text-slate-600">${isPast ? '—' : 'No slots'}</p>
+                                    </div>
+                                `}
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+            
+            <!-- Footer -->
+            <div class="px-4 py-2 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700">
+                <p class="text-[10px] text-slate-400 text-center">${weekSlots.length} available slot${weekSlots.length !== 1 ? 's' : ''} this week · Swipe weeks with arrows</p>
+            </div>
+        </div>
+    `;
+}
+
+// Navigate weeks in customer booking
+function customerWeekNav(direction) {
+    const current = state.customerBookingWeekOffset || 0;
+    const newOffset = current + direction;
+    if (newOffset < 0) return;
+    
+    // Check max from stored data
+    const data = state.smartBookingData;
+    if (!data) return;
+    const allSlots = [...(data.bestAvailable || []), ...(data.moreAvailable || [])];
+    const maxWeek = getMaxWeekOffset(allSlots);
+    if (newOffset > maxWeek) return;
+    
+    state.customerBookingWeekOffset = newOffset;
+    
+    // Patch just the picker container
+    const pickerContainer = document.getElementById('smart-date-picker');
+    if (pickerContainer) {
+        const selectedSlot = (state.selectedBookingDate && state.selectedBookingTime) 
+            ? { date: state.selectedBookingDate, time: state.selectedBookingTime } 
+            : null;
+        pickerContainer.innerHTML = renderSmartDatePicker(data, selectedSlot);
+    }
 }
 
 // Select a booking slot (date + time + groomer)
@@ -2291,6 +2328,7 @@ async function loadSmartDatePicker() {
         
         state.smartBookingData = recommendations;
         state.selectedBookingDate = null;
+        state.customerBookingWeekOffset = 0;
         
         pickerContainer.innerHTML = renderSmartDatePicker(recommendations, null);
         
