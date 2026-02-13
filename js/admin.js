@@ -1056,7 +1056,7 @@ function renderAdminSmartBooking(services, groomers, regionGroomers, today, smar
                                     
                                     <!-- Time Slots -->
                                     <div class="flex flex-col gap-1 p-1 min-h-[120px] bg-slate-50 dark:bg-slate-800/30">
-                                        ${daySlots.length > 0 ? daySlots.map(slot => {
+                                        ${daySlots.length > 0 && !isPast ? daySlots.map(slot => {
                                             const isSelected = selectedSlot && selectedSlot.date === slot.date && selectedSlot.time === slot.time;
                                             return `
                                                 <button type="button" onclick="selectAdminSmartSlot('${slot.date}', '${slot.time}', '${slot.groomerId}')"
@@ -4320,7 +4320,7 @@ function renderAdminContent() {
         <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6 pb-2">
             <div>
                 <p class="text-admin-primary text-xs sm:text-sm font-bold uppercase tracking-widest mb-1 sm:mb-2">Premium Management</p>
-                <h1 class="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">Welcome back, ${state.currentUser.name.split(' ')[0]}</h1>
+                <h1 class="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">Welcome back, ${(state.currentUser.name || 'Admin').split(' ')[0]}</h1>
                 <p class="text-slate-500 text-sm sm:text-base font-medium mt-1 sm:mt-2 flex items-center gap-2"><span class="material-symbols-outlined text-base sm:text-lg text-admin-primary">calendar_today</span>Your schedule is looking great today</p>
             </div>
             <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">

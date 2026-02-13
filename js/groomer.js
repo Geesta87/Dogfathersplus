@@ -118,7 +118,7 @@ async function handleGroomerLogin(email, password) {
         setupRealtimeSubscriptions();
         
         hideLoading();
-        showToast(`Welcome, ${state.currentUser.name}!`, 'success');
+        showToast(`Welcome, ${state.currentUser.name || 'Groomer'}!`, 'success');
         render();
         
     } catch (err) {
@@ -735,13 +735,13 @@ function renderGroomerDashboard() {
         <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
         <div class="absolute bottom-20 lg:bottom-24 right-4 lg:right-8 glass-card rounded-2xl p-2 shadow-2xl animate-scale-up" onclick="event.stopPropagation()">
             <div class="space-y-1">
-                <button onclick="alert('Call admin to add appointment'); closeQuickActions();" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors touch-target">
+                <button onclick="showToast('Contact admin to add appointments', 'info'); closeQuickActions();" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors touch-target">
                     <div class="w-10 h-10 rounded-full bg-groomer-primary/10 flex items-center justify-center">
                         <span class="material-symbols-outlined text-groomer-primary">event</span>
                     </div>
                     <span class="font-medium text-slate-700 dark:text-slate-300 pr-4">New Appointment</span>
                 </button>
-                <button onclick="window.location.href='tel:+13235551234'; closeQuickActions();" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors touch-target">
+                <button onclick="window.location.href='tel:+16268636926'; closeQuickActions();" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors touch-target">
                     <div class="w-10 h-10 rounded-full bg-tech-purple/10 flex items-center justify-center">
                         <span class="material-symbols-outlined text-tech-purple">call</span>
                     </div>
