@@ -1535,7 +1535,15 @@ function toggleDarkMode() {
 // Password Toggle
 function togglePassword() {
     state.showPassword = !state.showPassword;
-    render();
+    const input = document.getElementById('auth-password');
+    if (input) {
+        input.type = state.showPassword ? 'text' : 'password';
+    }
+    // Update the eye icon
+    const btn = input?.parentElement?.querySelector('.material-symbols-outlined');
+    if (btn) {
+        btn.textContent = state.showPassword ? 'visibility_off' : 'visibility';
+    }
 }
 
 // Remember Me Toggle
