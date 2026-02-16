@@ -414,12 +414,13 @@ async function loadUserProfile(userId) {
 async function loadPublicData() {
     try {
         // Run all queries in parallel for faster loading
-        const [servicesResult, productsResult, rewardsResult, packagesResult, hoursResult] = await Promise.all([
+        const [servicesResult, productsResult, rewardsResult, packagesResult, hoursResult, groomersResult] = await Promise.all([
             supabaseClient.from('services').select('*').order('sort_order'),
             supabaseClient.from('products').select('*').order('sort_order'),
             supabaseClient.from('rewards').select('*').eq('is_active', true),
             supabaseClient.from('ride_along_packages').select('*').eq('is_active', true).order('sort_order'),
-            supabaseClient.from('business_hours').select('*').order('day_of_week')
+            supabaseClient.from('business_hours').select('*').order('day_of_week'),
+            supabaseClient.from('profiles').select('id, full_name, phone, email, service_regions, is_active').eq('role', 'groomer')
         ]);
         
         if (servicesResult.error) console.error('Services load error:', servicesResult.error);
@@ -437,6 +438,18 @@ async function loadPublicData() {
         
         if (hoursResult.error) console.error('Hours load error:', hoursResult.error);
         state.businessHours = hoursResult.data || [];
+        
+        // Load groomers for coverage checks (customer booking needs this)
+        if (groomersResult.error) console.error('Groomers load error:', groomersResult.error);
+        if (!state.groomers || state.groomers.length === 0) {
+            state.groomers = (groomersResult.data || []).map(g => ({
+                ...g,
+                monthlyAppointments: 0,
+                monthlyRevenue: 0,
+                completedCount: 0
+            }));
+        }
+        _log('Groomers loaded (public):', state.groomers.length);
     } catch (err) {
         console.error('Failed to load public data:', err);
     }
