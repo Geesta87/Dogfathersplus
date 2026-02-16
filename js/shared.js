@@ -172,6 +172,7 @@ let state = {
     adminGalleryDateFilter: 'all', // 'all', 'week', 'month'
     adminGallerySearch: '',
     adminGalleryLightbox: null, // appointment object for fullscreen view
+    editingGroomerAvailability: [], // availability data when editing a groomer
     filteredAppointmentsCount: 0,
     // Quick View Modal
     quickViewAppointment: null,

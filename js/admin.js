@@ -217,6 +217,9 @@ function renderAddGroomerModal() {
                     </div>
                 </div>
                 
+                <!-- Weekly Availability -->
+                ${renderAdminAvailabilitySection('add-groomer', null)}
+                
                 <!-- Admin Notes -->
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Admin Notes <span class="font-normal text-slate-400">(internal only)</span></label>
@@ -1422,6 +1425,9 @@ function renderEditGroomerModal() {
                     </div>
                 </div>
                 
+                <!-- Weekly Availability -->
+                ${renderAdminAvailabilitySection('edit-groomer', state.editingGroomerAvailability || [])}
+                
                 <!-- Admin Notes -->
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Admin Notes</label>
@@ -1717,8 +1723,26 @@ function openEditGroomerModal(groomerId) {
     const groomer = state.groomers.find(g => g.id === groomerId);
     if (groomer) {
         state.editingGroomer = groomer;
+        state.editingGroomerAvailability = [];
         state.showEditGroomerModal = true;
         render();
+        
+        // Load existing availability async, then re-render
+        supabaseClient
+            .from('groomer_availability')
+            .select('*')
+            .eq('groomer_id', groomerId)
+            .order('day_of_week')
+            .then(({ data }) => {
+                state.editingGroomerAvailability = data || [];
+                render();
+                // Re-attach form listener after re-render
+                setTimeout(() => {
+                    const form = document.getElementById('edit-groomer-form');
+                    if (form) form.addEventListener('submit', handleEditGroomer);
+                }, 100);
+            });
+        
         // Attach form listener after render
         setTimeout(() => {
             const form = document.getElementById('edit-groomer-form');
@@ -1850,6 +1874,7 @@ async function handleAddGroomer(e) {
             }
             
             await loadAdminData();
+            await saveGroomerAvailabilityFromAdmin(existingProfile.id, 'add-groomer');
             hideLoading();
             closeAddGroomerModal();
             showToast(`"${name || existingProfile.full_name}" converted to groomer! They use their existing password.`, 'success');
@@ -1930,6 +1955,7 @@ async function handleAddGroomer(e) {
         
         // Reload admin data
         await loadAdminData();
+        await saveGroomerAvailabilityFromAdmin(newUserId, 'add-groomer');
         
         hideLoading();
         closeAddGroomerModal();
@@ -1981,6 +2007,7 @@ async function handleEditGroomer(e) {
         }
         
         await loadAdminData();
+        await saveGroomerAvailabilityFromAdmin(groomerId, 'edit-groomer');
         hideLoading();
         closeEditGroomerModal();
         showToast('Groomer updated successfully!', 'success');
@@ -1989,6 +2016,89 @@ async function handleEditGroomer(e) {
         hideLoading();
         console.error('Edit groomer error:', err);
         showToast('Failed to update groomer: ' + err.message, 'error');
+    }
+}
+
+// Render availability editor section for Add/Edit Groomer modals
+function renderAdminAvailabilitySection(prefix, existingAvailability) {
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayAbbr = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const avail = existingAvailability || [];
+    const availMap = {};
+    avail.forEach(a => { availMap[a.day_of_week] = a; });
+    
+    return `
+    <div>
+        <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+            <span class="material-symbols-outlined text-base">schedule</span>Weekly Availability
+        </label>
+        <div class="space-y-2">
+            ${dayNames.map((day, idx) => {
+                const existing = availMap[idx];
+                const isOn = existing ? existing.is_available : (idx >= 1 && idx <= 5);
+                const startTime = existing ? (existing.start_time || '08:00').substring(0, 5) : '08:00';
+                const endTime = existing ? (existing.end_time || '17:00').substring(0, 5) : '17:00';
+                return `
+                <div class="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 dark:border-border-dark ${isOn ? 'bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800' : 'bg-slate-50 dark:bg-slate-800/50 opacity-60'}">
+                    <label class="flex items-center gap-2 cursor-pointer min-w-[80px]">
+                        <input type="checkbox" name="${prefix}-avail-day" value="${idx}" ${isOn ? 'checked' : ''} onchange="toggleAdminAvailDay(this, '${prefix}', ${idx})" class="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
+                        <span class="text-sm font-medium text-slate-700 dark:text-slate-300">${dayAbbr[idx]}</span>
+                    </label>
+                    <div class="flex items-center gap-2 flex-1 ${isOn ? '' : 'pointer-events-none opacity-40'}" id="${prefix}-avail-times-${idx}">
+                        <input type="time" id="${prefix}-avail-start-${idx}" value="${startTime}" class="px-2 py-1.5 rounded-lg border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-sm text-slate-900 dark:text-white">
+                        <span class="text-xs text-slate-400">to</span>
+                        <input type="time" id="${prefix}-avail-end-${idx}" value="${endTime}" class="px-2 py-1.5 rounded-lg border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-sm text-slate-900 dark:text-white">
+                    </div>
+                </div>`;
+            }).join('')}
+        </div>
+        <p class="mt-2 text-xs text-slate-400">Set working hours for each day. Unchecked days are off.</p>
+    </div>`;
+}
+
+function toggleAdminAvailDay(checkbox, prefix, dayIdx) {
+    const timesDiv = document.getElementById(`${prefix}-avail-times-${dayIdx}`);
+    if (timesDiv) {
+        if (checkbox.checked) {
+            timesDiv.classList.remove('pointer-events-none', 'opacity-40');
+            checkbox.closest('.flex').classList.add('bg-emerald-50/50', 'dark:bg-emerald-900/10', 'border-emerald-200', 'dark:border-emerald-800');
+            checkbox.closest('.flex').classList.remove('bg-slate-50', 'dark:bg-slate-800/50', 'opacity-60');
+        } else {
+            timesDiv.classList.add('pointer-events-none', 'opacity-40');
+            checkbox.closest('.flex').classList.remove('bg-emerald-50/50', 'dark:bg-emerald-900/10', 'border-emerald-200', 'dark:border-emerald-800');
+            checkbox.closest('.flex').classList.add('bg-slate-50', 'dark:bg-slate-800/50', 'opacity-60');
+        }
+    }
+}
+
+async function saveGroomerAvailabilityFromAdmin(groomerId, prefix) {
+    try {
+        const updates = [];
+        for (let i = 0; i < 7; i++) {
+            const checkbox = document.querySelector(`input[name="${prefix}-avail-day"][value="${i}"]`);
+            const startInput = document.getElementById(`${prefix}-avail-start-${i}`);
+            const endInput = document.getElementById(`${prefix}-avail-end-${i}`);
+            
+            updates.push({
+                groomer_id: groomerId,
+                day_of_week: i,
+                is_available: checkbox ? checkbox.checked : false,
+                start_time: (startInput ? startInput.value : '08:00') + ':00',
+                end_time: (endInput ? endInput.value : '17:00') + ':00'
+            });
+        }
+        
+        const { error } = await supabaseClient
+            .from('groomer_availability')
+            .upsert(updates, { onConflict: 'groomer_id,day_of_week' });
+        
+        if (error) {
+            console.error('Availability save error:', error);
+        } else {
+            _log('Groomer availability saved:', updates.filter(u => u.is_available).length, 'active days');
+        }
+    } catch (err) {
+        console.error('Failed to save groomer availability:', err);
     }
 }
 

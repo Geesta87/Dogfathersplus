@@ -3510,13 +3510,17 @@ function renderGroomerAvailabilityContent() {
                     </div>
                     <div>
                         <h2 class="font-bold text-slate-900 dark:text-white">Weekly Schedule</h2>
-                        <p class="text-sm text-slate-500 dark:text-slate-400">Your regular working hours <span class="text-xs">(Pacific Time)</span></p>
+                        <p class="text-sm text-slate-500 dark:text-slate-400">Your regular working hours <span class="text-xs">(set by admin · Pacific Time)</span></p>
                     </div>
                 </div>
-                <button onclick="openAvailabilityEditor()" class="flex items-center gap-2 px-4 py-2 bg-groomer-primary hover:bg-groomer-primary/90 text-white rounded-xl font-bold text-sm transition-colors">
+                <button onclick="openAvailabilityEditor()" class="flex items-center gap-2 px-4 py-2 bg-groomer-primary hover:bg-groomer-primary/90 text-white rounded-xl font-bold text-sm transition-colors" style="display:none;">
                     <span class="material-symbols-outlined text-lg">edit</span>
                     Edit Schedule
                 </button>
+                <span class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg text-xs font-medium">
+                    <span class="material-symbols-outlined text-sm">lock</span>
+                    Managed by admin
+                </span>
             </div>
             
             <div class="p-5">
