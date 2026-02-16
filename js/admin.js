@@ -2813,7 +2813,7 @@ function confirmDeleteRideAlong(id, name) {
             hideLoading();
             showToast('Error: ' + err.message, 'error');
         }
-    });
+    }, () => {}, 'Delete');
 }
 
 // Inline Course Save (from education tab form)
@@ -3491,7 +3491,7 @@ function confirmDeletePet(id, name) {
             hideLoading();
             showToast('Error: ' + err.message, 'error');
         }
-    });
+    }, () => {}, 'Archive');
 }
 
 function confirmDeleteReward(id, name) {
@@ -3514,7 +3514,7 @@ function confirmDeleteReward(id, name) {
             hideLoading();
             showToast('Error: ' + err.message, 'error');
         }
-    });
+    }, () => {}, 'Delete');
 }
 
 function confirmDeleteProduct(id, name) {
@@ -3537,7 +3537,7 @@ function confirmDeleteProduct(id, name) {
             hideLoading();
             showToast('Error: ' + err.message, 'error');
         }
-    });
+    }, () => {}, 'Delete');
 }
 
 // =============================================
@@ -3617,7 +3617,7 @@ function confirmDeleteAppointment(appointmentId) {
             hideLoading();
             showToast('Error: ' + err.message, 'error');
         }
-    });
+    }, () => {}, 'Delete');
 }
 
 // Appointment pagination

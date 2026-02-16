@@ -1466,8 +1466,9 @@ function showToast(message, type = 'success', duration = 3000) {
 }
 
 // Confirm Dialog System
-function showConfirm(title, message, onConfirm, onCancel = () => {}) {
+function showConfirm(title, message, onConfirm, onCancel = () => {}, confirmText = 'Confirm') {
     const modal = document.getElementById('confirm-modal');
+    const isDestructive = confirmText === 'Delete';
     modal.innerHTML = `
         <div class="fixed inset-0 z-[150] bg-black/50 flex items-center justify-center p-4" onclick="closeConfirm()">
             <div class="bg-white dark:bg-surface-dark rounded-2xl shadow-2xl max-w-md w-full p-6" onclick="event.stopPropagation()">
@@ -1482,7 +1483,7 @@ function showConfirm(title, message, onConfirm, onCancel = () => {}) {
                 </div>
                 <div class="flex gap-3 mt-6">
                     <button onclick="closeConfirm()" class="flex-1 h-11 rounded-lg border border-border-light dark:border-border-dark font-bold hover:bg-background-light dark:hover:bg-background-dark dark:text-white touch-target">Cancel</button>
-                    <button onclick="confirmAction()" class="flex-1 h-11 rounded-lg bg-red-500 hover:bg-red-600 text-white font-bold touch-target">Delete</button>
+                    <button onclick="confirmAction()" class="flex-1 h-11 rounded-lg ${isDestructive ? 'bg-red-500 hover:bg-red-600' : 'bg-primary hover:bg-sky-600'} text-white font-bold touch-target">${confirmText}</button>
                 </div>
             </div>
         </div>`;
@@ -1555,7 +1556,9 @@ function deleteItem(type, id, name) {
                 showToast(`${name} has been deleted`, 'success');
             });
             render();
-        }
+        },
+        () => {},
+        'Delete'
     );
 }
 
@@ -1610,7 +1613,9 @@ function logout() {
         'Are you sure you want to sign out?',
         async () => {
             await handleSignOut();
-        }
+        },
+        () => {},
+        'Sign Out'
     );
 }
 

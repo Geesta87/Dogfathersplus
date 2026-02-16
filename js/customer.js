@@ -513,7 +513,7 @@ async function inquireRideAlong(packageId, packageName, packagePrice) {
                 showToast('Thank you for your interest! Please contact us directly.', 'info');
             }
         }
-    );
+    , () => {}, 'Inquire');
 }
 
 // =============================================
@@ -549,9 +549,11 @@ async function redeemReward(rewardId, rewardName, pointsRequired) {
                         status: 'pending'
                     });
                 
-                // If table doesn't exist, just deduct points anyway
-                if (redemptionError && redemptionError.code !== '42P01') {
+                if (redemptionError) {
                     console.error('Redemption record error:', redemptionError);
+                    hideLoading();
+                    showToast('Failed to record redemption. Please try again or contact support.', 'error');
+                    return;
                 }
                 
                 // Deduct points from user's profile
@@ -580,7 +582,7 @@ async function redeemReward(rewardId, rewardName, pointsRequired) {
                 showToast('Error: ' + err.message, 'error');
             }
         }
-    );
+    , () => {}, 'Redeem');
 }
 
 // Admin: Update appointment status
@@ -3011,7 +3013,7 @@ function rescheduleAppointment(appointmentId) {
             
             showToast('Pick a new date and time for ' + (appt.petName || 'your pet'), 'info');
         }
-    );
+    , () => {}, 'Reschedule');
 }
 
 function closeBookingModal() { 
