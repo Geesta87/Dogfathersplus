@@ -1,5 +1,5 @@
 // Dogfathers Plus Service Worker
-const CACHE_NAME = 'dogfathers-plus-v5';
+const CACHE_NAME = 'dogfathers-plus-v6';
 const DYNAMIC_CACHE = 'dogfathers-dynamic-v3';
 
 // Assets to cache on install

@@ -6040,18 +6040,32 @@ async function loadPendingRedemptions() {
             .rpc('get_pending_redemptions');
         
         if (error) {
-            // Fallback query
-            const { data: redemptions } = await supabaseClient
+            // Fallback query - use correct column names
+            const { data: redemptions, error: fallbackError } = await supabaseClient
                 .from('reward_redemptions')
                 .select(`
                     *,
-                    customer:customer_id(name, email, phone),
-                    reward:reward_id(name, type, points_cost)
+                    customer:customer_id(full_name, email, phone),
+                    reward:reward_id(name, points_cost)
                 `)
                 .in('status', ['pending', 'processing'])
-                .order('redeemed_at');
+                .order('created_at');
             
-            state.pendingRedemptions = redemptions || [];
+            if (fallbackError) {
+                console.error('Redemptions fallback error:', fallbackError);
+                state.pendingRedemptions = [];
+                return;
+            }
+            
+            // Map joined data to flat fields the UI expects
+            state.pendingRedemptions = (redemptions || []).map(r => ({
+                ...r,
+                customer_name: r.customer?.full_name || 'Customer',
+                customer_email: r.customer?.email || '',
+                customer_phone: r.customer?.phone || '',
+                reward_name: r.reward?.name || 'Reward',
+                points_cost: r.points_cost || r.reward?.points_cost || 0
+            }));
         } else {
             state.pendingRedemptions = data || [];
         }
