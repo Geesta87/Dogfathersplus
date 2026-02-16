@@ -6156,10 +6156,10 @@ async function loadPendingRedemptions() {
                 .select(`
                     *,
                     customer:customer_id(full_name, email, phone),
-                    reward:reward_id(name, points_cost)
+                    reward:reward_id(name, points_required)
                 `)
                 .in('status', ['pending', 'processing'])
-                .order('created_at');
+                .order('redeemed_at', { ascending: true });
             
             if (fallbackError) {
                 console.error('Redemptions fallback error:', fallbackError);
@@ -6174,7 +6174,7 @@ async function loadPendingRedemptions() {
                 customer_email: r.customer?.email || '',
                 customer_phone: r.customer?.phone || '',
                 reward_name: r.reward?.name || 'Reward',
-                points_cost: r.points_cost || r.reward?.points_cost || 0
+                points_cost: r.points_cost || r.reward?.points_required || 0
             }));
         } else {
             state.pendingRedemptions = data || [];
@@ -6262,7 +6262,7 @@ async function cancelRedemption(redemptionId, reason) {
             // Get redemption details first
             const { data: redemption } = await supabaseClient
                 .from('reward_redemptions')
-                .select('*, reward:reward_id(points_cost), customer_id')
+                .select('*, reward:reward_id(points_required), customer_id')
                 .eq('id', redemptionId)
                 .single();
             
@@ -6279,7 +6279,7 @@ async function cancelRedemption(redemptionId, reason) {
                     .eq('id', redemptionId);
                 
                 // Refund points to customer
-                const pointsToRefund = redemption.reward?.points_cost || 0;
+                const pointsToRefund = redemption.points_cost || redemption.reward?.points_required || 0;
                 if (pointsToRefund > 0 && redemption.customer_id) {
                     const { data: customer } = await supabaseClient
                         .from('profiles')
