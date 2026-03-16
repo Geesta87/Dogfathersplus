@@ -245,6 +245,8 @@ async function createAppointment(appointmentData) {
         base_price: appointmentData.price,
         total_price: appointmentData.price,
         customer_notes: appointmentData.notes,
+        dog_size: appointmentData.dogSize || null,
+        coat_type: appointmentData.coatType || null,
         status: 'confirmed' // Auto-confirm since slot was available
     };
     
@@ -1190,12 +1192,13 @@ function renderCustomerDashboard() {
         { id: 'dashboard', label: 'Dashboard', icon: 'home' },
         { id: 'pets', label: 'My Pets', icon: 'pets' },
         { id: 'appointments', label: 'Appointments', icon: 'calendar_month' },
+        { id: 'prices', label: 'Prices', icon: 'paid' },
         { id: 'rewards', label: 'Rewards', icon: 'loyalty' },
         { id: 'store', label: 'Store', icon: 'storefront' },
         { id: 'ridealongs', label: 'Ride-Alongs', icon: 'directions_car' },
         { id: 'education', label: 'Academy', icon: 'school' }
     ];
-    const isFullWidth = ['store', 'ridealongs', 'education'].includes(state.currentTab);
+    const isFullWidth = ['store', 'ridealongs', 'education', 'prices'].includes(state.currentTab);
 
     // PWA Install Banner (only shown when install is available)
     const installBanner = state.showInstallPrompt && !state.isPWA ? `
@@ -1826,6 +1829,10 @@ function renderCustomerContent() {
         </div>`;
     }
 
+    if (state.currentTab === 'prices') {
+        return renderPricesTab();
+    }
+
     if (state.currentTab === 'ridealongs') {
         return `
         <div class="min-h-screen">
@@ -1917,6 +1924,257 @@ function renderCustomerContent() {
     return '';
 }
 
+// ============ PRICES TAB ============
+function renderPricesTab() {
+    const pricing = state.servicePricing || [];
+    const services = (state.services || []).filter(s => s.is_active !== false);
+    const packages = services.filter(s => s.category === 'package' && !s.is_addon);
+    const extras = services.filter(s => s.category === 'extra');
+    const fees = services.filter(s => s.category === 'fee');
+
+    // Build pricing matrices for Ultimate and Deluxe
+    const sizes = ['small', 'medium', 'large', 'xl'];
+    const sizeLabels = { small: 'Small', medium: 'Medium', large: 'Large', xl: 'XL' };
+    const coatLabels = { short: 'Short', wire: 'Wire', soft: 'Soft', double: 'Double', doodle: 'Doodle' };
+
+    function buildPriceMatrix(serviceId) {
+        const rows = pricing.filter(p => p.service_id === serviceId);
+        if (rows.length === 0) return null;
+        const coatTypes = [...new Set(rows.map(r => r.coat_type))];
+        const ordered = ['short', 'wire', 'soft', 'double', 'doodle'].filter(c => coatTypes.includes(c));
+        return { coatTypes: ordered, rows };
+    }
+
+    function renderMatrix(service) {
+        const matrix = buildPriceMatrix(service.id);
+        if (!matrix) return '';
+        return `
+            <div class="overflow-x-auto -mx-4 px-4">
+                <table class="w-full text-sm border-collapse min-w-[400px]">
+                    <thead>
+                        <tr class="border-b border-border-light dark:border-border-dark">
+                            <th class="text-left py-3 pr-4 font-semibold text-text-sub-light dark:text-text-sub-dark">Coat Type</th>
+                            ${sizes.map(s => `<th class="py-3 px-3 text-center font-semibold text-text-sub-light dark:text-text-sub-dark">${sizeLabels[s]}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${matrix.coatTypes.map(coat => `
+                            <tr class="border-b border-border-light/50 dark:border-border-dark/50 hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors">
+                                <td class="py-3 pr-4 font-medium dark:text-white capitalize">${coatLabels[coat]}</td>
+                                ${sizes.map(size => {
+                                    const p = matrix.rows.find(r => r.size === size && r.coat_type === coat);
+                                    return `<td class="py-3 px-3 text-center font-bold ${p ? 'text-text-main-light dark:text-white' : 'text-slate-300 dark:text-slate-600'}">${p ? '$' + parseFloat(p.price).toFixed(0) : 'N/A'}</td>`;
+                                }).join('')}
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+    }
+
+    // Find Ultimate and Deluxe specifically
+    const ultimateService = services.find(s => s.name === 'Ultimate Spa Package');
+    const deluxeService = services.find(s => s.name === 'Deluxe Spa Package');
+    const flatPackages = packages.filter(s => s.name !== 'Ultimate Spa Package' && s.name !== 'Deluxe Spa Package');
+
+    return `
+    <div class="min-h-screen max-w-[900px] mx-auto px-4 md:px-8 py-6 md:py-10 flex flex-col gap-8">
+        <!-- Header -->
+        <div class="text-center">
+            <h1 class="text-3xl md:text-4xl font-black dark:text-white">Our Prices</h1>
+            <p class="text-text-sub-light dark:text-text-sub-dark mt-2">Professional mobile grooming — we come to you!</p>
+        </div>
+
+        <!-- Ultimate Spa Package -->
+        ${ultimateService ? `
+        <div class="bg-white dark:bg-surface-dark rounded-2xl border-2 border-primary shadow-lg overflow-hidden">
+            <div class="bg-gradient-to-r from-primary to-sky-500 p-5 md:p-6">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-white text-3xl">auto_awesome</span>
+                    <div>
+                        <h2 class="text-xl md:text-2xl font-black text-white">${ultimateService.name}</h2>
+                        <p class="text-white/80 text-sm">${ultimateService.description || ''}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 md:p-6">
+                ${renderMatrix(ultimateService)}
+                <p class="text-xs text-text-sub-light dark:text-text-sub-dark mt-3 italic">* Short coat not available for Ultimate Spa</p>
+            </div>
+        </div>` : ''}
+
+        <!-- Deluxe Spa Package -->
+        ${deluxeService ? `
+        <div class="bg-white dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark shadow-md overflow-hidden">
+            <div class="bg-gradient-to-r from-sky-600 to-cyan-500 p-5 md:p-6">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-white text-3xl">spa</span>
+                    <div>
+                        <h2 class="text-xl md:text-2xl font-black text-white">${deluxeService.name}</h2>
+                        <p class="text-white/80 text-sm">${deluxeService.description || ''}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 md:p-6">
+                ${renderMatrix(deluxeService)}
+            </div>
+        </div>` : ''}
+
+        <!-- Other Packages (flat price) -->
+        ${flatPackages.length > 0 ? `
+        <div class="bg-white dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark shadow-md overflow-hidden">
+            <div class="p-5 md:p-6 border-b border-border-light dark:border-border-dark">
+                <h2 class="text-xl font-bold dark:text-white flex items-center gap-2"><span class="material-symbols-outlined text-primary">content_cut</span>Other Packages</h2>
+            </div>
+            <div class="divide-y divide-border-light/50 dark:divide-border-dark/50">
+                ${flatPackages.map(s => `
+                    <div class="flex items-center justify-between p-4 md:px-6 hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors">
+                        <div>
+                            <p class="font-semibold dark:text-white">${escapeHtml(s.name)}</p>
+                            ${s.description ? `<p class="text-sm text-text-sub-light dark:text-text-sub-dark">${escapeHtml(s.description)}</p>` : ''}
+                        </div>
+                        <span class="text-lg font-black text-primary whitespace-nowrap ml-4">$${parseFloat(s.base_price).toFixed(0)}</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>` : ''}
+
+        <!-- Extras & Add-ons -->
+        ${extras.length > 0 ? `
+        <div class="bg-white dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark shadow-md overflow-hidden">
+            <div class="p-5 md:p-6 border-b border-border-light dark:border-border-dark">
+                <h2 class="text-xl font-bold dark:text-white flex items-center gap-2"><span class="material-symbols-outlined text-green-500">add_circle</span>Extras & Add-ons</h2>
+            </div>
+            <div class="divide-y divide-border-light/50 dark:divide-border-dark/50">
+                ${extras.map(s => `
+                    <div class="flex items-center justify-between p-4 md:px-6 hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors">
+                        <div>
+                            <p class="font-semibold dark:text-white">${escapeHtml(s.name)}</p>
+                            ${s.description ? `<p class="text-sm text-text-sub-light dark:text-text-sub-dark">${escapeHtml(s.description)}</p>` : ''}
+                        </div>
+                        <span class="text-lg font-black text-green-600 dark:text-green-400 whitespace-nowrap ml-4">${s.name === 'Vaccinations' ? 'From ' : ''}$${parseFloat(s.base_price).toFixed(0)}</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>` : ''}
+
+        <!-- Fees -->
+        ${fees.length > 0 ? `
+        <div class="bg-white dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark shadow-md overflow-hidden">
+            <div class="p-5 md:p-6 border-b border-border-light dark:border-border-dark">
+                <h2 class="text-xl font-bold dark:text-white flex items-center gap-2"><span class="material-symbols-outlined text-amber-500">info</span>Additional Fees</h2>
+            </div>
+            <div class="divide-y divide-border-light/50 dark:divide-border-dark/50">
+                ${fees.map(s => `
+                    <div class="flex items-center justify-between p-4 md:px-6 hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-colors">
+                        <div>
+                            <p class="font-semibold dark:text-white">${escapeHtml(s.name)}</p>
+                            ${s.description ? `<p class="text-sm text-text-sub-light dark:text-text-sub-dark">${escapeHtml(s.description)}</p>` : ''}
+                        </div>
+                        <span class="text-lg font-black text-amber-600 dark:text-amber-400 whitespace-nowrap ml-4">+$${parseFloat(s.base_price).toFixed(0)}</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>` : ''}
+
+        <!-- CTA -->
+        <div class="text-center py-6">
+            <button onclick="openBookingModal()" class="h-14 px-10 bg-primary hover:bg-primary/90 text-white font-bold text-lg rounded-xl shadow-lg shadow-primary/30 flex items-center gap-2 mx-auto transition-colors">
+                <span class="material-symbols-outlined">calendar_add_on</span>
+                Book Now
+            </button>
+        </div>
+
+        <footer class="border-t border-border-light dark:border-border-dark py-6 text-center">
+            <p class="text-xs text-text-sub-light dark:text-text-sub-dark">Prices subject to change. Contact us for custom quotes.</p>
+        </footer>
+    </div>`;
+}
+
+// ============ BOOKING PRICING HELPERS ============
+function serviceHasPricingMatrix(serviceId) {
+    if (!serviceId) return false;
+    return (state.servicePricing || []).some(p => p.service_id === serviceId);
+}
+
+function getCoatTypesForService(serviceId) {
+    const pricing = (state.servicePricing || []).filter(p => p.service_id === serviceId);
+    const coatTypes = [...new Set(pricing.map(p => p.coat_type))];
+    const order = ['short', 'wire', 'soft', 'double', 'doodle'];
+    return order.filter(c => coatTypes.includes(c));
+}
+
+function getMatrixPrice(serviceId, size, coatType) {
+    const match = (state.servicePricing || []).find(p => p.service_id === serviceId && p.size === size && p.coat_type === coatType);
+    return match ? parseFloat(match.price) : null;
+}
+
+function onBookingServiceChange(select) {
+    // Update description
+    showServiceDescription(select);
+
+    const serviceId = select?.value;
+    const wrapper = document.getElementById('booking-size-coat-wrapper');
+    const priceBox = document.getElementById('booking-calculated-price');
+
+    if (serviceHasPricingMatrix(serviceId)) {
+        // Show size/coat selectors
+        if (wrapper) wrapper.classList.remove('hidden');
+
+        // Populate coat type options
+        const coatSelect = document.getElementById('booking-coat-type');
+        const coatTypes = getCoatTypesForService(serviceId);
+        const labels = { short: 'Short', wire: 'Wire', soft: 'Soft', double: 'Double', doodle: 'Doodle' };
+        if (coatSelect) {
+            coatSelect.innerHTML = '<option value="">Select coat type</option>' + coatTypes.map(c => `<option value="${c}">${labels[c]}</option>`).join('');
+        }
+        if (priceBox) priceBox.classList.add('hidden');
+    } else {
+        // Hide size/coat selectors for flat-price services
+        if (wrapper) wrapper.classList.add('hidden');
+        if (priceBox) priceBox.classList.add('hidden');
+    }
+}
+
+function updateBookingPrice() {
+    const serviceSelect = document.getElementById('booking-service-select');
+    const sizeSelect = document.getElementById('booking-dog-size');
+    const coatSelect = document.getElementById('booking-coat-type');
+    const priceBox = document.getElementById('booking-calculated-price');
+    const priceDisplay = document.getElementById('booking-price-display');
+
+    const serviceId = serviceSelect?.value;
+    const size = sizeSelect?.value;
+    const coatType = coatSelect?.value;
+
+    if (!serviceId || !size || !coatType) {
+        if (priceBox) priceBox.classList.add('hidden');
+        return;
+    }
+
+    const price = getMatrixPrice(serviceId, size, coatType);
+    if (price !== null) {
+        if (priceDisplay) priceDisplay.textContent = '$' + price.toFixed(0);
+        if (priceBox) priceBox.classList.remove('hidden');
+    } else {
+        if (priceBox) priceBox.classList.add('hidden');
+    }
+}
+
+function getBookingPrice() {
+    const serviceSelect = document.getElementById('booking-service-select');
+    const serviceId = serviceSelect?.value;
+
+    if (serviceHasPricingMatrix(serviceId)) {
+        const size = document.getElementById('booking-dog-size')?.value;
+        const coatType = document.getElementById('booking-coat-type')?.value;
+        const matrixPrice = getMatrixPrice(serviceId, size, coatType);
+        if (matrixPrice !== null) return matrixPrice;
+    }
+
+    return parseFloat(serviceSelect?.selectedOptions[0]?.dataset?.price) || 85;
+}
+
 function renderBookingModal() {
     const user = state.currentUser;
     const pets = state.pets || [];
@@ -1969,19 +2227,46 @@ function renderBookingModal() {
                     </label>
                     <label class="block">
                         <span class="text-sm font-semibold mb-2 block dark:text-white">Service</span>
-                        <select id="booking-service-select" onchange="showServiceDescription(this)" class="w-full h-12 px-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark dark:text-white">
-                            ${hasRealServices ? services.filter(s => !s.is_addon).map(s => `<option value="${s.id}" data-name="${escapeHtml(s.name)}" data-price="${s.base_price}" data-duration="${s.duration_minutes || 60}" data-description="${(s.description || '').replace(/"/g, '&quot;')}" ${preselect.serviceId === s.id ? 'selected' : ''}>${escapeHtml(s.name)} - $${s.base_price}</option>`).join('') : '<option value="default" data-name="Full Groom" data-price="85" data-duration="90" data-description="Complete grooming including bath, brush, haircut, nail trim, and ear cleaning.">Full Groom - $85</option><option value="default" data-name="Bath & Brush" data-price="45" data-duration="45" data-description="Thorough bath with premium shampoo and complete brush out.">Bath & Brush - $45</option>'}
+                        <select id="booking-service-select" onchange="onBookingServiceChange(this)" class="w-full h-12 px-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark dark:text-white">
+                            ${hasRealServices ? services.filter(s => !s.is_addon && s.category !== 'fee').map(s => `<option value="${s.id}" data-name="${escapeHtml(s.name)}" data-price="${s.base_price}" data-duration="${s.duration_minutes || 60}" data-description="${(s.description || '').replace(/"/g, '&quot;')}" ${preselect.serviceId === s.id ? 'selected' : ''}>${escapeHtml(s.name)} - from $${parseFloat(s.base_price).toFixed(0)}</option>`).join('') : '<option value="default" data-name="Full Groom" data-price="85" data-duration="90" data-description="Complete grooming including bath, brush, haircut, nail trim, and ear cleaning.">Full Groom - $85</option>'}
                         </select>
                     </label>
                 </div>
-                
-                <!-- Service Description Box (Recommendation #3) -->
+
+                <!-- Service Description Box -->
                 <div id="service-description-box" class="p-3 bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-lg">
                     <div class="flex items-start gap-2">
                         <span class="material-symbols-outlined text-primary text-lg mt-0.5">info</span>
                         <div>
                             <p class="text-sm font-semibold text-primary dark:text-sky-400">What's included:</p>
                             <p class="text-sm text-text-sub-light dark:text-text-sub-dark" id="service-desc-text">${initialDescription}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Size & Coat Type (shown for matrix-priced services) -->
+                <div id="booking-size-coat-wrapper" class="${serviceHasPricingMatrix(firstService?.id) ? '' : 'hidden'}">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <label class="block">
+                            <span class="text-sm font-semibold mb-2 block dark:text-white">Dog Size</span>
+                            <select id="booking-dog-size" onchange="updateBookingPrice()" class="w-full h-12 px-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark dark:text-white">
+                                <option value="small">Small (under 20 lbs)</option>
+                                <option value="medium">Medium (20-50 lbs)</option>
+                                <option value="large">Large (50-90 lbs)</option>
+                                <option value="xl">XL (90+ lbs)</option>
+                            </select>
+                        </label>
+                        <label class="block">
+                            <span class="text-sm font-semibold mb-2 block dark:text-white">Coat Type</span>
+                            <select id="booking-coat-type" onchange="updateBookingPrice()" class="w-full h-12 px-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark dark:text-white">
+                                <option value="">Select coat type</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div id="booking-calculated-price" class="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg hidden">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-semibold text-green-800 dark:text-green-200">Your Price:</span>
+                            <span id="booking-price-display" class="text-xl font-black text-green-600 dark:text-green-400"></span>
                         </div>
                     </div>
                 </div>
@@ -2861,8 +3146,10 @@ async function handleBooking(e) {
     const selectedOption = serviceSelect?.selectedOptions[0];
     const serviceId = selectedOption?.value;
     const serviceName = selectedOption?.dataset?.name || 'Full Groom';
-    const servicePrice = parseFloat(selectedOption?.dataset?.price) || 85;
+    const servicePrice = getBookingPrice();
     const serviceDuration = parseInt(selectedOption?.dataset?.duration) || 60;
+    const dogSize = document.getElementById('booking-dog-size')?.value || '';
+    const coatType = document.getElementById('booking-coat-type')?.value || '';
     const date = document.getElementById('booking-date')?.value;
     const time = document.getElementById('booking-time')?.value;
     const address = document.getElementById('booking-address')?.value;
@@ -2877,6 +3164,10 @@ async function handleBooking(e) {
     // Validate required fields
     if (!petId || petId === '') {
         showToast('Please add a pet first', 'error');
+        return;
+    }
+    if (serviceHasPricingMatrix(serviceId) && !coatType) {
+        showToast('Please select your dog\'s coat type', 'error');
         return;
     }
     if (!date) {
@@ -2922,12 +3213,12 @@ async function handleBooking(e) {
     }
     hideLoading();
     
-    _log('Booking appointment:', { petId, serviceId, serviceName, servicePrice, serviceDuration, date, time, address, notes, customerCoords, selectedGroomerId });
+    _log('Booking appointment:', { petId, serviceId, serviceName, servicePrice, serviceDuration, dogSize, coatType, date, time, address, notes, customerCoords, selectedGroomerId });
     
     // Create the appointment with coordinates and groomer assignment
     const result = await createAppointment({
         petId,
-        serviceId: serviceId !== 'default' ? serviceId : null,  // Don't store invalid IDs
+        serviceId: serviceId !== 'default' ? serviceId : null,
         date,
         time,
         address,
@@ -2937,9 +3228,11 @@ async function handleBooking(e) {
         duration: serviceDuration,
         notes,
         serviceName: serviceName,
+        dogSize: dogSize || null,
+        coatType: coatType || null,
         latitude: customerCoords?.latitude || null,
         longitude: customerCoords?.longitude || null,
-        groomerId: selectedGroomerId  // Auto-assign groomer from smart booking
+        groomerId: selectedGroomerId
     });
     
     if (result) {
@@ -3037,8 +3330,13 @@ function showBookingConfirmation() {
     
     const petName = petSelect?.options[petSelect.selectedIndex]?.text || 'N/A';
     const serviceName = serviceSelect?.options[serviceSelect.selectedIndex]?.getAttribute('data-name') || serviceSelect?.options[serviceSelect.selectedIndex]?.text || 'N/A';
-    const servicePrice = serviceSelect?.options[serviceSelect.selectedIndex]?.getAttribute('data-price') || '';
+    const servicePrice = getBookingPrice();
     const serviceDuration = serviceSelect?.options[serviceSelect.selectedIndex]?.getAttribute('data-duration') || '60';
+    const dogSize = document.getElementById('booking-dog-size')?.value || '';
+    const coatType = document.getElementById('booking-coat-type')?.value || '';
+    const sizeLabels = { small: 'Small', medium: 'Medium', large: 'Large', xl: 'XL' };
+    const coatLabels = { short: 'Short', wire: 'Wire', soft: 'Soft', double: 'Double', doodle: 'Doodle' };
+    const sizeCoatInfo = dogSize && coatType ? `${sizeLabels[dogSize] || dogSize} / ${coatLabels[coatType] || coatType} coat` : '';
     const address = addressInput?.value || 'N/A';
     const date = dateInput?.value ? formatDate(dateInput.value) : 'N/A';
     const time = timeSelect?.value ? formatTime(timeSelect.value) : (state.selectedBookingTime ? formatTime(state.selectedBookingTime) : 'N/A');
@@ -3055,7 +3353,7 @@ function showBookingConfirmation() {
             </div>
             <div class="flex items-center gap-3 pb-3 border-b border-border-light dark:border-border-dark">
                 <div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><span class="material-symbols-outlined text-primary">content_cut</span></div>
-                <div class="flex-1"><p class="text-xs text-text-sub-light dark:text-text-sub-dark">Service</p><p class="font-bold dark:text-white">${serviceName}</p></div>
+                <div class="flex-1"><p class="text-xs text-text-sub-light dark:text-text-sub-dark">Service</p><p class="font-bold dark:text-white">${serviceName}</p>${sizeCoatInfo ? `<p class="text-xs text-text-sub-light dark:text-text-sub-dark">${sizeCoatInfo}</p>` : ''}</div>
                 ${servicePrice ? `<span class="text-lg font-bold text-primary">$${servicePrice}</span>` : ''}
             </div>
             <div class="flex items-center gap-3 pb-3 border-b border-border-light dark:border-border-dark">

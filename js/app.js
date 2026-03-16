@@ -428,18 +428,23 @@ async function loadUserProfile(userId) {
 async function loadPublicData() {
     try {
         // Run all queries in parallel for faster loading
-        const [servicesResult, productsResult, rewardsResult, packagesResult, hoursResult, groomersResult] = await Promise.all([
+        const [servicesResult, pricingResult, productsResult, rewardsResult, packagesResult, hoursResult, groomersResult] = await Promise.all([
             supabaseClient.from('services').select('*').order('sort_order'),
+            supabaseClient.from('service_pricing').select('*'),
             supabaseClient.from('products').select('*').order('sort_order'),
             supabaseClient.from('rewards').select('*').eq('is_active', true),
             supabaseClient.from('ride_along_packages').select('*').eq('is_active', true).order('sort_order'),
             supabaseClient.from('business_hours').select('*').order('day_of_week'),
             supabaseClient.from('profiles').select('id, full_name, phone, email, service_regions, is_active').eq('role', 'groomer')
         ]);
-        
+
         if (servicesResult.error) console.error('Services load error:', servicesResult.error);
         state.services = servicesResult.data || [];
         _log('Services loaded:', state.services.length, 'total');
+
+        if (pricingResult.error) console.error('Pricing load error:', pricingResult.error);
+        state.servicePricing = pricingResult.data || [];
+        _log('Service pricing loaded:', state.servicePricing.length, 'price points');
         
         if (productsResult.error) console.error('Products load error:', productsResult.error);
         state.products = productsResult.data || [];

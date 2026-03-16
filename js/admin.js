@@ -1127,7 +1127,7 @@ function renderAdminSmartBooking(services, groomers, regionGroomers, today, smar
                     <select id="admin-appt-service" onchange="updateAdminApptPrice()"
                         class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all">
                         <option value="">Select service</option>
-                        ${services.filter(s => !s.is_addon).map(s => `<option value="${s.id}" data-price="${s.base_price}">${escapeHtml(s.name)} - $${s.base_price}</option>`).join('')}
+                        ${services.filter(s => !s.is_addon && s.category !== 'fee').map(s => `<option value="${s.id}" data-price="${s.base_price}">${escapeHtml(s.name)} - from $${parseFloat(s.base_price).toFixed(0)}</option>`).join('')}
                     </select>
                 </div>
                 
@@ -1192,7 +1192,7 @@ function renderAdminManualBooking(services, groomers, today) {
                     <select id="admin-appt-service" onchange="updateAdminApptPrice()"
                         class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all">
                         <option value="">Select service</option>
-                        ${services.filter(s => !s.is_addon).map(s => `<option value="${s.id}" data-price="${s.base_price}">${escapeHtml(s.name)} - $${s.base_price}</option>`).join('')}
+                        ${services.filter(s => !s.is_addon && s.category !== 'fee').map(s => `<option value="${s.id}" data-price="${s.base_price}">${escapeHtml(s.name)} - from $${parseFloat(s.base_price).toFixed(0)}</option>`).join('')}
                     </select>
                 </div>
                 
