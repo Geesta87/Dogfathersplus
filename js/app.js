@@ -89,12 +89,14 @@ function cleanupRealtimeSubscriptions() {
 
 function setupRealtimeSubscriptions() {
     if (!supabaseClient) return;
-    
+
     // Clean up existing subscriptions before re-subscribing
     cleanupRealtimeSubscriptions();
-    
+
+    const role = state.currentUser?.role;
+
     try {
-        // Subscribe to appointments changes
+        // --- Shared: All roles need appointments and services ---
         supabaseClient
             .channel('appointments-changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, async (payload) => {
@@ -105,79 +107,86 @@ function setupRealtimeSubscriptions() {
                 _log('Appointments subscription:', status);
             });
 
-        // Subscribe to pets changes
         supabaseClient
-            .channel('pets-changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'pets' }, async (payload) => {
-                _log('Pet change:', payload.eventType);
-                await handleRealtimeUpdate('pets', payload);
+            .channel('services-changes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'services' }, async (payload) => {
+                _log('Service change:', payload.eventType);
+                await handleRealtimeUpdate('services', payload);
             })
             .subscribe();
 
-        // Subscribe to products changes
+        // --- All roles: business hours (needed for booking availability) ---
         supabaseClient
-            .channel('products-changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, async (payload) => {
-                _log('Product change:', payload.eventType);
-                await handleRealtimeUpdate('products', payload);
+            .channel('hours-changes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'business_hours' }, async (payload) => {
+                _log('Business hours change:', payload.eventType);
+                await handleRealtimeUpdate('business_hours', payload);
             })
             .subscribe();
 
-        // Subscribe to rewards changes
-        supabaseClient
-            .channel('rewards-changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'rewards' }, async (payload) => {
-                _log('Reward change:', payload.eventType);
-                await handleRealtimeUpdate('rewards', payload);
-            })
-            .subscribe();
+        // --- Customer & Admin: pets, profiles, rewards, products, ride-along packages ---
+        if (role === 'customer' || role === 'admin') {
+            supabaseClient
+                .channel('pets-changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'pets' }, async (payload) => {
+                    _log('Pet change:', payload.eventType);
+                    await handleRealtimeUpdate('pets', payload);
+                })
+                .subscribe();
 
-        // Subscribe to ride_along_packages changes
-        supabaseClient
-            .channel('ridealongs-changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_along_packages' }, async (payload) => {
-                _log('Ride-along change:', payload.eventType);
-                await handleRealtimeUpdate('ride_along_packages', payload);
-            })
-            .subscribe();
+            supabaseClient
+                .channel('profiles-changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, async (payload) => {
+                    _log('Profile change:', payload.eventType);
+                    await handleRealtimeUpdate('profiles', payload);
+                })
+                .subscribe();
 
-        // Subscribe to profiles/customers changes (for admin)
-        supabaseClient
-            .channel('profiles-changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, async (payload) => {
-                _log('Profile change:', payload.eventType);
-            await handleRealtimeUpdate('profiles', payload);
-        })
-        .subscribe();
+            supabaseClient
+                .channel('rewards-changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'rewards' }, async (payload) => {
+                    _log('Reward change:', payload.eventType);
+                    await handleRealtimeUpdate('rewards', payload);
+                })
+                .subscribe();
 
-    // Subscribe to services changes
-    supabaseClient
-        .channel('services-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'services' }, async (payload) => {
-            _log('Service change:', payload.eventType);
-            await handleRealtimeUpdate('services', payload);
-        })
-        .subscribe();
+            supabaseClient
+                .channel('products-changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, async (payload) => {
+                    _log('Product change:', payload.eventType);
+                    await handleRealtimeUpdate('products', payload);
+                })
+                .subscribe();
 
-    // Subscribe to reward_redemptions changes
-    supabaseClient
-        .channel('redemptions-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'reward_redemptions' }, async (payload) => {
-            _log('Redemption change:', payload.eventType);
-            await handleRealtimeUpdate('reward_redemptions', payload);
-        })
-        .subscribe();
+            supabaseClient
+                .channel('ridealongs-changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_along_packages' }, async (payload) => {
+                    _log('Ride-along change:', payload.eventType);
+                    await handleRealtimeUpdate('ride_along_packages', payload);
+                })
+                .subscribe();
+        }
 
-    // Subscribe to ride_along_inquiries changes
-    supabaseClient
-        .channel('inquiries-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_along_inquiries' }, async (payload) => {
-            _log('Inquiry change:', payload.eventType);
-            await handleRealtimeUpdate('ride_along_inquiries', payload);
-        })
-        .subscribe();
-        
-    _log('Realtime subscriptions set up successfully');
+        // --- Admin only: redemptions and inquiries ---
+        if (role === 'admin') {
+            supabaseClient
+                .channel('redemptions-changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'reward_redemptions' }, async (payload) => {
+                    _log('Redemption change:', payload.eventType);
+                    await handleRealtimeUpdate('reward_redemptions', payload);
+                })
+                .subscribe();
+
+            supabaseClient
+                .channel('inquiries-changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_along_inquiries' }, async (payload) => {
+                    _log('Inquiry change:', payload.eventType);
+                    await handleRealtimeUpdate('ride_along_inquiries', payload);
+                })
+                .subscribe();
+        }
+
+        _log(`Realtime subscriptions set up for role: ${role || 'guest'}`);
     } catch (err) {
         console.error('Failed to set up realtime subscriptions:', err);
     }
@@ -330,6 +339,11 @@ async function handleRealtimeUpdate(table, payload) {
                 await loadAdminData();
                 showToast('New ride-along inquiry received', 'info');
             }
+            break;
+
+        case 'business_hours':
+            // Reload business hours for all users
+            await loadPublicData();
             break;
     }
     
@@ -591,57 +605,47 @@ async function loadAdminData() {
                 } else {
                     _log('Fallback appointments loaded:', simpleAppts?.length || 0);
                     
-                    // Need to manually fetch related data
-                    const mappedAppts = await Promise.all((simpleAppts || []).map(async (a) => {
-                        let customerName = 'Customer', petName = 'Pet', petBreed = '', serviceName = 'Grooming', groomerName = null;
-                        
-                        // Fetch customer
-                        if (a.customer_id) {
-                            const { data: cust } = await supabaseClient
-                                .from('profiles')
-                                .select('full_name, email, phone, address, city')
-                                .eq('id', a.customer_id)
-                                .single();
-                            if (cust) customerName = cust.full_name || 'Customer';
-                        }
-                        
-                        // Fetch pet
-                        if (a.pet_id) {
-                            const { data: pet } = await supabaseClient
-                                .from('pets')
-                                .select('name, breed, weight, grooming_notes, photo_url')
-                                .eq('id', a.pet_id)
-                                .single();
-                            if (pet) {
-                                petName = pet.name || 'Pet';
-                                petBreed = pet.breed || '';
-                            }
-                        }
-                        
-                        // Fetch service
-                        if (a.service_id) {
-                            const { data: svc } = await supabaseClient
-                                .from('services')
-                                .select('name')
-                                .eq('id', a.service_id)
-                                .single();
-                            if (svc) serviceName = svc.name || 'Grooming';
-                        }
-                        
-                        // Fetch assigned groomer
-                        if (a.assigned_groomer_id) {
-                            const { data: grm } = await supabaseClient
-                                .from('profiles')
-                                .select('full_name')
-                                .eq('id', a.assigned_groomer_id)
-                                .single();
-                            if (grm) groomerName = grm.full_name || 'Groomer';
-                        }
-                        
-                        return { ...a, customerName, petName, petBreed, serviceName, groomerName };
-                    }));
-                    
-                    state.allAppointments = mappedAppts;
+                    // Batch fetch related data (3 queries instead of N*4)
+                    const customerIds = [...new Set(simpleAppts.filter(a => a.customer_id).map(a => a.customer_id))];
+                    const petIds = [...new Set(simpleAppts.filter(a => a.pet_id).map(a => a.pet_id))];
+                    const serviceIds = [...new Set(simpleAppts.filter(a => a.service_id).map(a => a.service_id))];
+                    const groomerIds = [...new Set(simpleAppts.filter(a => a.assigned_groomer_id).map(a => a.assigned_groomer_id))];
+
+                    const [customersRes, petsRes, servicesRes, groomersRes] = await Promise.all([
+                        customerIds.length > 0 ? supabaseClient.from('profiles').select('id, full_name, email, phone, address, city').in('id', customerIds) : { data: [] },
+                        petIds.length > 0 ? supabaseClient.from('pets').select('id, name, breed, weight, grooming_notes, photo_url').in('id', petIds) : { data: [] },
+                        serviceIds.length > 0 ? supabaseClient.from('services').select('id, name, duration_minutes').in('id', serviceIds) : { data: [] },
+                        groomerIds.length > 0 ? supabaseClient.from('profiles').select('id, full_name, phone').in('id', groomerIds) : { data: [] }
+                    ]);
+
+                    const customersMap = Object.fromEntries((customersRes.data || []).map(c => [c.id, c]));
+                    const petsMap = Object.fromEntries((petsRes.data || []).map(p => [p.id, p]));
+                    const servicesMap = Object.fromEntries((servicesRes.data || []).map(s => [s.id, s]));
+                    const groomersMap = Object.fromEntries((groomersRes.data || []).map(g => [g.id, g]));
+
+                    state.allAppointments = simpleAppts.map(a => {
+                        const cust = customersMap[a.customer_id];
+                        const pet = petsMap[a.pet_id];
+                        const svc = servicesMap[a.service_id];
+                        const grm = groomersMap[a.assigned_groomer_id];
+                        return {
+                            ...a,
+                            customerName: cust?.full_name || 'Customer',
+                            customerEmail: cust?.email || '',
+                            customerPhone: cust?.phone || '',
+                            customerAddress: cust?.address || '',
+                            customerCity: cust?.city || '',
+                            petName: pet?.name || 'Pet',
+                            petBreed: pet?.breed || '',
+                            petWeight: pet?.weight || '',
+                            petNotes: pet?.grooming_notes || '',
+                            petPhoto: pet?.photo_url || '',
+                            serviceName: svc?.name || 'Grooming',
+                            serviceDuration: svc?.duration_minutes || 60,
+                            groomerName: grm?.full_name || null,
+                            groomerPhone: grm?.phone || null
+                        };
+                    });
                 }
             }
         } else {

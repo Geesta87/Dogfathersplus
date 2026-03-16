@@ -1,11 +1,14 @@
 // Dogfathers Plus Service Worker
-const CACHE_NAME = 'dogfathers-plus-v10';
-const DYNAMIC_CACHE = 'dogfathers-dynamic-v3';
+// Auto-increment: change this timestamp on each deploy to bust cache
+const CACHE_VERSION = Date.now();
+const CACHE_NAME = `dogfathers-plus-${CACHE_VERSION}`;
+const DYNAMIC_CACHE = `dogfathers-dynamic-${CACHE_VERSION}`;
 
 // Assets to cache on install
 const STATIC_ASSETS = [
   '/',
   '/index.html',
+  '/styles.css',
   '/js/shared.js',
   '/js/auth.js',
   '/js/customer.js',
