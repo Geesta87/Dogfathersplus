@@ -2871,7 +2871,7 @@ function renderPetEditForm(pet) {
         <div class="grid grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-semibold mb-2 dark:text-white">Weight (lbs) *</label>
-                <input type="number" id="edit-pet-weight" value="${pet.weight || ''}" placeholder="50" min="1" max="300" 
+                <input type="number" id="edit-pet-weight" value="${pet.weight || ''}" placeholder="50" min="1" max="300"
                     class="w-full h-12 px-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark focus:ring-2 focus:ring-primary outline-none dark:text-white" required>
             </div>
             <div>
@@ -2882,6 +2882,19 @@ function renderPetEditForm(pet) {
                     <option value="female" ${pet.gender === 'female' ? 'selected' : ''}>Female</option>
                 </select>
             </div>
+        </div>
+
+        <div>
+            <label class="block text-sm font-semibold mb-2 dark:text-white">Coat Type</label>
+            <select id="edit-pet-coat-type"
+                class="w-full h-12 px-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark focus:ring-2 focus:ring-primary outline-none dark:text-white">
+                <option value="">Auto-detect from breed</option>
+                <option value="short" ${pet.coat_type === 'short' ? 'selected' : ''}>Short Coat</option>
+                <option value="wire" ${pet.coat_type === 'wire' ? 'selected' : ''}>Wire Coat</option>
+                <option value="soft" ${pet.coat_type === 'soft' ? 'selected' : ''}>Soft Coat</option>
+                <option value="double" ${pet.coat_type === 'double' ? 'selected' : ''}>Double Coat</option>
+                <option value="doodle" ${pet.coat_type === 'doodle' ? 'selected' : ''}>Doodle Breed</option>
+            </select>
         </div>
 
         <div>
@@ -3187,11 +3200,13 @@ async function saveEditPet(e) {
         ageYears = new Date().getFullYear() - parseInt(birthYear);
     }
     
+    const coatTypeValue = document.getElementById('edit-pet-coat-type')?.value || '';
     const petData = {
         name: name,
         breed: breed,
         weight: weight,
         gender: document.getElementById('edit-pet-gender').value,
+        coat_type: coatTypeValue || detectCoatType(breed) || null,
         grooming_notes: document.getElementById('edit-pet-notes').value,
         photo_url: state.editModal.data.photo_url || pet.photo_url
     };

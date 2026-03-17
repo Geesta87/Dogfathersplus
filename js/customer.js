@@ -29,6 +29,7 @@ async function addPet(petData) {
             gender: petData.gender,
             age_years: petData.age,
             color: petData.color,
+            coat_type: petData.coatType || detectCoatType(petData.breed) || null,
             grooming_notes: petData.notes,
             photo_url: petData.photo,
             is_active: true  // IMPORTANT: Must be true to show up
@@ -1192,13 +1193,12 @@ function renderCustomerDashboard() {
         { id: 'dashboard', label: 'Dashboard', icon: 'home' },
         { id: 'pets', label: 'My Pets', icon: 'pets' },
         { id: 'appointments', label: 'Appointments', icon: 'calendar_month' },
-        { id: 'prices', label: 'Prices', icon: 'paid' },
         { id: 'rewards', label: 'Rewards', icon: 'loyalty' },
         { id: 'store', label: 'Store', icon: 'storefront' },
         { id: 'ridealongs', label: 'Ride-Alongs', icon: 'directions_car' },
         { id: 'education', label: 'Academy', icon: 'school' }
     ];
-    const isFullWidth = ['store', 'ridealongs', 'education', 'prices'].includes(state.currentTab);
+    const isFullWidth = ['store', 'ridealongs', 'education'].includes(state.currentTab);
 
     // PWA Install Banner (only shown when install is available)
     const installBanner = state.showInstallPrompt && !state.isPWA ? `
@@ -1829,10 +1829,6 @@ function renderCustomerContent() {
         </div>`;
     }
 
-    if (state.currentTab === 'prices') {
-        return renderPricesTab();
-    }
-
     if (state.currentTab === 'ridealongs') {
         return `
         <div class="min-h-screen">
@@ -2097,67 +2093,94 @@ function serviceHasPricingMatrix(serviceId) {
     return (state.servicePricing || []).some(p => p.service_id === serviceId);
 }
 
-function getCoatTypesForService(serviceId) {
-    const pricing = (state.servicePricing || []).filter(p => p.service_id === serviceId);
-    const coatTypes = [...new Set(pricing.map(p => p.coat_type))];
-    const order = ['short', 'wire', 'soft', 'double', 'doodle'];
-    return order.filter(c => coatTypes.includes(c));
-}
-
 function getMatrixPrice(serviceId, size, coatType) {
     const match = (state.servicePricing || []).find(p => p.service_id === serviceId && p.size === size && p.coat_type === coatType);
     return match ? parseFloat(match.price) : null;
 }
 
-function onBookingServiceChange(select) {
-    // Update description
-    showServiceDescription(select);
+// Get the selected pet's size and coat type for pricing
+function getSelectedPetPricingInfo() {
+    const petId = document.getElementById('booking-pet')?.value;
+    const pet = (state.pets || []).find(p => p.id === petId);
+    if (!pet) return { size: null, coatType: null, pet: null };
 
-    const serviceId = select?.value;
-    const wrapper = document.getElementById('booking-size-coat-wrapper');
-    const priceBox = document.getElementById('booking-calculated-price');
-
-    if (serviceHasPricingMatrix(serviceId)) {
-        // Show size/coat selectors
-        if (wrapper) wrapper.classList.remove('hidden');
-
-        // Populate coat type options
-        const coatSelect = document.getElementById('booking-coat-type');
-        const coatTypes = getCoatTypesForService(serviceId);
-        const labels = { short: 'Short', wire: 'Wire', soft: 'Soft', double: 'Double', doodle: 'Doodle' };
-        if (coatSelect) {
-            coatSelect.innerHTML = '<option value="">Select coat type</option>' + coatTypes.map(c => `<option value="${c}">${labels[c]}</option>`).join('');
-        }
-        if (priceBox) priceBox.classList.add('hidden');
-    } else {
-        // Hide size/coat selectors for flat-price services
-        if (wrapper) wrapper.classList.add('hidden');
-        if (priceBox) priceBox.classList.add('hidden');
-    }
+    const size = getSizeFromWeight(parseFloat(pet.weight));
+    const coatType = pet.coat_type || detectCoatType(pet.breed);
+    return { size, coatType, pet };
 }
 
-function updateBookingPrice() {
+function onBookingServiceChange(select) {
+    showServiceDescription(select);
+    updateBookingAutoPrice();
+}
+
+function onBookingPetChange() {
+    updateBookingAutoPrice();
+}
+
+function updateBookingAutoPrice() {
     const serviceSelect = document.getElementById('booking-service-select');
-    const sizeSelect = document.getElementById('booking-dog-size');
-    const coatSelect = document.getElementById('booking-coat-type');
-    const priceBox = document.getElementById('booking-calculated-price');
-    const priceDisplay = document.getElementById('booking-price-display');
-
     const serviceId = serviceSelect?.value;
-    const size = sizeSelect?.value;
-    const coatType = coatSelect?.value;
+    const priceBox = document.getElementById('booking-auto-price');
+    const priceDisplay = document.getElementById('booking-price-display');
+    const priceDetail = document.getElementById('booking-price-detail');
+    const warningBox = document.getElementById('booking-price-warning');
+    const warningText = document.getElementById('booking-price-warning-text');
 
-    if (!serviceId || !size || !coatType) {
-        if (priceBox) priceBox.classList.add('hidden');
-        return;
-    }
+    if (!serviceId || !priceBox) return;
 
-    const price = getMatrixPrice(serviceId, size, coatType);
-    if (price !== null) {
-        if (priceDisplay) priceDisplay.textContent = '$' + price.toFixed(0);
-        if (priceBox) priceBox.classList.remove('hidden');
+    if (serviceHasPricingMatrix(serviceId)) {
+        const { size, coatType, pet } = getSelectedPetPricingInfo();
+
+        if (!pet) {
+            priceBox.classList.add('hidden');
+            if (warningBox) warningBox.classList.add('hidden');
+            return;
+        }
+
+        if (!size) {
+            priceBox.classList.add('hidden');
+            if (warningBox) {
+                warningBox.classList.remove('hidden');
+                warningText.textContent = `Please update ${pet.name}'s weight in My Pets to see accurate pricing.`;
+            }
+            return;
+        }
+
+        if (!coatType) {
+            priceBox.classList.add('hidden');
+            if (warningBox) {
+                warningBox.classList.remove('hidden');
+                warningText.textContent = `We couldn't detect ${pet.name}'s coat type from their breed. Please update their profile in My Pets or contact us for pricing.`;
+            }
+            return;
+        }
+
+        const price = getMatrixPrice(serviceId, size, coatType);
+        if (price !== null) {
+            priceDisplay.textContent = '$' + price.toFixed(0);
+            priceDetail.textContent = `${SIZE_LABELS[size] || size} / ${COAT_LABELS[coatType] || coatType}`;
+            priceBox.classList.remove('hidden');
+            if (warningBox) warningBox.classList.add('hidden');
+        } else {
+            // Coat type not available for this service (e.g. Short coat on Ultimate)
+            priceBox.classList.add('hidden');
+            if (warningBox) {
+                warningBox.classList.remove('hidden');
+                warningText.textContent = `${COAT_LABELS[coatType] || coatType} is not available for this package. Please choose a different service.`;
+            }
+        }
     } else {
-        if (priceBox) priceBox.classList.add('hidden');
+        // Flat-price service — show the base price
+        const basePrice = parseFloat(serviceSelect?.selectedOptions[0]?.dataset?.price) || 0;
+        if (basePrice > 0) {
+            priceDisplay.textContent = '$' + basePrice.toFixed(0);
+            priceDetail.textContent = 'Flat rate';
+            priceBox.classList.remove('hidden');
+        } else {
+            priceBox.classList.add('hidden');
+        }
+        if (warningBox) warningBox.classList.add('hidden');
     }
 }
 
@@ -2166,10 +2189,11 @@ function getBookingPrice() {
     const serviceId = serviceSelect?.value;
 
     if (serviceHasPricingMatrix(serviceId)) {
-        const size = document.getElementById('booking-dog-size')?.value;
-        const coatType = document.getElementById('booking-coat-type')?.value;
-        const matrixPrice = getMatrixPrice(serviceId, size, coatType);
-        if (matrixPrice !== null) return matrixPrice;
+        const { size, coatType } = getSelectedPetPricingInfo();
+        if (size && coatType) {
+            const matrixPrice = getMatrixPrice(serviceId, size, coatType);
+            if (matrixPrice !== null) return matrixPrice;
+        }
     }
 
     return parseFloat(serviceSelect?.selectedOptions[0]?.dataset?.price) || 85;
@@ -2221,7 +2245,7 @@ function renderBookingModal() {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <label class="block">
                         <span class="text-sm font-semibold mb-2 block dark:text-white">Select Pet</span>
-                        <select id="booking-pet" class="w-full h-12 px-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark dark:text-white">
+                        <select id="booking-pet" onchange="onBookingPetChange()" class="w-full h-12 px-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark dark:text-white">
                             ${pets.length > 0 ? pets.map(p => `<option value="${p.id}" ${preselect.petId === p.id ? 'selected' : ''}>${escapeHtml(p.name)} (${p.breed || 'Unknown'})</option>`).join('') : '<option value="">No pets - please add a pet first</option>'}
                         </select>
                     </label>
@@ -2244,30 +2268,25 @@ function renderBookingModal() {
                     </div>
                 </div>
 
-                <!-- Size & Coat Type (shown for matrix-priced services) -->
-                <div id="booking-size-coat-wrapper" class="${serviceHasPricingMatrix(firstService?.id) ? '' : 'hidden'}">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <label class="block">
-                            <span class="text-sm font-semibold mb-2 block dark:text-white">Dog Size</span>
-                            <select id="booking-dog-size" onchange="updateBookingPrice()" class="w-full h-12 px-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark dark:text-white">
-                                <option value="small">Small (under 20 lbs)</option>
-                                <option value="medium">Medium (20-50 lbs)</option>
-                                <option value="large">Large (50-90 lbs)</option>
-                                <option value="xl">XL (90+ lbs)</option>
-                            </select>
-                        </label>
-                        <label class="block">
-                            <span class="text-sm font-semibold mb-2 block dark:text-white">Coat Type</span>
-                            <select id="booking-coat-type" onchange="updateBookingPrice()" class="w-full h-12 px-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark dark:text-white">
-                                <option value="">Select coat type</option>
-                            </select>
-                        </label>
-                    </div>
-                    <div id="booking-calculated-price" class="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg hidden">
+                <!-- Auto-calculated price display (based on pet profile) -->
+                <div id="booking-auto-price" class="hidden">
+                    <div class="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg">
                         <div class="flex items-center justify-between">
-                            <span class="text-sm font-semibold text-green-800 dark:text-green-200">Your Price:</span>
+                            <div class="flex items-center gap-2">
+                                <span class="material-symbols-outlined text-green-600 dark:text-green-400 text-lg">calculate</span>
+                                <div>
+                                    <span class="text-sm font-semibold text-green-800 dark:text-green-200">Your Price</span>
+                                    <p id="booking-price-detail" class="text-xs text-green-600 dark:text-green-400"></p>
+                                </div>
+                            </div>
                             <span id="booking-price-display" class="text-xl font-black text-green-600 dark:text-green-400"></span>
                         </div>
+                    </div>
+                </div>
+                <div id="booking-price-warning" class="hidden">
+                    <div class="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg text-sm text-amber-800 dark:text-amber-200">
+                        <span class="material-symbols-outlined text-amber-500 text-base align-middle mr-1">warning</span>
+                        <span id="booking-price-warning-text"></span>
                     </div>
                 </div>
                 
@@ -3148,8 +3167,7 @@ async function handleBooking(e) {
     const serviceName = selectedOption?.dataset?.name || 'Full Groom';
     const servicePrice = getBookingPrice();
     const serviceDuration = parseInt(selectedOption?.dataset?.duration) || 60;
-    const dogSize = document.getElementById('booking-dog-size')?.value || '';
-    const coatType = document.getElementById('booking-coat-type')?.value || '';
+    const { size: dogSize, coatType } = getSelectedPetPricingInfo();
     const date = document.getElementById('booking-date')?.value;
     const time = document.getElementById('booking-time')?.value;
     const address = document.getElementById('booking-address')?.value;
@@ -3166,8 +3184,8 @@ async function handleBooking(e) {
         showToast('Please add a pet first', 'error');
         return;
     }
-    if (serviceHasPricingMatrix(serviceId) && !coatType) {
-        showToast('Please select your dog\'s coat type', 'error');
+    if (serviceHasPricingMatrix(serviceId) && (!coatType || !dogSize)) {
+        showToast('Please update your pet\'s weight and breed in My Pets for accurate pricing', 'error');
         return;
     }
     if (!date) {
@@ -3332,11 +3350,8 @@ function showBookingConfirmation() {
     const serviceName = serviceSelect?.options[serviceSelect.selectedIndex]?.getAttribute('data-name') || serviceSelect?.options[serviceSelect.selectedIndex]?.text || 'N/A';
     const servicePrice = getBookingPrice();
     const serviceDuration = serviceSelect?.options[serviceSelect.selectedIndex]?.getAttribute('data-duration') || '60';
-    const dogSize = document.getElementById('booking-dog-size')?.value || '';
-    const coatType = document.getElementById('booking-coat-type')?.value || '';
-    const sizeLabels = { small: 'Small', medium: 'Medium', large: 'Large', xl: 'XL' };
-    const coatLabels = { short: 'Short', wire: 'Wire', soft: 'Soft', double: 'Double', doodle: 'Doodle' };
-    const sizeCoatInfo = dogSize && coatType ? `${sizeLabels[dogSize] || dogSize} / ${coatLabels[coatType] || coatType} coat` : '';
+    const { size: dogSize, coatType } = getSelectedPetPricingInfo();
+    const sizeCoatInfo = dogSize && coatType ? `${SIZE_LABELS[dogSize] || dogSize} / ${COAT_LABELS[coatType] || coatType}` : '';
     const address = addressInput?.value || 'N/A';
     const date = dateInput?.value ? formatDate(dateInput.value) : 'N/A';
     const time = timeSelect?.value ? formatTime(timeSelect.value) : (state.selectedBookingTime ? formatTime(state.selectedBookingTime) : 'N/A');

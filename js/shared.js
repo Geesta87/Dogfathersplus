@@ -86,6 +86,87 @@ function saveConfig() {
 }
 
 // =============================================
+// PRICING: BREED-TO-COAT & WEIGHT-TO-SIZE
+// =============================================
+
+// Breed → coat type mapping from official Dogfathers price sheet
+const BREED_COAT_MAP = {
+    // SHORT COAT
+    'Chihuahua': 'short', 'Boxer': 'short', 'Pug': 'short', 'Bulldog': 'short',
+    'French Bulldog': 'short', 'Beagle': 'short', 'Labrador Retriever': 'short',
+    'Dachshund': 'short', 'Great Dane': 'short', 'Doberman Pinscher': 'short',
+    'Rottweiler': 'short', 'Boston Terrier': 'short', 'Pit Bull': 'short',
+    'American Staffordshire Terrier': 'short', 'Weimaraner': 'short',
+    'Vizsla': 'short', 'Whippet': 'short', 'Greyhound': 'short',
+    'Italian Greyhound': 'short', 'Basenji': 'short', 'Rhodesian Ridgeback': 'short',
+    'Miniature Pinscher': 'short', 'Cane Corso': 'short', 'Mastiff': 'short',
+    'English Mastiff': 'short', 'Bull Terrier': 'short',
+
+    // WIRE COAT
+    'Jack Russell Terrier': 'wire', 'Scottish Terrier': 'wire', 'Schnauzer': 'wire',
+    'Miniature Schnauzer': 'wire', 'Giant Schnauzer': 'wire', 'Standard Schnauzer': 'wire',
+    'Wire Fox Terrier': 'wire', 'Airedale Terrier': 'wire', 'Border Terrier': 'wire',
+    'Irish Wolfhound': 'wire', 'Brussels Griffon': 'wire', 'Wirehaired Pointing Griffon': 'wire',
+    'Welsh Terrier': 'wire', 'Cairn Terrier': 'wire', 'Norwich Terrier': 'wire',
+    'Norfolk Terrier': 'wire', 'Lakeland Terrier': 'wire',
+
+    // SOFT COAT
+    'Maltese': 'soft', 'Shih Tzu': 'soft', 'Yorkshire Terrier': 'soft',
+    'Golden Retriever': 'soft', 'Sheltie': 'soft', 'Shetland Sheepdog': 'soft',
+    'Cavalier King Charles Spaniel': 'soft', 'Cocker Spaniel': 'soft',
+    'English Springer Spaniel': 'soft', 'Havanese': 'soft', 'Lhasa Apso': 'soft',
+    'Papillon': 'soft', 'Bichon Frise': 'soft', 'Tibetan Terrier': 'soft',
+    'Afghan Hound': 'soft', 'Irish Setter': 'soft', 'English Setter': 'soft',
+    'Silky Terrier': 'soft', 'Japanese Chin': 'soft',
+
+    // DOUBLE COAT
+    'Siberian Husky': 'double', 'Akita': 'double', 'Pomeranian': 'double',
+    'Pekingese': 'double', 'German Shepherd': 'double', 'Bernese Mountain Dog': 'double',
+    'Australian Shepherd': 'double', 'Border Collie': 'double', 'Corgi': 'double',
+    'Pembroke Welsh Corgi': 'double', 'Cardigan Welsh Corgi': 'double',
+    'Samoyed': 'double', 'Alaskan Malamute': 'double', 'Chow Chow': 'double',
+    'Keeshond': 'double', 'Shiba Inu': 'double', 'Finnish Spitz': 'double',
+    'American Eskimo Dog': 'double', 'Newfoundland': 'double',
+    'Great Pyrenees': 'double', 'Saint Bernard': 'double', 'Collie': 'double',
+
+    // DOODLE BREED
+    'Poodle': 'doodle', 'Goldendoodle': 'doodle', 'Golden Doodle': 'doodle',
+    'Labradoodle': 'doodle', 'Bernedoodle': 'doodle', 'Aussiedoodle': 'doodle',
+    'Cavapoo': 'doodle', 'Cockapoo': 'doodle', 'Maltipoo': 'doodle',
+    'Sheepadoodle': 'doodle', 'Schnoodle': 'doodle', 'Yorkipoo': 'doodle',
+    'Pomapoo': 'doodle', 'Whoodle': 'doodle', 'Irish Doodle': 'doodle',
+    'Standard Poodle': 'doodle', 'Miniature Poodle': 'doodle', 'Toy Poodle': 'doodle',
+    'Portugese Water Dog': 'doodle', 'Portuguese Water Dog': 'doodle'
+};
+
+// Detect coat type from breed name
+function detectCoatType(breed) {
+    if (!breed) return null;
+    // Exact match first
+    if (BREED_COAT_MAP[breed]) return BREED_COAT_MAP[breed];
+    // Case-insensitive match
+    const lower = breed.toLowerCase();
+    for (const [key, val] of Object.entries(BREED_COAT_MAP)) {
+        if (key.toLowerCase() === lower) return val;
+    }
+    // Check if breed name contains "doodle", "poo", or "oodle"
+    if (lower.includes('doodle') || lower.includes('oodle') || lower.endsWith('poo')) return 'doodle';
+    return null;
+}
+
+// Get size category from weight (lbs) — per official price sheet
+function getSizeFromWeight(weight) {
+    if (!weight || weight <= 0) return null;
+    if (weight <= 9) return 'small';
+    if (weight <= 24) return 'medium';
+    if (weight <= 69) return 'large';
+    return 'xl';
+}
+
+const SIZE_LABELS = { small: 'Small (0-9 lbs)', medium: 'Medium (10-24 lbs)', large: 'Large (25-69 lbs)', xl: 'XL (70-160+ lbs)' };
+const COAT_LABELS = { short: 'Short Coat', wire: 'Wire Coat', soft: 'Soft Coat', double: 'Double Coat', doodle: 'Doodle Breed' };
+
+// =============================================
 // STATE MANAGEMENT
 // =============================================
 let state = { 
