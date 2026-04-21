@@ -136,6 +136,13 @@ async function handleSignOut() {
     state.groomers = [];
     state.groomerAppointments = [];
     state.showGroomerLogin = false;
+    state.showAdminLogin = false;
+
+    // If we're on a staff portal, re-arm that portal's login view so the
+    // signed-out user lands back on the correct login (not the customer form).
+    if (window.__PORTAL === 'groomer') state.showGroomerLogin = true;
+    if (window.__PORTAL === 'admin') state.showAdminLogin = true;
+
     hideLoading();
     showToast('Signed out successfully', 'info');
     render();
@@ -203,11 +210,12 @@ function renderGroomerLogin() {
                         </div>
                     </form>
                     
+                    ${window.__PORTAL === 'groomer' ? '' : `
                     <div class="mt-6 pt-6 border-t border-border-light dark:border-border-dark text-center">
                         <button onclick="state.showGroomerLogin = false; render();" class="text-primary hover:underline text-sm font-medium">
                             ← Back to Customer Login
                         </button>
-                    </div>
+                    </div>`}
                 </div>
             </div>
         </div>
@@ -243,27 +251,13 @@ function renderAuthPage() {
                     <span class="font-bold text-xl dark:text-white">Dogfathersplus</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <button onclick="openAdminLogin()" class="px-3 py-1.5 text-xs font-medium border border-border-light dark:border-border-dark rounded-lg hover:bg-background-light dark:hover:bg-background-dark text-text-sub-light dark:text-text-sub-dark flex items-center gap-1">
-                        <span class="material-symbols-outlined text-sm">admin_panel_settings</span>
-                        Admin
-                    </button>
                     <button onclick="toggleDarkMode()" class="p-2 rounded-lg hover:bg-background-light dark:hover:bg-background-dark touch-target">
                         <span class="material-symbols-outlined">${state.darkMode ? 'light_mode' : 'dark_mode'}</span>
                     </button>
                 </div>
             </div>
             <div class="flex-1 flex flex-col justify-center px-6 py-10 sm:px-12 lg:px-24 max-w-3xl mx-auto w-full">
-                <div class="hidden lg:flex justify-between items-center mb-4">
-                    <div class="flex items-center gap-2">
-                        <button onclick="openAdminLogin()" class="px-3 py-1.5 text-xs font-medium border border-border-light dark:border-border-dark rounded-lg hover:bg-background-light dark:hover:bg-background-dark text-text-sub-light dark:text-text-sub-dark flex items-center gap-1.5 transition-colors">
-                            <span class="material-symbols-outlined text-sm">admin_panel_settings</span>
-                            Admin Login
-                        </button>
-                        <button onclick="state.showGroomerLogin = true; render();" class="px-3 py-1.5 text-xs font-medium border border-emerald-200 dark:border-emerald-800 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 transition-colors">
-                            <span class="material-symbols-outlined text-sm">content_cut</span>
-                            Groomer Login
-                        </button>
-                    </div>
+                <div class="hidden lg:flex justify-end items-center mb-4">
                     <button onclick="toggleDarkMode()" class="p-2 rounded-lg hover:bg-background-light dark:hover:bg-background-dark touch-target flex items-center gap-2 text-sm text-text-sub-light dark:text-text-sub-dark">
                         <span class="material-symbols-outlined">${state.darkMode ? 'light_mode' : 'dark_mode'}</span>
                         ${state.darkMode ? 'Light Mode' : 'Dark Mode'}
@@ -320,20 +314,8 @@ function renderAuthPage() {
                     <strong class="text-text-main-light dark:text-white">Create an account or sign in to book appointments!</strong>
                 </div>
                 
-                <!-- Mobile Staff Login Options -->
-                <div class="mt-6 pt-6 border-t border-border-light dark:border-border-dark lg:hidden">
-                    <p class="text-xs text-center text-text-sub-light dark:text-text-sub-dark mb-3">Staff Access</p>
-                    <div class="flex gap-2">
-                        <button onclick="openAdminLogin()" class="flex-1 px-3 py-2 text-xs font-medium border border-border-light dark:border-border-dark rounded-lg hover:bg-background-light dark:hover:bg-background-dark text-text-sub-light dark:text-text-sub-dark flex items-center justify-center gap-1.5 transition-colors">
-                            <span class="material-symbols-outlined text-sm">admin_panel_settings</span>
-                            Admin
-                        </button>
-                        <button onclick="state.showGroomerLogin = true; render();" class="flex-1 px-3 py-2 text-xs font-medium border border-emerald-200 dark:border-emerald-800 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1.5 transition-colors">
-                            <span class="material-symbols-outlined text-sm">content_cut</span>
-                            Groomer
-                        </button>
-                    </div>
-                </div>
+                <!-- Staff access is via dedicated URLs (/admin, /groomer) — no link here by design. -->
+
             </div>
         </div>
     </div>
@@ -392,6 +374,77 @@ function renderAdminLoginModal() {
                 <div class="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex items-start gap-2">
                     <span class="material-symbols-outlined text-amber-600 dark:text-amber-400 text-lg mt-0.5">info</span>
                     <p class="text-xs text-amber-800 dark:text-amber-300">This area is for Dogfathersplus staff only. Unauthorized access attempts are logged.</p>
+                </div>
+            </div>
+        </div>
+    </div>`;
+}
+
+// Full-page admin login (used on /admin.html). Reuses the same input IDs as
+// renderAdminLoginModal so the existing form handler in attachEventListeners works unchanged.
+function renderAdminLoginPage() {
+    return `
+    <div class="flex flex-1 w-full min-h-screen">
+        <div class="hidden lg:flex lg:w-1/2 relative bg-amber-600 items-center justify-center overflow-hidden">
+            <div class="absolute inset-0 z-0 bg-gradient-to-br from-amber-500 to-amber-800"></div>
+            <div class="relative z-10 text-center text-white px-12">
+                <div class="w-24 h-24 mx-auto mb-6 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center">
+                    <span class="material-symbols-outlined text-5xl">admin_panel_settings</span>
+                </div>
+                <h2 class="text-4xl font-black mb-4">Admin Portal</h2>
+                <p class="text-xl text-white/80 max-w-md mx-auto">Manage appointments, groomers, services, and customer accounts.</p>
+            </div>
+        </div>
+        <div class="flex flex-1 w-full lg:w-1/2 items-center justify-center px-6 py-12 bg-background-light dark:bg-background-dark">
+            <div class="w-full max-w-md">
+                <div class="flex items-center gap-3 mb-8">
+                    <div class="w-14 h-14 rounded-xl overflow-hidden shadow-lg">
+                        <img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-cover"/>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-black dark:text-white">Dogfathers<span class="text-amber-600">plus</span></h1>
+                        <p class="text-sm text-amber-600 font-semibold">Admin Login</p>
+                    </div>
+                </div>
+
+                <div class="bg-surface-light dark:bg-surface-dark rounded-2xl p-8 shadow-xl border border-border-light dark:border-border-dark">
+                    <h2 class="text-2xl font-bold mb-2 dark:text-white">Welcome Back</h2>
+                    <p class="text-text-sub-light dark:text-text-sub-dark mb-6">Authorized personnel only</p>
+
+                    <form id="admin-login-form" class="space-y-5">
+                        <div id="admin-auth-error" class="hidden p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg text-sm flex items-center gap-2">
+                            <span class="material-symbols-outlined text-lg">error</span>
+                            <span id="admin-auth-error-text"></span>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-2 dark:text-white">Admin Email</label>
+                            <div class="relative">
+                                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-sub-light">mail</span>
+                                <input id="admin-email" type="email" required placeholder="admin@dogfathersplus.com"
+                                    class="w-full h-12 pl-11 pr-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark focus:ring-2 focus:ring-amber-500 outline-none dark:text-white"/>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-2 dark:text-white">Password</label>
+                            <div class="relative">
+                                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-sub-light">lock</span>
+                                <input id="admin-password" type="password" required placeholder="••••••••"
+                                    class="w-full h-12 pl-11 pr-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark focus:ring-2 focus:ring-amber-500 outline-none dark:text-white"/>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full h-12 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold rounded-lg flex items-center justify-center gap-2 transition-colors shadow-lg shadow-amber-500/20">
+                            <span class="material-symbols-outlined">login</span>
+                            Sign In as Admin
+                        </button>
+                        <div class="text-center mt-3">
+                            <a href="#" onclick="openForgotPassword(document.getElementById('admin-email')?.value || ''); return false;" class="text-sm text-amber-600 hover:text-amber-700 hover:underline">Forgot password?</a>
+                        </div>
+                    </form>
+
+                    <div class="mt-6 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex items-start gap-2">
+                        <span class="material-symbols-outlined text-amber-600 dark:text-amber-400 text-lg mt-0.5">info</span>
+                        <p class="text-xs text-amber-800 dark:text-amber-300">This area is for Dogfathersplus staff only. Unauthorized access attempts are logged.</p>
+                    </div>
                 </div>
             </div>
         </div>

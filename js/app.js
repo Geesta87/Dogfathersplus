@@ -8,14 +8,23 @@
 
 // Initialize app - check for existing session
 async function initApp() {
-    _log('Initializing app...');
-    
+    _log('Initializing app... portal:', window.__PORTAL || '(default=customer)');
+
     // Show offline banner if starting without connection
     if (isOffline) showOfflineBanner();
-    
+
+    // If we're on a staff portal HTML, pre-arm the matching login view so the
+    // customer signup/login UI never renders on /admin or /groomer.
+    if (window.__PORTAL === 'groomer') {
+        state.showGroomerLogin = true;
+    }
+    if (window.__PORTAL === 'admin') {
+        state.showAdminLogin = true;
+    }
+
     try {
         showLoading();
-        
+
         // Check for password recovery token in URL first
         if (checkForPasswordRecovery()) {
             hideLoading();
@@ -40,13 +49,29 @@ async function initApp() {
                     _log('Found existing session');
                     state.session = session;
                     state.showOnboarding = false;
-                    
+
                     // Load user profile and public data in parallel
                     await Promise.all([
                         loadUserProfile(session.user.id),
                         loadPublicData(),
                         loadSmartBookingSettings()
                     ]);
+
+                    // Portal/role mismatch guard: if the user is on /admin or /groomer
+                    // but their session role doesn't match, sign them out silently so
+                    // the correct login form renders. Prevents a customer account
+                    // landing on an admin-looking dashboard by URL typo.
+                    const portal = window.__PORTAL;
+                    const role = state.currentUser?.role;
+                    if ((portal === 'admin' || portal === 'groomer') && role && role !== portal) {
+                        _warn(`Portal mismatch: session role '${role}' on /${portal} — signing out.`);
+                        try { await supabaseClient.auth.signOut(); } catch (e) { _warn('signOut failed:', e); }
+                        state.session = null;
+                        state.currentUser = null;
+                        if (portal === 'admin') state.showAdminLogin = true;
+                        if (portal === 'groomer') state.showGroomerLogin = true;
+                        showToast(`This portal is for ${portal}s only. Please sign in with a ${portal} account.`, 'warning');
+                    }
                 } else {
                     // No session - just load public data in parallel
                     await Promise.all([
@@ -838,6 +863,9 @@ function render() {
         // Show groomer login page
         if (state.showGroomerLogin) {
             app.innerHTML = renderGroomerLogin() + renderForgotPasswordModal();
+        } else if (!state.currentUser && window.__PORTAL === 'admin') {
+            // Full-page admin login on /admin.html — no customer signup visible.
+            app.innerHTML = renderAdminLoginPage() + renderForgotPasswordModal();
         } else if (!state.currentUser) {
             app.innerHTML = renderAuthPage() + renderForgotPasswordModal();
         } else if (state.showOnboarding) {

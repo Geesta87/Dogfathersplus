@@ -3,14 +3,17 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" name="viewport"/>
-    <title>Dogfathers Plus - Premium Mobile Dog Grooming</title>
-    
+    <title>Admin Portal — Dogfathers Plus</title>
+
+    <!-- Staff portal: don't index in search engines -->
+    <meta name="robots" content="noindex, nofollow">
+
     <!-- PWA Meta Tags -->
-    <meta name="description" content="Premium mobile dog grooming service - we come to you! Book appointments, earn rewards, and keep your furry friends looking their best.">
-    <meta name="application-name" content="Dogfathers Plus">
+    <meta name="description" content="Dogfathers Plus admin portal. Authorized personnel only.">
+    <meta name="application-name" content="Dogfathers Plus Admin">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Dogfathers Plus">
+    <meta name="apple-mobile-web-app-title" content="Dogfathers Admin">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#13a4ec" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)">
@@ -180,8 +183,8 @@
             <p class="text-sm font-medium text-text-sub-light dark:text-text-sub-dark">Loading...</p>
         </div>
     </div>
-    <!-- Portal flag: customer-facing entry. Admin and groomer have dedicated HTML entries. -->
-    <script>window.__PORTAL = 'customer';</script>
+    <!-- Portal flag: admin staff entry. Rejects non-admin logins. -->
+    <script>window.__PORTAL = 'admin';</script>
     <!-- Dogfathers Plus Application Scripts -->
     <!-- Load order: shared → auth → customer → admin → groomer → app -->
     <script src="js/shared.js"></script>
