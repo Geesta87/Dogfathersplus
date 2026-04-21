@@ -275,17 +275,29 @@ function closeAdminAddAppointment() {
     render();
 }
 
-// Search customers by phone or name
+// Search customers by phone or name — debounced to avoid 1 DB hit per keystroke.
+let _searchCustomersDebounceTimer = null;
+let _searchCustomersLatestCallId = 0;
 async function searchCustomersForAppointment(query) {
     state.adminCustomerSearch = query;
-    
+
     if (!query || query.length < 2) {
         state.adminCustomerSearchResults = [];
         const container = document.getElementById('admin-customer-search-results');
         if (container) container.innerHTML = '';
         return;
     }
-    
+
+    // Debounce + race-guard: only the most recent call renders results, so a
+    // slow response for "Joh" doesn't overwrite fresh results for "Johnson".
+    if (_searchCustomersDebounceTimer) clearTimeout(_searchCustomersDebounceTimer);
+    const callId = ++_searchCustomersLatestCallId;
+
+    await new Promise(resolve => {
+        _searchCustomersDebounceTimer = setTimeout(resolve, 250);
+    });
+    if (callId !== _searchCustomersLatestCallId) return; // superseded
+
     try {
         // Search by phone or name
         const { data, error } = await supabaseClient
@@ -295,6 +307,8 @@ async function searchCustomersForAppointment(query) {
             .neq('role', 'admin')
             .neq('role', 'groomer')
             .limit(10);
+
+        if (callId !== _searchCustomersLatestCallId) return; // superseded mid-request
         
         if (error) {
             console.error('Customer search error:', error);

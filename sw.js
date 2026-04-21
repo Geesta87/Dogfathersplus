@@ -1,6 +1,13 @@
 // Dogfathers Plus Service Worker
-// Auto-increment: change this timestamp on each deploy to bust cache
-const CACHE_VERSION = Date.now();
+//
+// IMPORTANT — cache-busting anchor:
+// Bump APP_VERSION on every deploy. The browser only re-installs this Service
+// Worker when its bytes change; without a version bump, JS/CSS changes in
+// other files won't reach returning users because the SW keeps serving the
+// old cached copies. Bumping APP_VERSION forces a new SW install, which
+// regenerates CACHE_VERSION and wipes old caches in the activate handler.
+const APP_VERSION = '1.0.1';
+const CACHE_VERSION = `${APP_VERSION}-${Date.now()}`;
 const CACHE_NAME = `dogfathers-plus-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `dogfathers-dynamic-${CACHE_VERSION}`;
 

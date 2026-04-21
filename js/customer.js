@@ -611,12 +611,33 @@ async function redeemReward(rewardId, rewardName, pointsRequired) {
 // Admin: Update appointment status
 async function updateAppointmentStatus(appointmentId, status) {
     showLoading();
-    
+
+    // Fetch current status from DB (not local state) before writing. This is the
+    // authoritative guard against double-awarding loyalty points on duplicate clicks
+    // or stale state.
+    let previousStatus = null;
+    try {
+        const { data: current } = await supabaseClient
+            .from('appointments')
+            .select('status')
+            .eq('id', appointmentId)
+            .single();
+        previousStatus = current?.status || null;
+    } catch (fetchErr) {
+        _log('Could not pre-fetch appointment status:', fetchErr);
+    }
+
+    if (previousStatus === status) {
+        hideLoading();
+        _log(`Appointment ${appointmentId} already ${status}, skipping no-op update.`);
+        return;
+    }
+
     const updateData = { status };
     if (status === 'confirmed') updateData.confirmed_at = new Date().toISOString();
     if (status === 'completed') updateData.completed_at = new Date().toISOString();
     if (status === 'cancelled') updateData.cancelled_at = new Date().toISOString();
-    
+
     const { error } = await supabaseClient
         .from('appointments')
         .update(updateData)
@@ -629,8 +650,9 @@ async function updateAppointmentStatus(appointmentId, status) {
         return;
     }
     
-    // Award loyalty points when appointment is COMPLETED
-    if (status === 'completed') {
+    // Award loyalty points when appointment is COMPLETED — only on the real
+    // transition into completed, never on re-writes (previousStatus already 'completed').
+    if (status === 'completed' && previousStatus !== 'completed') {
         // Find the appointment to get customer_id
         const appointment = state.allAppointments.find(a => a.id === appointmentId);
         if (appointment && appointment.customer_id) {
