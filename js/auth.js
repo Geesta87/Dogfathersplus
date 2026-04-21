@@ -2,18 +2,25 @@
 // DOGFATHERS PLUS — AUTH.JS
 // =============================================
 
+// Normalize email: trim whitespace + lowercase. Prevents duplicate accounts
+// from "Sarah@x.com" vs "sarah@x.com" and login failures from trailing spaces.
+function normalizeEmail(raw) {
+    return (raw || '').trim().toLowerCase();
+}
+
 // =============================================
 // AUTHENTICATION FUNCTIONS
 // =============================================
 
 async function handleSignUp(email, password, fullName, phone) {
+    email = normalizeEmail(email);
     showLoading();
-    
+
     const { data, error } = await supabaseClient.auth.signUp({
         email,
         password,
         options: {
-            data: { 
+            data: {
                 full_name: fullName,
                 phone: phone
             }
@@ -61,8 +68,9 @@ async function handleSignUp(email, password, fullName, phone) {
 }
 
 async function handleSignIn(email, password) {
+    email = normalizeEmail(email);
     showLoading();
-    
+
     // Reset onboarding state - login should NEVER show onboarding
     state.showOnboarding = false;
     
@@ -401,8 +409,9 @@ function closeAdminLogin() {
 }
 
 async function handleAdminLogin(email, password) {
+    email = normalizeEmail(email);
     showLoading();
-    
+
     const { data, error } = await supabaseClient.auth.signInWithPassword({
         email,
         password
@@ -481,9 +490,9 @@ function closeForgotPassword() {
 async function handleForgotPassword(e) {
     e.preventDefault();
     showLoading();
-    
-    const email = document.getElementById('forgot-email').value.trim();
-    
+
+    const email = normalizeEmail(document.getElementById('forgot-email').value);
+
     if (!email) {
         hideLoading();
         showToast('Please enter your email address', 'error');

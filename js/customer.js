@@ -223,7 +223,27 @@ function renderPetDeletionBlockedModal() {
 
 async function createAppointment(appointmentData) {
     showLoading();
-    
+
+    // Last-second race-condition guard: re-verify the chosen slot is still free.
+    // Covers the window between slot-list render and submit click.
+    try {
+        const { data: conflict } = await supabaseClient
+            .from('appointments')
+            .select('id')
+            .eq('appointment_date', appointmentData.date)
+            .eq('start_time', appointmentData.time)
+            .in('status', ['pending', 'confirmed', 'in_progress'])
+            .limit(1);
+        if (conflict && conflict.length > 0 && !appointmentData.groomerId) {
+            hideLoading();
+            showToast('That time was just booked by someone else. Please pick another slot.', 'error');
+            return null;
+        }
+    } catch (checkErr) {
+        // If the check itself fails (network), fall through — DB unique index is the ultimate gate.
+        _log('Pre-booking availability check skipped:', checkErr);
+    }
+
     // Get pet and service details for storing names directly
     const pet = state.pets.find(p => p.id === appointmentData.petId);
     const service = state.services?.find(s => s.id === appointmentData.serviceId);
@@ -2688,18 +2708,15 @@ async function loadTimeSlotsForDate(dateStr) {
         }
     } catch (err) {
         console.error('Failed to load time slots:', err);
-        // Fallback to 2-hour slots
-        timeSelect.innerHTML = `
-            <option value="">Select time</option>
-            <option value="07:00">7:00 AM</option>
-            <option value="09:00">9:00 AM</option>
-            <option value="11:00">11:00 AM</option>
-            <option value="13:00">1:00 PM</option>
-            <option value="15:00">3:00 PM</option>
-            <option value="17:00">5:00 PM</option>
-        `;
+        // Safe fallback: don't offer unchecked times that could collide with existing bookings.
+        // Prompt the user to retry instead.
+        timeSelect.innerHTML = '<option value="">Could not load times — tap date again</option>';
+        if (timeHint) {
+            timeHint.textContent = 'Connection issue. Please re-select the date to retry.';
+            timeHint.classList.remove('hidden');
+        }
     }
-    
+
     timeSelect.disabled = false;
 }
 

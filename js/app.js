@@ -87,6 +87,27 @@ function cleanupRealtimeSubscriptions() {
     } catch(e) { console.error('Cleanup error:', e); }
 }
 
+// Defensive wrapper: isolate one bad payload from killing the channel or
+// producing an unhandled promise rejection.
+async function safeHandleRealtimeUpdate(table, payload) {
+    try {
+        await handleRealtimeUpdate(table, payload);
+    } catch (err) {
+        console.error(`[realtime] ${table} handler threw:`, err);
+    }
+}
+
+// Uniform subscription status logger — helps diagnose CHANNEL_ERROR / TIMED_OUT silently dropping events.
+function logSubscriptionStatus(channelName) {
+    return (status, err) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            console.warn(`[realtime] ${channelName} status: ${status}`, err || '');
+        } else {
+            _log(`[realtime] ${channelName}:`, status);
+        }
+    };
+}
+
 function setupRealtimeSubscriptions() {
     if (!supabaseClient) return;
 
@@ -101,28 +122,26 @@ function setupRealtimeSubscriptions() {
             .channel('appointments-changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, async (payload) => {
                 _log('Appointment change:', payload.eventType);
-                await handleRealtimeUpdate('appointments', payload);
+                await safeHandleRealtimeUpdate('appointments', payload);
             })
-            .subscribe((status) => {
-                _log('Appointments subscription:', status);
-            });
+            .subscribe(logSubscriptionStatus('appointments'));
 
         supabaseClient
             .channel('services-changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'services' }, async (payload) => {
                 _log('Service change:', payload.eventType);
-                await handleRealtimeUpdate('services', payload);
+                await safeHandleRealtimeUpdate('services', payload);
             })
-            .subscribe();
+            .subscribe(logSubscriptionStatus('services'));
 
         // --- All roles: business hours (needed for booking availability) ---
         supabaseClient
             .channel('hours-changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'business_hours' }, async (payload) => {
                 _log('Business hours change:', payload.eventType);
-                await handleRealtimeUpdate('business_hours', payload);
+                await safeHandleRealtimeUpdate('business_hours', payload);
             })
-            .subscribe();
+            .subscribe(logSubscriptionStatus('business_hours'));
 
         // --- Customer & Admin: pets, profiles, rewards, products, ride-along packages ---
         if (role === 'customer' || role === 'admin') {
@@ -130,41 +149,41 @@ function setupRealtimeSubscriptions() {
                 .channel('pets-changes')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'pets' }, async (payload) => {
                     _log('Pet change:', payload.eventType);
-                    await handleRealtimeUpdate('pets', payload);
+                    await safeHandleRealtimeUpdate('pets', payload);
                 })
-                .subscribe();
+                .subscribe(logSubscriptionStatus('pets'));
 
             supabaseClient
                 .channel('profiles-changes')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, async (payload) => {
                     _log('Profile change:', payload.eventType);
-                    await handleRealtimeUpdate('profiles', payload);
+                    await safeHandleRealtimeUpdate('profiles', payload);
                 })
-                .subscribe();
+                .subscribe(logSubscriptionStatus('profiles'));
 
             supabaseClient
                 .channel('rewards-changes')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'rewards' }, async (payload) => {
                     _log('Reward change:', payload.eventType);
-                    await handleRealtimeUpdate('rewards', payload);
+                    await safeHandleRealtimeUpdate('rewards', payload);
                 })
-                .subscribe();
+                .subscribe(logSubscriptionStatus('rewards'));
 
             supabaseClient
                 .channel('products-changes')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, async (payload) => {
                     _log('Product change:', payload.eventType);
-                    await handleRealtimeUpdate('products', payload);
+                    await safeHandleRealtimeUpdate('products', payload);
                 })
-                .subscribe();
+                .subscribe(logSubscriptionStatus('products'));
 
             supabaseClient
                 .channel('ridealongs-changes')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_along_packages' }, async (payload) => {
                     _log('Ride-along change:', payload.eventType);
-                    await handleRealtimeUpdate('ride_along_packages', payload);
+                    await safeHandleRealtimeUpdate('ride_along_packages', payload);
                 })
-                .subscribe();
+                .subscribe(logSubscriptionStatus('ride_along_packages'));
         }
 
         // --- Admin only: redemptions and inquiries ---
@@ -173,17 +192,17 @@ function setupRealtimeSubscriptions() {
                 .channel('redemptions-changes')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'reward_redemptions' }, async (payload) => {
                     _log('Redemption change:', payload.eventType);
-                    await handleRealtimeUpdate('reward_redemptions', payload);
+                    await safeHandleRealtimeUpdate('reward_redemptions', payload);
                 })
-                .subscribe();
+                .subscribe(logSubscriptionStatus('reward_redemptions'));
 
             supabaseClient
                 .channel('inquiries-changes')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_along_inquiries' }, async (payload) => {
                     _log('Inquiry change:', payload.eventType);
-                    await handleRealtimeUpdate('ride_along_inquiries', payload);
+                    await safeHandleRealtimeUpdate('ride_along_inquiries', payload);
                 })
-                .subscribe();
+                .subscribe(logSubscriptionStatus('ride_along_inquiries'));
         }
 
         _log(`Realtime subscriptions set up for role: ${role || 'guest'}`);

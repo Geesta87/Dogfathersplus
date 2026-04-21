@@ -67,8 +67,9 @@ async function loadGroomerData() {
 
 // Groomer login handler
 async function handleGroomerLogin(email, password) {
+    email = (typeof normalizeEmail === 'function') ? normalizeEmail(email) : (email || '').trim().toLowerCase();
     showLoading();
-    
+
     try {
         const { data, error } = await supabaseClient.auth.signInWithPassword({
             email,
@@ -313,9 +314,21 @@ async function startWithBeforePhoto() {
 }
 
 // Groomer starts an appointment (status: confirmed → in_progress)
+// In-flight guard to prevent double-tap duplicate writes on spotty mobile networks
+if (typeof window !== 'undefined' && !window._groomerActionsInFlight) {
+    window._groomerActionsInFlight = new Set();
+}
+
 async function groomerStartAppointment(appointmentId, beforePhotoBase64 = null) {
+    const guardKey = `start:${appointmentId}`;
+    if (window._groomerActionsInFlight.has(guardKey)) {
+        _log('Start appointment already in flight, ignoring duplicate tap:', appointmentId);
+        return;
+    }
+    window._groomerActionsInFlight.add(guardKey);
+
     showLoading();
-    
+
     try {
         // Upload before photo if captured
         let beforePhotoUrl = null;
@@ -363,6 +376,8 @@ async function groomerStartAppointment(appointmentId, beforePhotoBase64 = null) 
         hideLoading();
         console.error('Start appointment error:', err);
         showToast('Failed to start appointment', 'error');
+    } finally {
+        window._groomerActionsInFlight.delete(`start:${appointmentId}`);
     }
 }
 
@@ -380,15 +395,29 @@ async function groomerCompleteAppointment(appointmentId, providedNotes = null, a
 
 // Legacy groomer mark complete (fallback, also used for pending → completed edge case)
 async function groomerMarkComplete(appointmentId, groomerNotes = null, afterPhotoBase64 = null) {
+    const guardKey = `complete:${appointmentId}`;
+    if (window._groomerActionsInFlight && window._groomerActionsInFlight.has(guardKey)) {
+        _log('Complete appointment already in flight, ignoring duplicate tap:', appointmentId);
+        return;
+    }
+    window._groomerActionsInFlight?.add(guardKey);
+
     showLoading();
-    
+
     try {
         // Find the appointment to get customer_id
         const appointment = state.groomerAppointments.find(a => a.id === appointmentId);
-        
+
         if (!appointment) {
             hideLoading();
             showToast('Appointment not found', 'error');
+            return;
+        }
+
+        // Idempotency: if already completed, no-op silently (prevents duplicate points award)
+        if (appointment.status === 'completed') {
+            _log('Appointment already completed, skipping:', appointmentId);
+            hideLoading();
             return;
         }
         
@@ -469,31 +498,47 @@ async function groomerMarkComplete(appointmentId, groomerNotes = null, afterPhot
         hideLoading();
         console.error('Complete appointment error:', err);
         showToast('Failed to complete appointment', 'error');
+    } finally {
+        window._groomerActionsInFlight?.delete(`complete:${appointmentId}`);
     }
 }
 
-// Helper function to award loyalty points (non-blocking)
+// Helper function to award loyalty points (non-blocking, with one retry)
 async function awardLoyaltyPointsToCustomer(customerId, appointmentId) {
-    try {
-        // Direct update - just add points to customer profile
-        const { data: customer } = await supabaseClient
+    const attempt = async () => {
+        const { data: customer, error: fetchErr } = await supabaseClient
             .from('profiles')
             .select('loyalty_points')
             .eq('id', customerId)
             .single();
-        
-        if (customer) {
-            const updatedPoints = (customer.loyalty_points || 0) + 50;
-            await supabaseClient
-                .from('profiles')
-                .update({ loyalty_points: updatedPoints })
-                .eq('id', customerId);
-            
-            _log(`Awarded 50 loyalty points to customer. New total: ${updatedPoints}`);
+        if (fetchErr) throw fetchErr;
+        if (!customer) throw new Error('Customer profile not found');
+
+        const updatedPoints = (customer.loyalty_points || 0) + 50;
+        const { error: updateErr } = await supabaseClient
+            .from('profiles')
+            .update({ loyalty_points: updatedPoints })
+            .eq('id', customerId);
+        if (updateErr) throw updateErr;
+
+        _log(`Awarded 50 loyalty points to customer. New total: ${updatedPoints}`);
+        return updatedPoints;
+    };
+
+    try {
+        await attempt();
+    } catch (firstErr) {
+        console.warn('Loyalty points award failed, retrying once:', firstErr);
+        try {
+            await new Promise(r => setTimeout(r, 800));
+            await attempt();
+        } catch (secondErr) {
+            console.error('Failed to award loyalty points (after retry):', secondErr);
+            // Surface to groomer so they can flag it manually — appointment still completes
+            if (typeof showToast === 'function') {
+                showToast('⚠️ Points award failed — admin will reconcile', 'error');
+            }
         }
-    } catch (pointsErr) {
-        console.error('Failed to award loyalty points:', pointsErr);
-        // Don't fail the whole operation just because points couldn't be awarded
     }
 }
 
