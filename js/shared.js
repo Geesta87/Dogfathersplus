@@ -1252,15 +1252,19 @@ async function calculateAvailableSlotsJS(customerLat, customerLng, startDate, en
             const dayAppts = appointmentsByGroomerDate[`${groomer.id}_${dateStr}`] || [];
             if (dayAppts.length >= maxPerDay) continue;
 
-            // CLUSTER-PROXIMITY RULE (Day-level check — cheap, runs once per day)
+            // CLUSTER-PROXIMITY RULE (day-level check — runs once per day)
             // Goal: prevent the groomer from being booked across LA County on one day.
             //
-            // If the day already has bookings, the customer must be within
-            // clusterRadiusMi of AT LEAST ONE existing booking OR within
-            // clusterRadiusMi of the groomer's home. The first customer to book
-            // any given day anchors the cluster — subsequent bookings must fit.
+            // If the day is empty for this groomer, any customer in a covered
+            // region can book — they anchor the day's route. The groomer's
+            // coverage is already filtered by service_regions upstream, so we
+            // don't need a separate home-distance cap here; trust the region
+            // assignment to define what's reachable.
             //
-            // If the day is empty, we fall through (first booking anchors the route).
+            // If the day has 1+ bookings, the customer must be within
+            // clusterRadiusMi of AT LEAST ONE existing booking OR within
+            // clusterRadiusMi of the groomer's home (covers near-home bookings
+            // that fit naturally into the start/end of the groomer's day).
             if (dayAppts.length > 0) {
                 const nearExistingBooking = dayAppts.some(a => {
                     if (a.latitude == null || a.longitude == null) return false;
@@ -1277,21 +1281,8 @@ async function calculateAvailableSlotsJS(customerLat, customerLng, startDate, en
                       ) <= clusterRadiusMi
                     : false;
                 if (!nearExistingBooking && !nearGroomerHome) continue;
-            } else if (groomer.home_latitude != null && groomer.home_longitude != null) {
-                // Empty day: still require that an anchor booking is reachable
-                // from the groomer's home. Without this, a customer in a covered
-                // region far from the groomer's home could force a day to open
-                // with an 80-mile first drive.
-                //
-                // Generous allowance: 3x the cluster radius for the home→anchor
-                // drive, since we only do this drive once per day and regions
-                // are already coverage-filtered.
-                const homeDistance = calculateDistance(
-                    customerLat, customerLng,
-                    parseFloat(groomer.home_latitude), parseFloat(groomer.home_longitude)
-                );
-                if (homeDistance > clusterRadiusMi * 3) continue;
             }
+            // Empty day: fall through — any customer in a covered region anchors the day.
 
             // Check each slot
             for (const slot of APPOINTMENT_SLOTS) {
