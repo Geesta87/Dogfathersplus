@@ -1174,11 +1174,11 @@ async function calculateAvailableSlotsJS(customerLat, customerLng, startDate, en
         .select('groomer_id, day_of_week, start_time, end_time, is_available')
         .eq('is_available', true);
 
-    // 2b. Get per-groomer capacity settings (max_appointments_per_day, buffer_minutes).
+    // 2b. Get per-groomer capacity + routing settings.
     // Defaults applied if a groomer has no row yet.
     const { data: groomerSettingsRows } = await supabaseClient
         .from('groomer_settings')
-        .select('groomer_id, max_appointments_per_day, buffer_minutes')
+        .select('groomer_id, max_appointments_per_day, buffer_minutes, service_radius_miles')
         .in('groomer_id', eligibleGroomers.map(g => g.id));
     const settingsByGroomer = {};
     (groomerSettingsRows || []).forEach(s => { settingsByGroomer[s.groomer_id] = s; });
@@ -1241,15 +1241,57 @@ async function calculateAvailableSlotsJS(customerLat, customerLng, startDate, en
             // Check for time off
             if (timeOffSet.has(`${groomer.id}_${dateStr}`)) continue;
 
-            // Per-groomer capacity + buffer settings (defaults if no row exists)
+            // Per-groomer capacity + buffer + cluster-routing settings
             const settings = settingsByGroomer[groomer.id] || {};
             const maxPerDay = settings.max_appointments_per_day ?? 6;
             const bufferMin = settings.buffer_minutes ?? 30;
+            const clusterRadiusMi = settings.service_radius_miles ?? 10;
 
             // Day-level capacity check: skip the entire day for this groomer
             // if they're already at or above their daily cap.
             const dayAppts = appointmentsByGroomerDate[`${groomer.id}_${dateStr}`] || [];
             if (dayAppts.length >= maxPerDay) continue;
+
+            // CLUSTER-PROXIMITY RULE (Day-level check — cheap, runs once per day)
+            // Goal: prevent the groomer from being booked across LA County on one day.
+            //
+            // If the day already has bookings, the customer must be within
+            // clusterRadiusMi of AT LEAST ONE existing booking OR within
+            // clusterRadiusMi of the groomer's home. The first customer to book
+            // any given day anchors the cluster — subsequent bookings must fit.
+            //
+            // If the day is empty, we fall through (first booking anchors the route).
+            if (dayAppts.length > 0) {
+                const nearExistingBooking = dayAppts.some(a => {
+                    if (a.latitude == null || a.longitude == null) return false;
+                    const d = calculateDistance(
+                        customerLat, customerLng,
+                        parseFloat(a.latitude), parseFloat(a.longitude)
+                    );
+                    return d <= clusterRadiusMi;
+                });
+                const nearGroomerHome = (groomer.home_latitude != null && groomer.home_longitude != null)
+                    ? calculateDistance(
+                        customerLat, customerLng,
+                        parseFloat(groomer.home_latitude), parseFloat(groomer.home_longitude)
+                      ) <= clusterRadiusMi
+                    : false;
+                if (!nearExistingBooking && !nearGroomerHome) continue;
+            } else if (groomer.home_latitude != null && groomer.home_longitude != null) {
+                // Empty day: still require that an anchor booking is reachable
+                // from the groomer's home. Without this, a customer in a covered
+                // region far from the groomer's home could force a day to open
+                // with an 80-mile first drive.
+                //
+                // Generous allowance: 3x the cluster radius for the home→anchor
+                // drive, since we only do this drive once per day and regions
+                // are already coverage-filtered.
+                const homeDistance = calculateDistance(
+                    customerLat, customerLng,
+                    parseFloat(groomer.home_latitude), parseFloat(groomer.home_longitude)
+                );
+                if (homeDistance > clusterRadiusMi * 3) continue;
+            }
 
             // Check each slot
             for (const slot of APPOINTMENT_SLOTS) {
