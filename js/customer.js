@@ -1231,10 +1231,12 @@ async function completeOnboarding() {
 
 function renderCustomerDashboard() {
     const user = state.currentUser;
+    const unreadMsgs = (state.customerMessages || []).filter(m => !m.read_by_customer && m.sender_role !== 'customer').length;
     const navItems = [
         { id: 'dashboard', label: 'Dashboard', icon: 'home' },
         { id: 'pets', label: 'My Pets', icon: 'pets' },
         { id: 'appointments', label: 'Appointments', icon: 'calendar_month' },
+        { id: 'messages', label: 'Messages', icon: 'chat_bubble', badge: unreadMsgs },
         { id: 'rewards', label: 'Rewards', icon: 'loyalty' },
         { id: 'store', label: 'Store', icon: 'storefront' },
         { id: 'ridealongs', label: 'Ride-Alongs', icon: 'directions_car' },
@@ -1279,7 +1281,7 @@ function renderCustomerDashboard() {
                 <div class="w-10 h-10 rounded-xl overflow-hidden"><img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-cover"/></div>
                 <div><p class="font-bold dark:text-white">${user.name}</p><p class="text-sm text-text-sub-light dark:text-text-sub-dark">${user.loyaltyPoints} pts</p></div>
             </div>
-            <nav class="p-4">${navItems.map(i => `<button onclick="setTab('${i.id}')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left mb-1 touch-target ${state.currentTab === i.id ? 'bg-primary text-white' : 'hover:bg-background-light dark:hover:bg-background-dark dark:text-white'}"><span class="material-symbols-outlined">${i.icon}</span>${i.label}</button>`).join('')}</nav>
+            <nav class="p-4">${navItems.map(i => `<button onclick="setTab('${i.id}')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left mb-1 touch-target ${state.currentTab === i.id ? 'bg-primary text-white' : 'hover:bg-background-light dark:hover:bg-background-dark dark:text-white'}"><span class="material-symbols-outlined">${i.icon}</span><span class="flex-1">${i.label}</span>${i.badge ? `<span class="ml-auto min-w-5 h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">${i.badge > 9 ? '9+' : i.badge}</span>` : ''}</button>`).join('')}</nav>
             <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-border-light dark:border-border-dark safe-bottom">
                 <button onclick="toggleDarkMode()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-background-light dark:hover:bg-background-dark dark:text-white mb-1 touch-target"><span class="material-symbols-outlined">${state.darkMode ? 'light_mode' : 'dark_mode'}</span>${state.darkMode ? 'Light Mode' : 'Dark Mode'}</button>
                 <button onclick="openChangePassword()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-background-light dark:hover:bg-background-dark dark:text-white mb-1 touch-target"><span class="material-symbols-outlined">password</span>Change Password</button>
@@ -1297,7 +1299,7 @@ function renderCustomerDashboard() {
                     <span class="material-symbols-outlined text-text-sub-light text-sm">edit</span>
                 </div>
             </div>
-            <nav class="flex-1 p-4 overflow-y-auto">${navItems.map(i => `<button onclick="setTab('${i.id}')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left mb-1 touch-target ${state.currentTab === i.id ? 'bg-primary text-white' : 'hover:bg-background-light dark:hover:bg-background-dark dark:text-white'}"><span class="material-symbols-outlined">${i.icon}</span>${i.label}</button>`).join('')}</nav>
+            <nav class="flex-1 p-4 overflow-y-auto">${navItems.map(i => `<button onclick="setTab('${i.id}')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left mb-1 touch-target ${state.currentTab === i.id ? 'bg-primary text-white' : 'hover:bg-background-light dark:hover:bg-background-dark dark:text-white'}"><span class="material-symbols-outlined">${i.icon}</span><span class="flex-1">${i.label}</span>${i.badge ? `<span class="ml-auto min-w-5 h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">${i.badge > 9 ? '9+' : i.badge}</span>` : ''}</button>`).join('')}</nav>
             <div class="p-4 border-t border-border-light dark:border-border-dark">
                 <button onclick="refreshData()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-background-light dark:hover:bg-background-dark dark:text-white mb-1 touch-target"><span class="material-symbols-outlined">refresh</span>Refresh Data</button>
                 <button onclick="toggleDarkMode()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-background-light dark:hover:bg-background-dark dark:text-white mb-1 touch-target"><span class="material-symbols-outlined">${state.darkMode ? 'light_mode' : 'dark_mode'}</span>${state.darkMode ? 'Light Mode' : 'Dark Mode'}</button>
@@ -1799,6 +1801,10 @@ function renderCustomerContent() {
                 </div>
                 ` : ''}
             </div>`).join('')}</div>` : ''}`;
+    }
+
+    if (state.currentTab === 'messages') {
+        return renderCustomerMessagesTab();
     }
 
     if (state.currentTab === 'rewards') {
@@ -3447,4 +3453,132 @@ function submitBookingFromConfirmation() {
     if (form) form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
 }
 
+
+// =============================================
+// CUSTOMER MESSAGES TAB (Model C)
+// Customer has one thread with Dogfathers staff. Admin is always a participant.
+// The assigned groomer is added to the thread during the active appointment window.
+// =============================================
+function renderCustomerMessagesTab() {
+    const messages = (state.customerMessages || []).slice().sort((a, b) =>
+        new Date(a.created_at) - new Date(b.created_at)
+    );
+    const myId = state.currentUser?.id;
+    const hasUpcomingOrActive = (state.appointments || []).some(a =>
+        ['pending', 'confirmed', 'in_progress'].includes(a.status)
+    );
+
+    // Figure out who on the groomer side is currently "in window" — helps set expectations
+    const activeGroomerAppt = (state.appointments || [])
+        .filter(a => ['confirmed', 'in_progress'].includes(a.status) && a.assigned_groomer_id)
+        .sort((a, b) => (a.appointment_date || '').localeCompare(b.appointment_date || ''))[0];
+    const activeGroomerName = activeGroomerAppt?.groomerName || activeGroomerAppt?.groomer_name || null;
+
+    // Mark thread read when the tab is first rendered with unread messages.
+    // (Fire-and-forget, OK if it races with other renders — idempotent.)
+    const hasUnread = messages.some(m => !m.read_by_customer && m.sender_role !== 'customer');
+    if (hasUnread) {
+        setTimeout(() => markCustomerThreadRead(myId), 150);
+    }
+
+    return `
+    <div class="flex flex-col h-[calc(100vh-6rem)] lg:h-[calc(100vh-4rem)] max-w-3xl mx-auto">
+        <!-- Header -->
+        <div class="flex items-center gap-3 pb-4 border-b border-border-light dark:border-border-dark">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-sky-500 text-white flex items-center justify-center">
+                <span class="material-symbols-outlined">support_agent</span>
+            </div>
+            <div class="flex-1 min-w-0">
+                <h2 class="text-lg font-bold dark:text-white">Dogfathers Plus</h2>
+                <p class="text-xs text-text-sub-light dark:text-text-sub-dark truncate">
+                    ${activeGroomerName
+                        ? `Your team + ${escapeHtml(activeGroomerName)} (your groomer)`
+                        : 'Your support team'}
+                </p>
+            </div>
+        </div>
+
+        <!-- Message List -->
+        <div id="customer-messages-container" class="flex-1 overflow-y-auto py-4 space-y-3">
+            ${messages.length === 0 ? `
+                <div class="h-full flex items-center justify-center">
+                    <div class="text-center px-6">
+                        <span class="material-symbols-outlined text-6xl text-slate-300 dark:text-slate-700 mb-3">chat_bubble_outline</span>
+                        <h3 class="font-bold text-lg dark:text-white mb-1">Say hello 👋</h3>
+                        <p class="text-sm text-text-sub-light dark:text-text-sub-dark">
+                            ${hasUpcomingOrActive
+                                ? 'Message your groomer about gate codes, ETA, or anything about your upcoming groom.'
+                                : 'Have a question about our services? Send us a message — we usually reply within an hour.'}
+                        </p>
+                    </div>
+                </div>
+            ` : messages.map(m => renderCustomerMessageBubble(m, myId)).join('')}
+        </div>
+
+        <!-- Composer -->
+        <form onsubmit="handleCustomerSendMessage(event)" class="pt-3 border-t border-border-light dark:border-border-dark flex items-center gap-2 safe-bottom">
+            <input id="customer-message-input" type="text"
+                   placeholder="Type a message..."
+                   autocomplete="off"
+                   maxlength="2000"
+                   class="flex-1 h-12 px-4 rounded-xl bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark focus:ring-2 focus:ring-primary outline-none dark:text-white"/>
+            <button type="submit" class="h-12 w-12 rounded-xl bg-primary text-white flex items-center justify-center hover:bg-sky-600 transition-colors touch-target" aria-label="Send message">
+                <span class="material-symbols-outlined">send</span>
+            </button>
+        </form>
+    </div>
+    <script>
+        // Scroll to bottom after render so newest message is visible
+        setTimeout(() => {
+            const c = document.getElementById('customer-messages-container');
+            if (c) c.scrollTop = c.scrollHeight;
+        }, 50);
+    </script>`;
+}
+
+function renderCustomerMessageBubble(m, myId) {
+    const isMine = m.sender_id === myId;
+    const alignment = isMine ? 'justify-end' : 'justify-start';
+    const bubbleClass = isMine
+        ? 'bg-primary text-white rounded-2xl rounded-br-sm'
+        : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white rounded-2xl rounded-bl-sm';
+    const senderLabel = isMine
+        ? ''
+        : `<p class="text-xs text-text-sub-light dark:text-text-sub-dark mb-1 ml-2">${m.sender_role === 'admin' ? 'Dogfathers Team' : 'Your Groomer'}</p>`;
+    const time = new Date(m.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    return `
+        <div class="flex ${alignment}">
+            <div class="max-w-[85%] sm:max-w-md">
+                ${senderLabel}
+                <div class="${bubbleClass} px-4 py-2.5">
+                    ${m.photo_url ? `<img src="${escapeHtml(m.photo_url)}" alt="" class="rounded-lg mb-1 max-w-full"/>` : ''}
+                    ${m.message ? `<p class="whitespace-pre-wrap break-words">${escapeHtml(m.message)}</p>` : ''}
+                </div>
+                <p class="text-[10px] text-text-sub-light dark:text-text-sub-dark mt-1 ${isMine ? 'text-right mr-2' : 'ml-2'}">${time}</p>
+            </div>
+        </div>`;
+}
+
+async function handleCustomerSendMessage(e) {
+    e.preventDefault();
+    const input = document.getElementById('customer-message-input');
+    if (!input) return;
+    const text = (input.value || '').trim();
+    if (!text) return;
+
+    // Clear input immediately so user can keep typing
+    input.value = '';
+
+    // sendCustomerMessage handles state update + error toast
+    await sendCustomerMessage(null, text);
+    render();
+
+    // Scroll to bottom
+    setTimeout(() => {
+        const c = document.getElementById('customer-messages-container');
+        if (c) c.scrollTop = c.scrollHeight;
+        const i = document.getElementById('customer-message-input');
+        if (i) i.focus();
+    }, 50);
+}
 

@@ -168,6 +168,15 @@ function setupRealtimeSubscriptions() {
             })
             .subscribe(logSubscriptionStatus('business_hours'));
 
+        // --- All roles: customer messaging (Model C). RLS filters rows per role. ---
+        supabaseClient
+            .channel('customer-messages-changes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'customer_messages' }, async (payload) => {
+                _log('customer_messages change:', payload.eventType);
+                await safeHandleRealtimeUpdate('customer_messages', payload);
+            })
+            .subscribe(logSubscriptionStatus('customer_messages'));
+
         // --- Customer & Admin: pets, profiles, rewards, products, ride-along packages ---
         if (role === 'customer' || role === 'admin') {
             supabaseClient
@@ -389,6 +398,33 @@ async function handleRealtimeUpdate(table, payload) {
             // Reload business hours for all users
             await loadPublicData();
             break;
+
+        case 'customer_messages':
+            // Update local cache — RLS has already filtered what we can see.
+            if (eventType === 'INSERT' && newRecord) {
+                // Avoid duplicating messages the sender already added optimistically.
+                const exists = (state.customerMessages || []).some(m => m.id === newRecord.id);
+                if (!exists) {
+                    state.customerMessages = [...(state.customerMessages || []), newRecord];
+                    // Ping the receiving side with a subtle toast.
+                    const role = state.currentUser?.role;
+                    const isIncoming = newRecord.sender_id !== state.currentUser?.id;
+                    if (isIncoming) {
+                        if (role === 'customer') {
+                            showToast('💬 New message from Dogfathers', 'info');
+                        } else if ((role === 'admin' || role === 'groomer') && newRecord.sender_role === 'customer') {
+                            showToast('💬 New customer message', 'info');
+                        }
+                    }
+                }
+            } else if (eventType === 'UPDATE' && newRecord) {
+                state.customerMessages = (state.customerMessages || []).map(m =>
+                    m.id === newRecord.id ? newRecord : m
+                );
+            } else if (eventType === 'DELETE' && oldRecord) {
+                state.customerMessages = (state.customerMessages || []).filter(m => m.id !== oldRecord.id);
+            }
+            break;
     }
     
     render();
@@ -457,6 +493,8 @@ async function loadUserProfile(userId) {
             } else {
                 await loadCustomerData(userId);
             }
+            // Load customer messaging (Model C). RLS scopes visibility per role.
+            await loadCustomerMessages();
             return true;
         } else {
             _log('No profile found for user');
@@ -465,6 +503,111 @@ async function loadUserProfile(userId) {
     } catch (err) {
         console.error('Failed to load user profile:', err);
         return false;
+    }
+}
+
+// =============================================
+// CUSTOMER MESSAGING (Model C: customer ↔ groomer ↔ admin)
+// =============================================
+
+// Load customer_messages rows visible to the current user.
+// Supabase RLS does the heavy lifting — customer sees only their own thread,
+// admin sees all, groomer sees only customers with an active-window appointment.
+async function loadCustomerMessages() {
+    if (!supabaseClient || !state.currentUser) return;
+    try {
+        const { data, error } = await supabaseClient
+            .from('customer_messages')
+            .select('*')
+            .order('created_at', { ascending: true });
+        if (error) {
+            _warn('customer_messages load error (table may not exist yet):', error.message);
+            state.customerMessages = [];
+            return;
+        }
+        state.customerMessages = data || [];
+        _log('customer_messages loaded:', state.customerMessages.length);
+    } catch (err) {
+        _warn('customer_messages load exception:', err);
+        state.customerMessages = [];
+    }
+}
+
+// Send a message into a customer's thread. Sender role is derived from the
+// current user's role. RLS on the server is the authoritative gate — this
+// helper just builds the payload and inserts.
+async function sendCustomerMessage(customerId, message, photoUrl = null) {
+    if (!supabaseClient || !state.currentUser) {
+        showToast('Not signed in', 'error');
+        return null;
+    }
+    const role = state.currentUser.role;
+    if (!['customer', 'groomer', 'admin'].includes(role)) {
+        showToast('Your account role cannot send messages', 'error');
+        return null;
+    }
+    // Customers can only send into their own thread; ignore passed customerId.
+    const targetCustomerId = role === 'customer' ? state.currentUser.id : customerId;
+    if (!targetCustomerId) {
+        showToast('No customer selected', 'error');
+        return null;
+    }
+    const trimmed = (message || '').trim();
+    if (!trimmed && !photoUrl) return null;
+
+    const payload = {
+        customer_id: targetCustomerId,
+        sender_id: state.currentUser.id,
+        sender_role: role,
+        message: trimmed || null,
+        photo_url: photoUrl || null,
+        // Sender has by definition "read" the message they just sent.
+        read_by_customer: role === 'customer',
+        read_by_staff: role !== 'customer'
+    };
+
+    try {
+        const { data, error } = await supabaseClient
+            .from('customer_messages')
+            .insert(payload)
+            .select()
+            .single();
+        if (error) {
+            console.error('Send message error:', error);
+            showToast('Failed to send message', 'error');
+            return null;
+        }
+        // Optimistically append so UI updates immediately; realtime will dedupe by id.
+        state.customerMessages = [...(state.customerMessages || []), data];
+        return data;
+    } catch (err) {
+        console.error('Send message exception:', err);
+        showToast('Failed to send message', 'error');
+        return null;
+    }
+}
+
+// Mark all messages in a customer's thread as read for the current viewer role.
+async function markCustomerThreadRead(customerId) {
+    if (!supabaseClient || !state.currentUser || !customerId) return;
+    const role = state.currentUser.role;
+    const column = role === 'customer' ? 'read_by_customer' : 'read_by_staff';
+    try {
+        const { error } = await supabaseClient
+            .from('customer_messages')
+            .update({ [column]: true })
+            .eq('customer_id', customerId)
+            .eq(column, false);
+        if (error) {
+            _warn(`markCustomerThreadRead failed:`, error.message);
+            return;
+        }
+        // Update local state too so badges update without waiting for realtime.
+        state.customerMessages = (state.customerMessages || []).map(m =>
+            m.customer_id === customerId ? { ...m, [column]: true } : m
+        );
+    } catch (err) {
+        _warn('markCustomerThreadRead exception:', err);
     }
 }
 

@@ -300,6 +300,12 @@ let state = {
     // Phase 2: Admin Messages
     adminMessages: [], // Messages for admin
     adminActiveConversation: null,
+    // Phase 3 (Model C): Customer <-> Groomer <-> Admin messaging
+    customerMessages: [], // customer_messages rows visible to current user (RLS-filtered)
+    adminActiveCustomerThread: null, // customer_id whose thread admin is viewing
+    groomerActiveCustomerThread: null, // customer_id whose thread groomer is viewing
+    customerMessagesSection: 'staff', // customer-side: 'staff' (only one thread) — placeholder for future
+    adminMessagesSection: 'groomers', // admin-side: 'groomers' | 'customers'
     // Phase 3: Groomer Schedule Calendar
     scheduleViewMode: 'monthly', // 'today' | 'weekly' | 'monthly'
     selectedCalendarDate: null, // Currently selected date (YYYY-MM-DD)

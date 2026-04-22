@@ -4522,7 +4522,7 @@ function renderAdminDashboard() {
         {id:'groomers',label:'Groomers',icon:'content_cut'},
         {id:'coverage',label:'Coverage',icon:'map'},
         {id:'loyalty',label:'Loyalty',icon:'favorite', badge: state.pendingRedemptions?.length || 0},
-        {id:'messages',label:'Messages',icon:'chat_bubble', badge: state.adminMessages?.filter(m => !m.is_read && m.to_admin)?.length || 0},
+        {id:'messages',label:'Messages',icon:'chat_bubble', badge: (state.adminMessages?.filter(m => !m.is_read && m.to_admin)?.length || 0) + (state.customerMessages?.filter(m => !m.read_by_staff && m.sender_role === 'customer')?.length || 0)},
         {id:'services',label:'Services/Products',icon:'storefront'}
     ];
     
@@ -6371,29 +6371,59 @@ function closeRedemptionModal() {
 // =============================================
 
 function renderAdminMessagesTab() {
+    const section = state.adminMessagesSection || 'groomers';
+
+    // Unread badge counts for the section switcher
+    const groomerUnread = (state.adminMessages || []).filter(m => !m.is_read && m.to_admin).length;
+    const customerUnread = (state.customerMessages || []).filter(m => !m.read_by_staff && m.sender_role === 'customer').length;
+
+    const sectionSwitcher = `
+        <div class="inline-flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl mb-6">
+            <button onclick="setAdminMessagesSection('groomers')" class="relative px-4 py-2 rounded-lg font-bold text-sm transition-colors ${section === 'groomers' ? 'bg-white dark:bg-surface-dark shadow text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}">
+                Groomers
+                ${groomerUnread > 0 ? `<span class="ml-1.5 inline-flex items-center justify-center min-w-5 h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full">${groomerUnread > 9 ? '9+' : groomerUnread}</span>` : ''}
+            </button>
+            <button onclick="setAdminMessagesSection('customers')" class="relative px-4 py-2 rounded-lg font-bold text-sm transition-colors ${section === 'customers' ? 'bg-white dark:bg-surface-dark shadow text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}">
+                Customers
+                ${customerUnread > 0 ? `<span class="ml-1.5 inline-flex items-center justify-center min-w-5 h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full">${customerUnread > 9 ? '9+' : customerUnread}</span>` : ''}
+            </button>
+        </div>`;
+
+    if (section === 'customers') {
+        return `
+        <div class="mb-4">
+            <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white">Messages</h1>
+            <p class="text-slate-500 dark:text-slate-400 mt-1">Customer conversations (all threads visible)</p>
+        </div>
+        ${sectionSwitcher}
+        ${renderAdminCustomerThreadsView()}`;
+    }
+
+    // --- Groomers section (original) ---
     const groomers = state.groomers || [];
     const messages = state.adminMessages || [];
     const activeGroomer = state.adminActiveConversation;
-    
+
     // Group messages by groomer
     const groomerMessages = {};
     groomers.forEach(g => {
-        groomerMessages[g.id] = messages.filter(m => 
-            (m.sender_id === g.id && m.to_admin) || 
+        groomerMessages[g.id] = messages.filter(m =>
+            (m.sender_id === g.id && m.to_admin) ||
             (m.recipient_id === g.id && m.is_admin)
         );
     });
-    
+
     // Also include messages from unknown groomers
     const unknownGroomerIds = [...new Set(messages.filter(m => m.to_admin).map(m => m.sender_id))].filter(id => !groomers.find(g => g.id === id));
-    
+
     return `
-    <div class="mb-8">
+    <div class="mb-4">
         <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white">Messages</h1>
         <p class="text-slate-500 dark:text-slate-400 mt-1">Communicate with your grooming team</p>
     </div>
-    
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-280px)]">
+    ${sectionSwitcher}
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-320px)]">
         <!-- Conversations List -->
         <div class="bg-white dark:bg-surface-dark rounded-2xl border border-slate-200 dark:border-border-dark flex flex-col overflow-hidden">
             <div class="p-4 border-b border-slate-100 dark:border-slate-800">
@@ -6565,5 +6595,170 @@ async function sendAdminMessage(e, groomerId) {
         console.error('Error sending message:', err);
         showToast('Failed to send message', 'error');
     }
+}
+
+// =============================================
+// ADMIN: Customer Threads (Model C)
+// Shows every customer ↔ staff thread, sorted by most recent activity.
+// =============================================
+function setAdminMessagesSection(section) {
+    state.adminMessagesSection = section;
+    // Clear active selection when switching sections so UI doesn't show a stale thread
+    if (section === 'customers') {
+        state.adminActiveConversation = null;
+    } else {
+        state.adminActiveCustomerThread = null;
+    }
+    render();
+}
+
+function renderAdminCustomerThreadsView() {
+    const messages = state.customerMessages || [];
+    // Group by customer_id and find last message + unread count per thread
+    const threadsByCustomer = {};
+    messages.forEach(m => {
+        if (!threadsByCustomer[m.customer_id]) threadsByCustomer[m.customer_id] = [];
+        threadsByCustomer[m.customer_id].push(m);
+    });
+    // Sort messages within each thread, and build thread summaries
+    const threads = Object.keys(threadsByCustomer).map(customerId => {
+        const msgs = threadsByCustomer[customerId].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        const last = msgs[msgs.length - 1];
+        const unread = msgs.filter(m => !m.read_by_staff && m.sender_role === 'customer').length;
+        // Find customer info from loaded profiles (admin has allCustomers)
+        const customer = (state.allCustomers || []).find(c => c.id === customerId);
+        return {
+            customerId,
+            name: customer?.full_name || 'Customer',
+            phone: customer?.phone || '',
+            last,
+            unread,
+            lastTs: last ? new Date(last.created_at).getTime() : 0,
+        };
+    }).sort((a, b) => b.lastTs - a.lastTs);
+
+    const activeCustomerId = state.adminActiveCustomerThread;
+    const activeThread = activeCustomerId
+        ? (threadsByCustomer[activeCustomerId] || []).sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+        : null;
+    const activeCustomer = threads.find(t => t.customerId === activeCustomerId);
+
+    return `
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-320px)]">
+        <!-- Threads list -->
+        <div class="bg-white dark:bg-surface-dark rounded-2xl border border-slate-200 dark:border-border-dark flex flex-col overflow-hidden">
+            <div class="p-4 border-b border-slate-100 dark:border-slate-800">
+                <h3 class="font-bold dark:text-white">Customer Threads</h3>
+                <p class="text-xs text-slate-500 mt-0.5">${threads.length} ${threads.length === 1 ? 'thread' : 'threads'}</p>
+            </div>
+            <div class="flex-1 overflow-y-auto">
+                ${threads.length === 0 ? `
+                    <div class="p-8 text-center">
+                        <span class="material-symbols-outlined text-4xl text-slate-300 mb-2">forum</span>
+                        <p class="text-slate-500 text-sm">No customer conversations yet</p>
+                    </div>
+                ` : threads.map(t => {
+                    const initials = (t.name || 'C').split(' ').map(n => n.charAt(0)).join('').toUpperCase().slice(0, 2);
+                    const preview = t.last?.message || (t.last?.photo_url ? '📷 Photo' : '');
+                    return `
+                    <button onclick="openAdminCustomerThread('${t.customerId}')" class="w-full p-4 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border-b border-slate-100 dark:border-slate-800 ${activeCustomerId === t.customerId ? 'bg-primary/10' : ''}">
+                        <div class="w-12 h-12 rounded-full bg-sky-100 dark:bg-sky-900/30 flex items-center justify-center">
+                            <span class="text-sky-600 font-bold">${initials}</span>
+                        </div>
+                        <div class="flex-1 text-left min-w-0">
+                            <p class="font-bold dark:text-white truncate">${escapeHtml(t.name)}</p>
+                            <p class="text-sm text-slate-500 truncate">${escapeHtml(preview.substring(0, 40) + (preview.length > 40 ? '...' : ''))}</p>
+                        </div>
+                        ${t.unread > 0 ? `<span class="w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">${t.unread}</span>` : ''}
+                    </button>`;
+                }).join('')}
+            </div>
+        </div>
+
+        <!-- Thread viewer -->
+        <div class="lg:col-span-2 bg-white dark:bg-surface-dark rounded-2xl border border-slate-200 dark:border-border-dark flex flex-col overflow-hidden">
+            ${activeThread ? renderAdminCustomerMessageThread(activeCustomer, activeThread) : `
+                <div class="flex-1 flex items-center justify-center">
+                    <div class="text-center">
+                        <span class="material-symbols-outlined text-6xl text-slate-300 mb-4">forum</span>
+                        <p class="text-slate-500">Select a customer conversation to view</p>
+                    </div>
+                </div>
+            `}
+        </div>
+    </div>`;
+}
+
+function renderAdminCustomerMessageThread(customer, messages) {
+    const initials = (customer?.name || 'C').split(' ').map(n => n.charAt(0)).join('').toUpperCase().slice(0, 2);
+    return `
+        <!-- Header -->
+        <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-sky-100 dark:bg-sky-900/30 flex items-center justify-center">
+                    <span class="text-sky-600 font-bold text-sm">${initials}</span>
+                </div>
+                <div>
+                    <p class="font-bold dark:text-white">${escapeHtml(customer?.name || 'Customer')}</p>
+                    <p class="text-xs text-slate-500">${escapeHtml(customer?.phone || 'Customer thread')}</p>
+                </div>
+            </div>
+            ${customer?.phone ? `<a href="tel:${escapeHtml(customer.phone)}" class="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl font-bold text-sm transition-colors"><span class="material-symbols-outlined text-lg">call</span>Call</a>` : ''}
+        </div>
+
+        <!-- Messages -->
+        <div id="admin-customer-messages-container" class="flex-1 overflow-y-auto p-4 space-y-3">
+            ${messages.map(m => {
+                const isMe = m.sender_id === state.currentUser?.id;
+                const time = new Date(m.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                const roleLabel = m.sender_role === 'customer' ? 'Customer' : (m.sender_role === 'groomer' ? 'Groomer' : 'Admin');
+                return `
+                <div class="flex ${isMe ? 'justify-end' : 'justify-start'}">
+                    <div class="max-w-[70%] ${isMe ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white'} rounded-2xl px-4 py-3">
+                        ${!isMe ? `<p class="text-[10px] font-bold opacity-70 mb-1">${roleLabel}</p>` : ''}
+                        ${m.photo_url ? `<img src="${escapeHtml(m.photo_url)}" class="w-full max-w-[200px] rounded-lg mb-2 cursor-pointer" onclick="window.open('${escapeHtml(m.photo_url)}', '_blank')"/>` : ''}
+                        ${m.message ? `<p class="text-sm whitespace-pre-wrap break-words">${escapeHtml(m.message)}</p>` : ''}
+                        <p class="text-[10px] opacity-60 mt-1">${time}</p>
+                    </div>
+                </div>`;
+            }).join('')}
+        </div>
+
+        <!-- Input -->
+        <div class="p-4 border-t border-slate-100 dark:border-slate-800">
+            <form onsubmit="sendAdminCustomerMessage(event, '${customer?.customerId}')" class="flex gap-3">
+                <input type="text" id="admin-customer-message-input" placeholder="Reply to customer..." maxlength="2000" class="flex-1 h-12 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 border-0 focus:ring-2 focus:ring-primary dark:text-white" autocomplete="off"/>
+                <button type="submit" class="h-12 px-6 bg-primary text-white font-bold rounded-xl hover:bg-sky-600 transition-colors flex items-center gap-2">
+                    <span class="material-symbols-outlined">send</span>
+                </button>
+            </form>
+        </div>`;
+}
+
+function openAdminCustomerThread(customerId) {
+    state.adminActiveCustomerThread = customerId;
+    // Mark staff-unread messages in this thread as read.
+    markCustomerThreadRead(customerId);
+    render();
+    setTimeout(() => {
+        const c = document.getElementById('admin-customer-messages-container');
+        if (c) c.scrollTop = c.scrollHeight;
+    }, 100);
+}
+
+async function sendAdminCustomerMessage(e, customerId) {
+    e.preventDefault();
+    const input = document.getElementById('admin-customer-message-input');
+    const msg = input?.value?.trim();
+    if (!msg || !customerId) return;
+    input.value = '';
+    await sendCustomerMessage(customerId, msg);
+    render();
+    setTimeout(() => {
+        const c = document.getElementById('admin-customer-messages-container');
+        if (c) c.scrollTop = c.scrollHeight;
+        const i = document.getElementById('admin-customer-message-input');
+        if (i) i.focus();
+    }, 100);
 }
 

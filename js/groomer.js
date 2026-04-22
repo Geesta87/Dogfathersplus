@@ -3959,10 +3959,28 @@ async function saveAvailability() {
 // Groomer Messages Content - Enhanced with Customer Messaging
 function renderGroomerMessagesContent() {
     const messages = state.groomerMessages || [];
-    const todayAppts = (state.groomerAppointments || []).filter(a => 
-        a.appointment_date === getTodayPacific() && 
-        ['pending', 'confirmed', 'in_progress'].includes(a.status)
-    );
+    // Show customers whose threads this groomer is currently in window for:
+    // upcoming/in-progress appointments + recently-completed (within 24h).
+    // This mirrors the RLS policy on customer_messages so the UI matches what
+    // the groomer can actually read/send.
+    const now = Date.now();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const windowedApptsRaw = (state.groomerAppointments || []).filter(a => {
+        if (['pending', 'confirmed', 'in_progress'].includes(a.status)) return true;
+        if (a.status === 'completed' && a.completed_at) {
+            return (now - new Date(a.completed_at).getTime()) < dayMs;
+        }
+        return false;
+    });
+    // Dedupe by customer — show each customer once with their soonest appointment.
+    const seenCustomers = new Set();
+    const todayAppts = windowedApptsRaw
+        .sort((a, b) => (a.appointment_date || '').localeCompare(b.appointment_date || ''))
+        .filter(a => {
+            if (!a.customer_id || seenCustomers.has(a.customer_id)) return false;
+            seenCustomers.add(a.customer_id);
+            return true;
+        });
     
     // Quick message templates
     const quickTemplates = [
@@ -4165,11 +4183,29 @@ async function sendGroomerMessage(event) {
     event.preventDefault();
     const input = document.getElementById('message-input');
     const message = input?.value?.trim();
-    
+
     if (!message && !pendingPhotoData) {
         return;
     }
-    
+
+    // Model C: if the active conversation is a customer (not 'admin'),
+    // route to the new customer_messages table instead of the legacy flow.
+    if (state.activeConversation && state.activeConversation !== 'admin') {
+        const customerId = state.activeConversation;
+        const photoUrl = pendingPhotoData; // groomer can send base64 as-is for now
+        const sent = await sendCustomerMessage(customerId, message || '', photoUrl);
+        if (sent) {
+            if (input) input.value = '';
+            cancelPhotoUpload();
+            render();
+            setTimeout(() => {
+                const container = document.getElementById('messages-container');
+                if (container) container.scrollTop = container.scrollHeight;
+            }, 100);
+        }
+        return;
+    }
+
     // Build message content
     let messageContent = message || '';
     if (pendingPhotoData) {
@@ -4226,6 +4262,16 @@ async function sendGroomerMessage(event) {
 
 // Helper functions for messages
 function getLastMessage(conversationId) {
+    // Customer threads use customer_messages (Model C); admin thread uses legacy table.
+    if (conversationId && conversationId !== 'admin') {
+        const convMessages = (state.customerMessages || [])
+            .filter(m => m.customer_id === conversationId)
+            .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        if (convMessages.length === 0) return '';
+        const last = convMessages[convMessages.length - 1];
+        const preview = last.message || (last.photo_url ? '📷 Photo' : '');
+        return preview.length > 40 ? preview.substring(0, 40) + '...' : preview;
+    }
     const messages = state.groomerMessages || [];
     const convMessages = messages.filter(m => m.conversation_id === conversationId || (conversationId === 'admin' && m.is_admin));
     if (convMessages.length === 0) return '';
@@ -4234,14 +4280,32 @@ function getLastMessage(conversationId) {
 }
 
 function getUnreadCount(conversationId) {
+    // Customer threads: count unread customer-sent messages in customer_messages.
+    if (conversationId && conversationId !== 'admin') {
+        return (state.customerMessages || []).filter(m =>
+            m.customer_id === conversationId &&
+            !m.read_by_staff &&
+            m.sender_role === 'customer'
+        ).length;
+    }
     const messages = state.groomerMessages || [];
     return messages.filter(m => (m.conversation_id === conversationId || (conversationId === 'admin' && m.is_admin)) && !m.is_read && m.sender_id !== state.currentUser?.id).length;
 }
 
 function renderMessageThread(conversationId) {
-    const messages = state.groomerMessages || [];
-    const convMessages = messages.filter(m => m.conversation_id === conversationId || (conversationId === 'admin' && (m.is_admin || m.to_admin)));
-    
+    // If this is a customer thread, use the new customer_messages table (Model C).
+    // Admin thread continues to use the old groomer↔admin messages table.
+    const isCustomerThread = conversationId && conversationId !== 'admin';
+    const convMessages = isCustomerThread
+        ? (state.customerMessages || []).filter(m => m.customer_id === conversationId).sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+        : (state.groomerMessages || []).filter(m => m.conversation_id === conversationId || (conversationId === 'admin' && (m.is_admin || m.to_admin)));
+
+    // Mark the customer thread as read (staff side) when rendered with unread items.
+    if (isCustomerThread) {
+        const unread = convMessages.some(m => !m.read_by_staff && m.sender_role === 'customer');
+        if (unread) setTimeout(() => markCustomerThreadRead(conversationId), 150);
+    }
+
     if (convMessages.length === 0) {
         return `
             <div class="h-full flex items-center justify-center">
@@ -4252,17 +4316,22 @@ function renderMessageThread(conversationId) {
             </div>
         `;
     }
-    
+
     return convMessages.map(m => {
         const isMe = m.sender_id === state.currentUser?.id;
         const time = new Date(m.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        // For customer threads, show who sent it on the incoming side (admin vs customer)
+        const senderBadge = (isCustomerThread && !isMe)
+            ? `<p class="text-[10px] text-slate-400 mb-1">${m.sender_role === 'admin' ? 'Office' : 'Customer'}</p>`
+            : '';
         return `
             <div class="flex ${isMe ? 'justify-end' : 'justify-start'}">
                 <div class="max-w-[70%] ${isMe ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white'} rounded-2xl px-4 py-3">
+                    ${senderBadge}
                     ${m.photo_url ? `
                         <img src="${m.photo_url}" class="w-full max-w-[200px] rounded-lg mb-2 cursor-pointer" onclick="window.open('${m.photo_url}', '_blank')"/>
                     ` : ''}
-                    <p class="text-sm">${escapeHtml(m.message)}</p>
+                    ${m.message ? `<p class="text-sm">${escapeHtml(m.message)}</p>` : ''}
                     <p class="text-[10px] ${isMe ? 'text-emerald-200' : 'text-slate-400'} mt-1">${time}</p>
                 </div>
             </div>
