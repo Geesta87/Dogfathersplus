@@ -685,59 +685,58 @@ async function updateAppointmentStatus(appointmentId, status) {
     render();
 }
 
-// Get available time slots for a date
+// Get available time slots for a date.
+// Uses the business-wide fixed slot set (APPOINTMENT_SLOTS) instead of
+// generating every 30 minutes, so this path matches Smart Booking.
 async function getAvailableSlots(date, serviceId) {
     const dayOfWeek = new Date(date).getDay();
     const hours = state.businessHours.find(h => h.day_of_week === dayOfWeek);
-    
+
     if (!hours || hours.is_closed) return [];
-    
+
     // Get existing appointments for that date
     const { data: existingAppts } = await supabaseClient
         .from('appointments')
         .select('start_time, end_time, duration_minutes')
         .eq('appointment_date', date)
         .in('status', ['pending', 'confirmed', 'in_progress']);
-    
+
     // Get blocked times
     const { data: blocked } = await supabaseClient
         .from('blocked_times')
         .select('start_datetime, end_datetime')
         .gte('start_datetime', `${date}T00:00:00`)
         .lte('end_datetime', `${date}T23:59:59`);
-    
-    // Generate available slots
-    const slots = [];
-    let [openHour, openMin] = hours.open_time.split(':').map(Number);
-    const [closeHour, closeMin] = hours.close_time.split(':').map(Number);
-    
-    while (openHour < closeHour || (openHour === closeHour && openMin < closeMin)) {
-        const timeStr = `${String(openHour).padStart(2, '0')}:${String(openMin).padStart(2, '0')}`;
-        
-        // Check if slot is busy
+
+    const openTime = hours.open_time?.slice(0, 5);
+    const closeTime = hours.close_time?.slice(0, 5);
+
+    // Filter APPOINTMENT_SLOTS (e.g. 07/09/11/13/15/17) by business hours and conflicts.
+    const slots = APPOINTMENT_SLOTS.filter(timeStr => {
+        // Within business hours
+        if (openTime && timeStr < openTime) return false;
+        if (closeTime && timeStr >= closeTime) return false;
+
+        // Not overlapping any existing appointment
         const isBusy = (existingAppts || []).some(appt => {
-            const apptStart = appt.start_time.slice(0, 5);
-            return timeStr >= apptStart && timeStr < appt.end_time?.slice(0, 5);
+            const apptStart = appt.start_time?.slice(0, 5);
+            const apptEnd = appt.end_time?.slice(0, 5);
+            if (!apptStart || !apptEnd) return false;
+            return timeStr >= apptStart && timeStr < apptEnd;
         });
-        
+        if (isBusy) return false;
+
+        // Not inside a blocked_times window
         const isBlocked = (blocked || []).some(b => {
             const blockStart = new Date(b.start_datetime).toTimeString().slice(0, 5);
             const blockEnd = new Date(b.end_datetime).toTimeString().slice(0, 5);
             return timeStr >= blockStart && timeStr < blockEnd;
         });
-        
-        if (!isBusy && !isBlocked) {
-            slots.push(timeStr);
-        }
-        
-        // Add 30 minutes
-        openMin += 30;
-        if (openMin >= 60) {
-            openMin = 0;
-            openHour++;
-        }
-    }
-    
+        if (isBlocked) return false;
+
+        return true;
+    });
+
     return slots;
 }
 

@@ -1125,6 +1125,13 @@ function getMaxWeekOffset(allSlots) {
     return Math.max(0, diffWeeks);
 }
 
+// Convert "HH:MM" to minutes-since-midnight (utility for buffer math).
+function toMinutes(hhmm) {
+    if (!hhmm) return 0;
+    const [h, m] = hhmm.split(':').map(Number);
+    return (h * 60) + (m || 0);
+}
+
 // JavaScript fallback calculation for available slots
 async function calculateAvailableSlotsJS(customerLat, customerLng, startDate, endDate) {
     // 1. Get all groomers
@@ -1166,7 +1173,16 @@ async function calculateAvailableSlotsJS(customerLat, customerLng, startDate, en
         .from('groomer_availability')
         .select('groomer_id, day_of_week, start_time, end_time, is_available')
         .eq('is_available', true);
-    
+
+    // 2b. Get per-groomer capacity settings (max_appointments_per_day, buffer_minutes).
+    // Defaults applied if a groomer has no row yet.
+    const { data: groomerSettingsRows } = await supabaseClient
+        .from('groomer_settings')
+        .select('groomer_id, max_appointments_per_day, buffer_minutes')
+        .in('groomer_id', eligibleGroomers.map(g => g.id));
+    const settingsByGroomer = {};
+    (groomerSettingsRows || []).forEach(s => { settingsByGroomer[s.groomer_id] = s; });
+
     // 3. Get time off requests
     const { data: timeOff } = await supabaseClient
         .from('groomer_time_off')
@@ -1174,11 +1190,11 @@ async function calculateAvailableSlotsJS(customerLat, customerLng, startDate, en
         .gte('end_date', startDate)
         .lte('start_date', endDate)
         .eq('status', 'approved');
-    
-    // 4. Get existing appointments
+
+    // 4. Get existing appointments (include duration so buffer checks work)
     const { data: appointments } = await supabaseClient
         .from('appointments')
-        .select('id, appointment_date, start_time, assigned_groomer_id, latitude, longitude')
+        .select('id, appointment_date, start_time, duration_minutes, assigned_groomer_id, latitude, longitude')
         .gte('appointment_date', startDate)
         .lte('appointment_date', endDate)
         .not('status', 'in', '("cancelled","no_show")');
@@ -1221,20 +1237,52 @@ async function calculateAvailableSlotsJS(customerLat, customerLng, startDate, en
             // Check if groomer works this day
             const groomerAvail = availabilityMap[groomer.id]?.[dayOfWeek];
             if (!groomerAvail) continue;
-            
+
             // Check for time off
             if (timeOffSet.has(`${groomer.id}_${dateStr}`)) continue;
-            
+
+            // Per-groomer capacity + buffer settings (defaults if no row exists)
+            const settings = settingsByGroomer[groomer.id] || {};
+            const maxPerDay = settings.max_appointments_per_day ?? 6;
+            const bufferMin = settings.buffer_minutes ?? 30;
+
+            // Day-level capacity check: skip the entire day for this groomer
+            // if they're already at or above their daily cap.
+            const dayAppts = appointmentsByGroomerDate[`${groomer.id}_${dateStr}`] || [];
+            if (dayAppts.length >= maxPerDay) continue;
+
             // Check each slot
             for (const slot of APPOINTMENT_SLOTS) {
                 // Check if within groomer's hours
                 if (slot < groomerAvail.start_time?.slice(0,5) || slot >= groomerAvail.end_time?.slice(0,5)) continue;
-                
+
                 // Check if already booked
                 if (bookedSlots.has(`${groomer.id}_${dateStr}_${slot}`)) continue;
-                
+
+                // Buffer check: does the groomer's last appointment on this day
+                // end early enough (appt_end + buffer <= slot) AND does this slot
+                // end early enough before any later appointment (slot_end + buffer <= next_start)?
+                const slotMinutes = toMinutes(slot);
+                // We don't know this appt's duration yet — assume service default 120 min (matches createAppointment default).
+                // If an admin sets shorter services, the buffer may be conservative; that's fine (never overbooks).
+                const assumedDuration = 120;
+                const slotEnd = slotMinutes + assumedDuration;
+
+                const conflictsWithBuffer = dayAppts.some(a => {
+                    const aStart = toMinutes(a.start_time?.slice(0,5));
+                    const aDur = a.duration_minutes || 120;
+                    const aEnd = aStart + aDur;
+                    // Overlap directly
+                    if (slotMinutes < aEnd && slotEnd > aStart) return true;
+                    // This slot starts too soon after previous appt's end
+                    if (slotMinutes >= aEnd && slotMinutes - aEnd < bufferMin) return true;
+                    // A later appt starts too soon after this slot ends
+                    if (aStart >= slotEnd && aStart - slotEnd < bufferMin) return true;
+                    return false;
+                });
+                if (conflictsWithBuffer) continue;
+
                 // Calculate distance from previous appointment or home base
-                const dayAppts = appointmentsByGroomerDate[`${groomer.id}_${dateStr}`] || [];
                 const prevAppt = dayAppts
                     .filter(a => a.start_time?.slice(0,5) < slot)
                     .sort((a, b) => b.start_time.localeCompare(a.start_time))[0];
