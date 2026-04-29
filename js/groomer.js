@@ -704,8 +704,8 @@ function renderGroomerDashboard() {
                 ${groomerTab === 'messages' ? renderGroomerMessagesContent() : ''}
             </div>
             
-            <!-- Mobile Bottom Navigation Bar -->
-            <nav class="lg:hidden fixed bottom-0 left-0 right-0 z-50 glass-card border-t border-slate-200/50 dark:border-slate-800/50 safe-bottom">
+            <!-- Mobile Bottom Navigation Bar (hidden when hamburger drawer open so Sign Out is reachable) -->
+            <nav class="lg:hidden fixed bottom-0 left-0 right-0 z-50 glass-card border-t border-slate-200/50 dark:border-slate-800/50 safe-bottom ${state.showMobileMenu ? 'hidden' : ''}">
                 <div class="flex items-center justify-around h-16 px-2">
                     <button onclick="setGroomerTab('dashboard')" class="flex flex-col items-center justify-center w-16 h-14 rounded-xl transition-all touch-target ${groomerTab === 'dashboard' ? 'text-groomer-primary' : 'text-slate-400'}">
                         <span class="material-symbols-outlined text-2xl ${groomerTab === 'dashboard' ? 'fill-1' : ''}">dashboard</span>

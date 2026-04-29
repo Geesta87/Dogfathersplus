@@ -1274,14 +1274,14 @@ function renderCustomerDashboard() {
         </div>
     </header>
     ${state.showMobileMenu ? `
-    <div class="lg:hidden fixed inset-0 z-40 bg-black/50" onclick="toggleMobileMenu()">
-        <div class="absolute left-0 top-0 bottom-0 w-72 bg-surface-light dark:bg-surface-dark shadow-xl" onclick="event.stopPropagation()">
-            <div class="p-6 border-b border-border-light dark:border-border-dark flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl overflow-hidden"><img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-contain bg-white"/></div>
-                <div><p class="font-bold dark:text-white">${user.name}</p><p class="text-sm text-text-sub-light dark:text-text-sub-dark">${user.loyaltyPoints} pts</p></div>
+    <div class="lg:hidden fixed inset-0 z-[60] bg-black/50" onclick="toggleMobileMenu()">
+        <div class="absolute left-0 top-0 bottom-0 w-72 bg-surface-light dark:bg-surface-dark shadow-xl flex flex-col" onclick="event.stopPropagation()">
+            <div class="p-6 border-b border-border-light dark:border-border-dark flex items-center gap-3 flex-shrink-0">
+                <div class="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0"><img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-contain bg-white"/></div>
+                <div class="min-w-0"><p class="font-bold dark:text-white truncate">${user.name}</p><p class="text-sm text-text-sub-light dark:text-text-sub-dark">${user.loyaltyPoints} pts</p></div>
             </div>
-            <nav class="p-4">${navItems.map(i => `<button onclick="setTab('${i.id}')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left mb-1 touch-target ${state.currentTab === i.id ? 'bg-primary text-white' : 'hover:bg-background-light dark:hover:bg-background-dark dark:text-white'}"><span class="material-symbols-outlined">${i.icon}</span><span class="flex-1">${i.label}</span>${i.badge ? `<span class="ml-auto min-w-5 h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">${i.badge > 9 ? '9+' : i.badge}</span>` : ''}</button>`).join('')}</nav>
-            <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-border-light dark:border-border-dark safe-bottom">
+            <nav class="p-4 flex-1 overflow-y-auto min-h-0">${navItems.map(i => `<button onclick="setTab('${i.id}')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left mb-1 touch-target ${state.currentTab === i.id ? 'bg-primary text-white' : 'hover:bg-background-light dark:hover:bg-background-dark dark:text-white'}"><span class="material-symbols-outlined">${i.icon}</span><span class="flex-1">${i.label}</span>${i.badge ? `<span class="ml-auto min-w-5 h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">${i.badge > 9 ? '9+' : i.badge}</span>` : ''}</button>`).join('')}</nav>
+            <div class="p-4 border-t border-border-light dark:border-border-dark safe-bottom flex-shrink-0">
                 <button onclick="toggleDarkMode()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-background-light dark:hover:bg-background-dark dark:text-white mb-1 touch-target"><span class="material-symbols-outlined">${state.darkMode ? 'light_mode' : 'dark_mode'}</span>${state.darkMode ? 'Light Mode' : 'Dark Mode'}</button>
                 <button onclick="openChangePassword()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-background-light dark:hover:bg-background-dark dark:text-white mb-1 touch-target"><span class="material-symbols-outlined">password</span>Change Password</button>
                 <button onclick="logout()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 touch-target"><span class="material-symbols-outlined">logout</span>Sign Out</button>
@@ -1309,8 +1309,8 @@ function renderCustomerDashboard() {
         <main class="flex-1 lg:ml-72 pt-16 lg:pt-0 pb-24 lg:pb-8 bg-background-light dark:bg-background-dark min-h-screen safe-bottom overflow-x-hidden"><div class="${isFullWidth ? '' : 'p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto'}">${renderCustomerContent()}</div></main>
     </div>
     
-    <!-- #1 Mobile Bottom Tab Bar -->
-    <nav class="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface-light/95 dark:bg-surface-dark/95 backdrop-blur-md border-t border-border-light dark:border-border-dark safe-bottom">
+    <!-- #1 Mobile Bottom Tab Bar (hidden when hamburger drawer is open so Sign Out is reachable) -->
+    <nav class="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface-light/95 dark:bg-surface-dark/95 backdrop-blur-md border-t border-border-light dark:border-border-dark safe-bottom ${state.showMobileMenu ? 'hidden' : ''}">
         <div class="flex items-center justify-around h-16 px-1">
             <button onclick="setTab('dashboard')" class="flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-all ${state.currentTab === 'dashboard' ? 'text-primary' : 'text-slate-400 dark:text-slate-500'}">
                 <span class="material-symbols-outlined text-xl ${state.currentTab === 'dashboard' ? 'fill-1' : ''}">home</span>
