@@ -172,7 +172,7 @@ function renderGroomerLogin() {
             <div class="w-full max-w-md">
                 <div class="flex items-center gap-3 mb-8">
                     <div class="w-14 h-14 rounded-xl overflow-hidden shadow-lg">
-                        <img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-cover"/>
+                        <img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-contain bg-white"/>
                     </div>
                     <div>
                         <h1 class="text-2xl font-black dark:text-white">Dogfathers<span class="text-emerald-600">plus</span></h1>
@@ -233,7 +233,7 @@ function renderAuthPage() {
             </div>
             <div class="relative z-10 p-12 text-white max-w-2xl">
                 <div class="flex items-center gap-3 mb-6">
-                    <div class="size-12 rounded-xl shadow-lg overflow-hidden"><img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-cover"/></div>
+                    <div class="size-12 rounded-xl shadow-lg overflow-hidden"><img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-contain bg-white"/></div>
                     <h2 class="text-3xl font-bold text-white">Dogfathersplus</h2>
                 </div>
                 <h1 class="text-5xl font-bold leading-tight mb-6">Professional grooming at your doorstep.</h1>
@@ -247,7 +247,7 @@ function renderAuthPage() {
         <div class="w-full lg:w-1/2 flex flex-col bg-surface-light dark:bg-surface-dark overflow-y-auto">
             <div class="lg:hidden p-6 border-b border-border-light dark:border-border-dark flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-lg overflow-hidden"><img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-cover"/></div>
+                    <div class="w-8 h-8 rounded-lg overflow-hidden"><img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-contain bg-white"/></div>
                     <span class="font-bold text-xl dark:text-white">Dogfathersplus</span>
                 </div>
                 <div class="flex items-center gap-2">
@@ -399,7 +399,7 @@ function renderAdminLoginPage() {
             <div class="w-full max-w-md">
                 <div class="flex items-center gap-3 mb-8">
                     <div class="w-14 h-14 rounded-xl overflow-hidden shadow-lg">
-                        <img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-cover"/>
+                        <img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-contain bg-white"/>
                     </div>
                     <div>
                         <h1 class="text-2xl font-black dark:text-white">Dogfathers<span class="text-amber-600">plus</span></h1>

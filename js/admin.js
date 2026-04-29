@@ -4539,7 +4539,7 @@ function renderAdminDashboard() {
             <div class="p-6 flex flex-col h-full">
                 <div class="flex items-center gap-4 mb-6 px-2">
                     <div class="w-12 h-12 rounded-2xl shadow-md shadow-admin-primary/20 overflow-hidden">
-                        <img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-cover"/>
+                        <img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-contain bg-white"/>
                     </div>
                     <div class="flex flex-col">
                         <h1 class="text-slate-900 dark:text-white text-lg font-extrabold tracking-tight">Dogfathers<span class="text-admin-primary">plus</span></h1>
@@ -4569,7 +4569,7 @@ function renderAdminDashboard() {
 
         <!-- Mobile Header -->
         <div class="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between p-4 bg-admin-sidebar dark:bg-surface-dark border-b border-amber-100 dark:border-border-dark shadow-sm safe-top">
-            <div class="flex items-center gap-2"><div class="w-8 h-8 rounded-lg overflow-hidden"><img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-cover"/></div><span class="text-lg font-bold text-slate-900 dark:text-white">Dogfathers<span class="text-admin-primary">plus</span></span></div>
+            <div class="flex items-center gap-2"><div class="w-8 h-8 rounded-lg overflow-hidden"><img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-contain bg-white"/></div><span class="text-lg font-bold text-slate-900 dark:text-white">Dogfathers<span class="text-admin-primary">plus</span></span></div>
             <div class="flex items-center gap-1">
                 <button onclick="toggleNotifications()" class="text-slate-600 dark:text-slate-400 p-2.5 rounded-xl hover:bg-amber-50 dark:hover:bg-slate-800 touch-target relative" title="Notifications">
                     <span class="material-symbols-outlined">notifications</span>

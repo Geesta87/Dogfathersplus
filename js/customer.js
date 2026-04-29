@@ -753,7 +753,7 @@ function renderOnboarding() {
         <!-- Header -->
         <header class="p-4 flex justify-between items-center">
             <div class="flex items-center gap-2">
-                <div class="w-10 h-10 rounded-xl overflow-hidden shadow-md"><img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-cover"/></div>
+                <div class="w-10 h-10 rounded-xl overflow-hidden shadow-md"><img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-contain bg-white"/></div>
                 <span class="font-bold text-xl dark:text-white">Dogfathersplus</span>
             </div>
             <button onclick="skipOnboarding()" class="text-sm text-text-sub-light dark:text-text-sub-dark hover:text-primary">Skip for now</button>
@@ -1262,7 +1262,7 @@ function renderCustomerDashboard() {
     return `
     ${installBanner}
     <header class="lg:hidden fixed top-0 left-0 right-0 z-50 bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark px-4 py-3 flex items-center justify-between safe-top">
-        <div class="flex items-center gap-2"><div class="w-8 h-8 rounded-lg overflow-hidden"><img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-cover"/></div><span class="font-bold text-lg dark:text-white">Dogfathersplus</span></div>
+        <div class="flex items-center gap-2"><div class="w-8 h-8 rounded-lg overflow-hidden"><img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-contain bg-white"/></div><span class="font-bold text-lg dark:text-white">Dogfathersplus</span></div>
         <div class="flex items-center gap-1">
             <button onclick="toggleNotifications()" class="p-2 hover:bg-background-light dark:hover:bg-background-dark rounded-lg touch-target relative" title="Notifications">
                 <span class="material-symbols-outlined">notifications</span>
@@ -1277,7 +1277,7 @@ function renderCustomerDashboard() {
     <div class="lg:hidden fixed inset-0 z-40 bg-black/50" onclick="toggleMobileMenu()">
         <div class="absolute left-0 top-0 bottom-0 w-72 bg-surface-light dark:bg-surface-dark shadow-xl" onclick="event.stopPropagation()">
             <div class="p-6 border-b border-border-light dark:border-border-dark flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl overflow-hidden"><img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-cover"/></div>
+                <div class="w-10 h-10 rounded-xl overflow-hidden"><img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-contain bg-white"/></div>
                 <div><p class="font-bold dark:text-white">${user.name}</p><p class="text-sm text-text-sub-light dark:text-text-sub-dark">${user.loyaltyPoints} pts</p></div>
             </div>
             <nav class="p-4">${navItems.map(i => `<button onclick="setTab('${i.id}')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left mb-1 touch-target ${state.currentTab === i.id ? 'bg-primary text-white' : 'hover:bg-background-light dark:hover:bg-background-dark dark:text-white'}"><span class="material-symbols-outlined">${i.icon}</span><span class="flex-1">${i.label}</span>${i.badge ? `<span class="ml-auto min-w-5 h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">${i.badge > 9 ? '9+' : i.badge}</span>` : ''}</button>`).join('')}</nav>
@@ -1291,7 +1291,7 @@ function renderCustomerDashboard() {
     <div class="flex min-h-screen">
         <aside class="hidden lg:flex lg:flex-col w-72 bg-surface-light dark:bg-surface-dark border-r border-border-light dark:border-border-dark fixed left-0 top-0 bottom-0 z-40">
             <div class="p-6 border-b border-border-light dark:border-border-dark">
-                <div class="flex items-center gap-3 mb-6"><div class="w-10 h-10 rounded-xl overflow-hidden shadow-md"><img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-cover"/></div><span class="font-bold text-xl dark:text-white">Dogfathersplus</span></div>
+                <div class="flex items-center gap-3 mb-6"><div class="w-10 h-10 rounded-xl overflow-hidden shadow-md"><img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-contain bg-white"/></div><span class="font-bold text-xl dark:text-white">Dogfathersplus</span></div>
                 <div class="flex items-center gap-3 p-3 bg-background-light dark:bg-background-dark rounded-xl cursor-pointer hover:bg-border-light dark:hover:bg-border-dark transition-colors" onclick="openEditModal('profile', state.currentUser)">
                     <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white font-bold">${user.name?.charAt(0) || 'U'}</div>
                     <div class="flex-1"><p class="font-semibold dark:text-white">${user.name}</p><p class="text-sm text-text-sub-light dark:text-text-sub-dark">${user.loyaltyPoints} pts</p></div>
@@ -3481,24 +3481,24 @@ function renderCustomerMessagesTab() {
     }
 
     return `
-    <div class="flex flex-col h-[calc(100vh-6rem)] lg:h-[calc(100vh-4rem)] max-w-3xl mx-auto">
+    <div class="flex flex-col max-w-3xl mx-auto h-[calc(100dvh-10rem)] lg:h-[calc(100dvh-4rem)]">
         <!-- Header -->
         <div class="flex items-center gap-3 pb-4 border-b border-border-light dark:border-border-dark">
-            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-sky-500 text-white flex items-center justify-center">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-sky-500 text-white flex items-center justify-center flex-shrink-0">
                 <span class="material-symbols-outlined">support_agent</span>
             </div>
             <div class="flex-1 min-w-0">
-                <h2 class="text-lg font-bold dark:text-white">Dogfathers Plus</h2>
+                <h2 class="text-base sm:text-lg font-bold dark:text-white truncate">Dogfathers Plus</h2>
                 <p class="text-xs text-text-sub-light dark:text-text-sub-dark truncate">
                     ${activeGroomerName
-                        ? `Your team + ${escapeHtml(activeGroomerName)} (your groomer)`
+                        ? `Your team + ${escapeHtml(activeGroomerName)}`
                         : 'Your support team'}
                 </p>
             </div>
         </div>
 
         <!-- Message List -->
-        <div id="customer-messages-container" class="flex-1 overflow-y-auto py-4 space-y-3">
+        <div id="customer-messages-container" class="flex-1 overflow-y-auto py-4 space-y-3 min-h-0">
             ${messages.length === 0 ? `
                 <div class="h-full flex items-center justify-center">
                     <div class="text-center px-6">
