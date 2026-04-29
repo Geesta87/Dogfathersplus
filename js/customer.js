@@ -2459,22 +2459,60 @@ function renderSmartDatePicker(smartData, selectedSlot) {
     const best = bestAvailable || recommended || [];
     const more = moreAvailable || [...(goodOptions || []), ...(available || [])];
     const allSlots = [...best, ...more];
-    
+
     if (allSlots.length === 0) {
         return `
-            <div class="p-4 bg-slate-100 dark:bg-slate-800 rounded-xl text-center">
-                <span class="material-symbols-outlined text-4xl text-slate-400 mb-2">event_busy</span>
-                <p class="text-slate-600 dark:text-slate-400">No available times in the next 3 months. Please call us at (626) 863-6926 to schedule.</p>
+            <div class="p-5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl">
+                <div class="flex items-start gap-3">
+                    <span class="material-symbols-outlined text-amber-600 mt-0.5">route</span>
+                    <div class="flex-1">
+                        <p class="font-semibold text-amber-900 dark:text-amber-100">We're not in your area in the next 3 months</p>
+                        <p class="text-sm text-amber-800 dark:text-amber-200 mt-1">Our routes are clustered to keep groomer drive time short. We don't currently have an open day where your address fits.</p>
+                        <ul class="text-sm text-amber-800 dark:text-amber-200 mt-3 space-y-1.5 list-disc list-inside">
+                            <li>Try a different address (work or family member's home)</li>
+                            <li>Call us at <a href="tel:6268636926" class="font-bold underline">(626) 863-6926</a> — we may be able to fit you in</li>
+                        </ul>
+                    </div>
+                </div>
             </div>
         `;
     }
-    
+
+    // Auto-jump to the first week that actually has slots, but only on the
+    // first render (when weekOffset is null/0 and the user hasn't manually
+    // navigated). This prevents the customer from seeing a blank "No slots"
+    // week when the next week has plenty.
+    if (state.customerBookingWeekOffset == null) {
+        let firstWeekWithSlots = 0;
+        const tempMaxWeek = getMaxWeekOffset(allSlots);
+        for (let w = 0; w <= tempMaxWeek; w++) {
+            if (getSlotsForWeek(allSlots, w).length > 0) {
+                firstWeekWithSlots = w;
+                break;
+            }
+        }
+        state.customerBookingWeekOffset = firstWeekWithSlots;
+    }
+
     // Week navigation
     const weekOffset = state.customerBookingWeekOffset || 0;
     const maxWeek = getMaxWeekOffset(allSlots);
     const weekDates = getWeekDates(weekOffset);
     const weekSlots = getSlotsForWeek(allSlots, weekOffset);
     const grouped = groupSlotsByDate(weekSlots);
+
+    // If the currently-displayed week has no slots, find the next/previous
+    // week that does so we can offer a one-tap jump.
+    const findNextWeekWithSlots = (start, dir) => {
+        let w = start + dir;
+        while (w >= 0 && w <= maxWeek) {
+            if (getSlotsForWeek(allSlots, w).length > 0) return w;
+            w += dir;
+        }
+        return null;
+    };
+    const nextAvailableWeek = weekSlots.length === 0 ? findNextWeekWithSlots(weekOffset, 1) : null;
+    const prevAvailableWeek = weekSlots.length === 0 ? findNextWeekWithSlots(weekOffset, -1) : null;
     
     return `
         <div class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
@@ -2491,6 +2529,21 @@ function renderSmartDatePicker(smartData, selectedSlot) {
                     <span class="material-symbols-outlined text-slate-600 dark:text-slate-300">chevron_right</span>
                 </button>
             </div>
+
+            ${weekSlots.length === 0 ? `
+            <!-- Empty week banner — explains why and offers a jump to the next week with availability -->
+            <div class="px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 flex items-center gap-3">
+                <span class="material-symbols-outlined text-amber-600 flex-shrink-0">route</span>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-amber-900 dark:text-amber-100">We're booked in another area this week</p>
+                    <p class="text-xs text-amber-800 dark:text-amber-200">${nextAvailableWeek != null ? `Next opening in your area: ${getWeekLabel(nextAvailableWeek)}` : prevAvailableWeek != null ? `Recent week with availability: ${getWeekLabel(prevAvailableWeek)}` : 'No openings in 3 months — call us'}</p>
+                </div>
+                ${nextAvailableWeek != null ? `
+                <button type="button" onclick="customerWeekJumpTo(${nextAvailableWeek})" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg whitespace-nowrap touch-target">
+                    Jump →
+                </button>` : ''}
+            </div>
+            ` : ''}
             
             <!-- Day Columns -->
             <div class="grid grid-cols-5 divide-x divide-slate-200 dark:divide-slate-700">
@@ -2536,6 +2589,24 @@ function renderSmartDatePicker(smartData, selectedSlot) {
             </div>
         </div>
     `;
+}
+
+// Jump to a specific week index in the booking picker (used by the
+// "no slots this week — jump →" empty-state banner).
+function customerWeekJumpTo(targetWeek) {
+    const data = state.smartBookingData;
+    if (!data) return;
+    const allSlots = [...(data.bestAvailable || []), ...(data.moreAvailable || [])];
+    const maxWeek = getMaxWeekOffset(allSlots);
+    const clamped = Math.max(0, Math.min(targetWeek, maxWeek));
+    state.customerBookingWeekOffset = clamped;
+    const pickerContainer = document.getElementById('smart-date-picker');
+    if (pickerContainer) {
+        const selectedSlot = (state.selectedBookingDate && state.selectedBookingTime)
+            ? { date: state.selectedBookingDate, time: state.selectedBookingTime }
+            : null;
+        pickerContainer.innerHTML = renderSmartDatePicker(data, selectedSlot);
+    }
 }
 
 // Navigate weeks in customer booking
@@ -2681,8 +2752,10 @@ async function loadSmartDatePicker() {
         
         state.smartBookingData = recommendations;
         state.selectedBookingDate = null;
-        state.customerBookingWeekOffset = 0;
-        
+        // Reset to null so renderSmartDatePicker auto-jumps to the first week
+        // with availability (instead of showing an empty current week).
+        state.customerBookingWeekOffset = null;
+
         pickerContainer.innerHTML = renderSmartDatePicker(recommendations, null);
         
     } catch (err) {
