@@ -611,12 +611,12 @@ function renderGroomerDashboard() {
             <div class="p-5">
                 <!-- Logo -->
                 <div class="flex items-center gap-3 mb-8">
-                    <div class="bg-groomer-primary rounded-xl p-2 flex items-center justify-center text-white shadow-lg shadow-groomer-primary/30">
-                        <span class="material-symbols-outlined text-xl">pets</span>
+                    <div class="w-11 h-11 rounded-xl overflow-hidden shadow-lg shadow-groomer-primary/30 flex-shrink-0">
+                        <img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-contain bg-white"/>
                     </div>
-                    <div>
-                        <h1 class="text-base font-extrabold leading-none tracking-tight text-slate-900 dark:text-white">Dogfathers</h1>
-                        <p class="text-[9px] text-groomer-primary font-bold uppercase tracking-[0.15em]">Workflow Manager</p>
+                    <div class="min-w-0">
+                        <h1 class="text-base font-extrabold leading-none tracking-tight text-slate-900 dark:text-white">Dogfathers<span class="text-groomer-primary">plus</span></h1>
+                        <p class="text-[9px] text-groomer-primary font-bold uppercase tracking-[0.15em] mt-1">Workflow Manager</p>
                     </div>
                 </div>
                 
@@ -661,11 +661,11 @@ function renderGroomerDashboard() {
             <!-- Mobile Header -->
             <header class="h-14 lg:h-16 flex items-center justify-between px-4 lg:px-10 glass-card border-b border-slate-200/50 dark:border-slate-800/50 z-10">
                 <!-- Logo on Mobile / Search on Desktop -->
-                <div class="flex items-center gap-2 lg:hidden">
-                    <div class="w-8 h-8 bg-groomer-primary rounded-lg flex items-center justify-center text-white">
-                        <span class="material-symbols-outlined text-lg">pets</span>
+                <div class="flex items-center gap-2 lg:hidden min-w-0">
+                    <div class="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0">
+                        <img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-contain bg-white"/>
                     </div>
-                    <span class="font-bold text-slate-900 dark:text-white">Dogfathers</span>
+                    <span class="font-bold text-slate-900 dark:text-white truncate">Dogfathers<span class="text-groomer-primary">plus</span></span>
                 </div>
                 <div class="relative hidden lg:block">
                     <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
