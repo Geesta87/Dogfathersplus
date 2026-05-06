@@ -4911,6 +4911,10 @@ function renderAdminContent() {
                                 <span class="material-symbols-outlined text-base">photo_library</span>Photos
                             </button>
                         </div>
+                        <button onclick="openCalendarImport()" class="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-lg shadow-sm transition-all" title="Import appointments from iCloud / Outlook / Google Calendar">
+                            <span class="material-symbols-outlined text-lg">upload_file</span>
+                            <span class="text-sm font-bold hidden sm:inline">Import Calendar</span>
+                        </button>
                         <button onclick="openAdminAddAppointment()" class="flex items-center gap-2 bg-primary hover:bg-sky-600 text-white px-5 py-2.5 rounded-lg shadow-sm transition-all">
                             <span class="material-symbols-outlined text-lg">add</span>
                             <span class="text-sm font-bold">New Appointment</span>
@@ -6762,3 +6766,566 @@ async function sendAdminCustomerMessage(e, customerId) {
     }, 100);
 }
 
+// =============================================
+// CALENDAR IMPORT (Admin)
+// Migrate appointments from iCloud / Outlook / Google Calendar (.ics format).
+// Also accepts a CSV with a similar shape. Parser is defensive — tolerates
+// missing fields, weird quoting, etc. Each row is editable in the preview
+// before commit so admin can correct heuristic guesses.
+// =============================================
+
+function openCalendarImport() {
+    state.showCalendarImport = true;
+    state.calendarImportRawText = '';
+    state.calendarImportPreview = [];
+    state.calendarImportResults = null;
+    render();
+}
+
+function closeCalendarImport() {
+    state.showCalendarImport = false;
+    state.calendarImportRawText = '';
+    state.calendarImportPreview = [];
+    state.calendarImportResults = null;
+    render();
+}
+
+// --- Parsing helpers ---
+
+// ICS line continuations are indicated by a leading space on the next line.
+// Unfold them before parsing field-by-field.
+function _icsUnfold(text) {
+    return text.replace(/\r?\n[ \t]/g, '');
+}
+
+// Extract a value from an ICS line, ignoring parameters after a semicolon.
+// e.g. "DTSTART;TZID=America/Los_Angeles:20260501T090000" → "20260501T090000"
+function _icsValue(line) {
+    const colonIdx = line.indexOf(':');
+    return colonIdx === -1 ? '' : line.slice(colonIdx + 1).trim();
+}
+
+// Parse ICS DT (date-time) into a JS Date. Handles both:
+//   20260501T090000   (floating local time)
+//   20260501T160000Z  (UTC)
+function _icsParseDate(value) {
+    if (!value) return null;
+    const m = value.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})(Z?))?$/);
+    if (!m) return null;
+    const [, y, mo, d, h = '0', mi = '0', s = '0', isUtc] = m;
+    if (isUtc === 'Z') {
+        return new Date(Date.UTC(+y, +mo - 1, +d, +h, +mi, +s));
+    }
+    return new Date(+y, +mo - 1, +d, +h, +mi, +s);
+}
+
+// Unescape ICS text (\, → ,  /  \; → ;  /  \\n → newline).
+function _icsUnescape(s) {
+    return (s || '').replace(/\\n/g, '\n').replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\\\/g, '\\');
+}
+
+// Best-effort regex extractors for fields that get jammed into SUMMARY/DESCRIPTION.
+// Real Outlook/iCloud calendars are messy — these are starting guesses the admin
+// can override in the preview table.
+function _extractPhone(text) {
+    if (!text) return '';
+    const m = text.match(/(?:\+?1[\s\-\.]?)?\(?(\d{3})\)?[\s\-\.]?(\d{3})[\s\-\.]?(\d{4})/);
+    return m ? `${m[1]}${m[2]}${m[3]}` : '';
+}
+
+function _extractWeight(text) {
+    if (!text) return '';
+    const m = text.match(/(\d{1,3})\s*(?:lb|lbs|pound)/i);
+    return m ? m[1] : '';
+}
+
+// SUMMARY often looks like: "Jane Smith - Bath" or "Bath - Buddy" or just "Jane Smith"
+function _splitSummary(summary) {
+    if (!summary) return { customerName: '', service: '' };
+    const parts = summary.split(/\s*[-–—|]\s*/).map(s => s.trim()).filter(Boolean);
+    if (parts.length === 1) return { customerName: parts[0], service: '' };
+    // Heuristic: pick the part that LOOKS like a name (Title Case, no service keywords).
+    const serviceKeywords = /\b(bath|cut|haircut|groom|grooming|nail|deshed|spa|trim|brush|teeth)\b/i;
+    let customerName = '', service = '';
+    for (const p of parts) {
+        if (serviceKeywords.test(p)) { if (!service) service = p; }
+        else if (!customerName) customerName = p;
+    }
+    return { customerName: customerName || parts[0], service: service || parts.slice(1).join(' - ') };
+}
+
+// LOCATION is one address blob. Try to split it into street/city/zip.
+function _splitAddress(loc) {
+    if (!loc) return { address: '', city: '', zip: '' };
+    const cleaned = _icsUnescape(loc).replace(/\s+/g, ' ').trim();
+    // Match a trailing zip (5 digits, optional -4)
+    const zipMatch = cleaned.match(/(\d{5})(?:-\d{4})?\s*$/);
+    const zip = zipMatch ? zipMatch[1] : '';
+    let withoutZip = zipMatch ? cleaned.slice(0, zipMatch.index).trim().replace(/,$/, '').trim() : cleaned;
+    // Strip trailing state (CA, etc.)
+    withoutZip = withoutZip.replace(/,?\s*[A-Z]{2}\s*$/, '').trim();
+    // Last comma separates city from street
+    const lastCommaIdx = withoutZip.lastIndexOf(',');
+    if (lastCommaIdx === -1) return { address: withoutZip, city: '', zip };
+    return {
+        address: withoutZip.slice(0, lastCommaIdx).trim(),
+        city: withoutZip.slice(lastCommaIdx + 1).trim(),
+        zip
+    };
+}
+
+// Parse an .ics file into an array of normalized appointment-shape rows.
+function parseICSContent(rawText) {
+    const text = _icsUnfold(rawText);
+    const events = [];
+    const blocks = text.split(/BEGIN:VEVENT/);
+    for (let i = 1; i < blocks.length; i++) {
+        const block = blocks[i].split(/END:VEVENT/)[0];
+        const lines = block.split(/\r?\n/);
+        const raw = {};
+        for (const line of lines) {
+            const propMatch = line.match(/^([A-Z][A-Z0-9-]*)(;[^:]*)?:(.*)$/);
+            if (!propMatch) continue;
+            const name = propMatch[1];
+            if (!raw[name]) raw[name] = _icsValue(line);
+        }
+        const start = _icsParseDate(raw.DTSTART);
+        if (!start) continue; // skip events without a parseable start time
+
+        const summary = _icsUnescape(raw.SUMMARY || '');
+        const description = _icsUnescape(raw.DESCRIPTION || '');
+        const location = raw.LOCATION || '';
+        const { customerName, service } = _splitSummary(summary);
+        const { address, city, zip } = _splitAddress(location);
+        const phone = _extractPhone(description) || _extractPhone(summary);
+        const weight = _extractWeight(description);
+
+        events.push({
+            // Editable fields:
+            date: start.toISOString().split('T')[0],   // YYYY-MM-DD
+            time: start.toTimeString().slice(0, 5),    // HH:MM (24h, local)
+            customerName,
+            phone,
+            email: '',
+            address,
+            city,
+            zip,
+            petName: '',
+            petBreed: '',
+            petWeight: weight,
+            service,
+            notes: description.slice(0, 200),
+            // Status flags (filled in during import):
+            status: 'pending',
+            error: ''
+        });
+    }
+    return events;
+}
+
+// Parse a simple CSV with a defined header row. Tolerates Outlook's default
+// "Subject,Start Date,Start Time,...,Location,Description" layout.
+function parseCSVContent(rawText) {
+    const lines = rawText.replace(/\r\n/g, '\n').split('\n').filter(l => l.trim());
+    if (lines.length < 2) return [];
+    const parseRow = (line) => {
+        const out = [];
+        let cur = '', inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+            const c = line[i];
+            if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+            else if (c === '"') { inQuotes = !inQuotes; }
+            else if (c === ',' && !inQuotes) { out.push(cur); cur = ''; }
+            else { cur += c; }
+        }
+        out.push(cur);
+        return out.map(s => s.trim());
+    };
+    const headers = parseRow(lines[0]).map(h => h.toLowerCase());
+    const idx = (name) => headers.findIndex(h => h.includes(name));
+    const subIdx = idx('subject');
+    const dateIdx = idx('start date');
+    const timeIdx = idx('start time');
+    const locIdx = idx('location');
+    const descIdx = idx('description');
+
+    const events = [];
+    for (let i = 1; i < lines.length; i++) {
+        const row = parseRow(lines[i]);
+        const dateRaw = dateIdx >= 0 ? row[dateIdx] : '';
+        const timeRaw = timeIdx >= 0 ? row[timeIdx] : '';
+        // Outlook dates are M/D/YYYY, times are 12-hr with AM/PM. Convert.
+        const dateMatch = dateRaw.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        const date = dateMatch
+            ? `${dateMatch[3]}-${String(dateMatch[1]).padStart(2,'0')}-${String(dateMatch[2]).padStart(2,'0')}`
+            : '';
+        let time = '';
+        const t12 = timeRaw.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+        if (t12) {
+            let h = parseInt(t12[1], 10);
+            const m = t12[2];
+            const ampm = (t12[3] || '').toUpperCase();
+            if (ampm === 'PM' && h < 12) h += 12;
+            if (ampm === 'AM' && h === 12) h = 0;
+            time = `${String(h).padStart(2,'0')}:${m}`;
+        }
+        const summary = subIdx >= 0 ? row[subIdx] : '';
+        const description = descIdx >= 0 ? row[descIdx] : '';
+        const location = locIdx >= 0 ? row[locIdx] : '';
+        const { customerName, service } = _splitSummary(summary);
+        const { address, city, zip } = _splitAddress(location);
+        const phone = _extractPhone(description) || _extractPhone(summary);
+        const weight = _extractWeight(description);
+        if (!date || !time) continue;
+        events.push({
+            date, time, customerName, phone, email: '',
+            address, city, zip, petName: '', petBreed: '', petWeight: weight,
+            service, notes: description.slice(0, 200), status: 'pending', error: ''
+        });
+    }
+    return events;
+}
+
+// Auto-detect format and parse.
+function parseCalendarContent(rawText) {
+    if (!rawText) return [];
+    if (/BEGIN:VEVENT/i.test(rawText)) return parseICSContent(rawText);
+    return parseCSVContent(rawText);
+}
+
+function handleCalendarImportParse() {
+    const textarea = document.getElementById('calendar-import-textarea');
+    const raw = (textarea?.value || '').trim();
+    if (!raw) {
+        showToast('Paste calendar content (.ics or CSV) first', 'warning');
+        return;
+    }
+    state.calendarImportRawText = raw;
+    state.calendarImportPreview = parseCalendarContent(raw);
+    if (state.calendarImportPreview.length === 0) {
+        showToast('No events found — check the format', 'error');
+    } else {
+        showToast(`Parsed ${state.calendarImportPreview.length} events. Review and edit before importing.`, 'success');
+    }
+    render();
+}
+
+// Update a field on a preview row (called from inline inputs).
+function updateCalendarImportField(rowIdx, field, value) {
+    if (!state.calendarImportPreview[rowIdx]) return;
+    state.calendarImportPreview[rowIdx][field] = value;
+}
+
+function removeCalendarImportRow(rowIdx) {
+    state.calendarImportPreview.splice(rowIdx, 1);
+    render();
+}
+
+// Run the actual import: for each row, find/create customer + pet, geocode,
+// insert appointment. Records per-row success or error.
+async function runCalendarImport() {
+    if (state.calendarImportRunning) return;
+    if (!state.calendarImportPreview.length) return;
+
+    state.calendarImportRunning = true;
+    state.calendarImportResults = null;
+    render();
+
+    const successes = [], failures = [];
+    const groomerId = (state.groomers || []).find(g => g.is_active !== false)?.id || null;
+    const services = state.services || [];
+
+    for (let i = 0; i < state.calendarImportPreview.length; i++) {
+        const row = state.calendarImportPreview[i];
+        try {
+            // --- Required field check ---
+            if (!row.date || !row.time || !row.customerName) {
+                throw new Error('Missing date, time, or customer name');
+            }
+
+            // --- Find or create customer profile (matched by phone, fallback to name) ---
+            let customerId = null;
+            if (row.phone) {
+                const { data: existing } = await supabaseClient
+                    .from('profiles')
+                    .select('id')
+                    .eq('phone', row.phone)
+                    .eq('role', 'customer')
+                    .maybeSingle();
+                if (existing) customerId = existing.id;
+            }
+            if (!customerId) {
+                // Create a placeholder customer profile (no auth account — admin-created)
+                const { data: newProfile, error: profErr } = await supabaseClient
+                    .from('profiles')
+                    .insert({
+                        full_name: row.customerName,
+                        phone: row.phone || null,
+                        email: row.email || null,
+                        address: row.address || null,
+                        city: row.city || null,
+                        zip_code: row.zip || null,
+                        role: 'customer',
+                        created_by_admin: true
+                    })
+                    .select('id')
+                    .single();
+                if (profErr) throw new Error(`Customer profile: ${profErr.message}`);
+                customerId = newProfile.id;
+            }
+
+            // --- Find or create pet (matched by customer + name; placeholder if unknown) ---
+            let petId = null;
+            if (row.petName) {
+                const { data: existingPet } = await supabaseClient
+                    .from('pets')
+                    .select('id')
+                    .eq('customer_id', customerId)
+                    .eq('name', row.petName)
+                    .eq('is_active', true)
+                    .maybeSingle();
+                if (existingPet) petId = existingPet.id;
+            }
+            if (!petId) {
+                const { data: newPet, error: petErr } = await supabaseClient
+                    .from('pets')
+                    .insert({
+                        customer_id: customerId,
+                        name: row.petName || 'Unknown Pet',
+                        breed: row.petBreed || null,
+                        weight: row.petWeight ? parseFloat(row.petWeight) : null,
+                        is_active: true
+                    })
+                    .select('id')
+                    .single();
+                if (petErr) throw new Error(`Pet: ${petErr.message}`);
+                petId = newPet.id;
+            }
+
+            // --- Match service by fuzzy name ---
+            let serviceId = null;
+            if (row.service && services.length) {
+                const lc = row.service.toLowerCase();
+                const match = services.find(s => s.name && s.name.toLowerCase().includes(lc.split(' ')[0]));
+                if (match) serviceId = match.id;
+            }
+
+            // --- Geocode address (best effort) ---
+            let lat = null, lng = null;
+            if (row.address && row.city) {
+                try {
+                    const coords = await geocodeAddress(row.address, row.city, 'CA', row.zip || '');
+                    if (coords) { lat = coords.latitude; lng = coords.longitude; }
+                } catch (gErr) { _log('Geocode skipped:', gErr); }
+            }
+
+            // --- Idempotency: skip if same customer/date/time already exists ---
+            const { data: dupe } = await supabaseClient
+                .from('appointments')
+                .select('id')
+                .eq('customer_id', customerId)
+                .eq('appointment_date', row.date)
+                .eq('start_time', row.time + ':00')
+                .not('status', 'in', '("cancelled","no_show")')
+                .maybeSingle();
+            if (dupe) {
+                row.status = 'skipped';
+                row.error = 'Duplicate (already exists)';
+                successes.push({ row: i, customerId, appointmentId: dupe.id, skipped: true });
+                continue;
+            }
+
+            // --- Insert appointment ---
+            const apptInsert = {
+                customer_id: customerId,
+                pet_id: petId,
+                appointment_date: row.date,
+                start_time: row.time + ':00',
+                duration_minutes: 120,
+                service_address: row.address || null,
+                service_city: row.city || null,
+                service_state: 'CA',
+                service_zip: row.zip || null,
+                base_price: 0,
+                total_price: 0,
+                customer_notes: row.notes || null,
+                status: 'confirmed',
+                assigned_groomer_id: groomerId,
+                assigned_at: groomerId ? new Date().toISOString() : null
+            };
+            if (serviceId) apptInsert.service_id = serviceId;
+            if (lat != null && lng != null) {
+                apptInsert.latitude = lat;
+                apptInsert.longitude = lng;
+            }
+            const { data: newAppt, error: apptErr } = await supabaseClient
+                .from('appointments')
+                .insert(apptInsert)
+                .select('id')
+                .single();
+            if (apptErr) throw new Error(`Appointment: ${apptErr.message}`);
+
+            row.status = 'success';
+            row.error = '';
+            successes.push({ row: i, customerId, appointmentId: newAppt.id });
+
+        } catch (err) {
+            console.error('Calendar import row error:', err);
+            row.status = 'failed';
+            row.error = err.message || String(err);
+            failures.push({ row: i, error: row.error });
+        }
+        // Re-render every 5 rows so admin sees progress on a long import
+        if (i % 5 === 0) render();
+    }
+
+    state.calendarImportRunning = false;
+    state.calendarImportResults = { successes, failures, total: state.calendarImportPreview.length };
+    showToast(`Imported ${successes.length} of ${state.calendarImportPreview.length} appointments`, failures.length ? 'warning' : 'success');
+    // Refresh admin data so the new appointments show up everywhere
+    try { await loadAdminData(); } catch (e) { _warn('admin reload after import:', e); }
+    render();
+}
+
+function renderCalendarImportModal() {
+    if (!state.showCalendarImport) return '';
+    const rows = state.calendarImportPreview || [];
+    const results = state.calendarImportResults;
+
+    const rowEditCell = (r, idx, field, type = 'text', placeholder = '') => `
+        <input type="${type}" value="${escapeHtml(r[field] || '')}" placeholder="${placeholder}"
+               onchange="updateCalendarImportField(${idx}, '${field}', this.value)"
+               class="w-full px-2 py-1 text-xs rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-white focus:ring-1 focus:ring-primary outline-none"/>`;
+
+    return `
+    <div class="fixed inset-0 z-[150] bg-black/60 flex items-center justify-center p-4" onclick="closeCalendarImport()">
+        <div class="bg-white dark:bg-surface-dark rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col shadow-2xl" onclick="event.stopPropagation()">
+            <!-- Header -->
+            <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between flex-shrink-0">
+                <div>
+                    <h2 class="text-2xl font-bold dark:text-white">Import Calendar Appointments</h2>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Migrate from iCloud, Outlook, or Google Calendar (.ics or CSV)</p>
+                </div>
+                <button onclick="closeCalendarImport()" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-6">
+                ${rows.length === 0 ? `
+                <!-- Step 1: Paste -->
+                <div class="space-y-4">
+                    <div class="p-4 bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800 rounded-xl">
+                        <p class="font-semibold text-sky-900 dark:text-sky-100 mb-2">📅 How to export your calendar</p>
+                        <ul class="text-sm text-sky-800 dark:text-sky-200 space-y-1 list-disc list-inside">
+                            <li><b>iCloud / Mac:</b> Calendar app → File → Export → Export… → save as .ics → open in TextEdit → copy all</li>
+                            <li><b>Outlook desktop:</b> File → Open & Export → Import/Export → Export to a file → CSV → open in Excel/Notepad → copy all</li>
+                            <li><b>Google Calendar:</b> Settings → Import & export → Export → unzip → open .ics → copy all</li>
+                        </ul>
+                    </div>
+                    <label class="block">
+                        <span class="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 block">Paste .ics or CSV content here</span>
+                        <textarea id="calendar-import-textarea" rows="12"
+                                  class="w-full p-3 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-primary outline-none font-mono text-xs"
+                                  placeholder="BEGIN:VCALENDAR&#10;BEGIN:VEVENT&#10;DTSTART:20260501T090000&#10;SUMMARY:Jane Smith - Bath&#10;LOCATION:123 Main St, Burbank, CA 91505&#10;DESCRIPTION:Phone 555-1234. Buddy, Golden Retriever, 65 lbs&#10;END:VEVENT&#10;END:VCALENDAR"></textarea>
+                    </label>
+                    <div class="flex justify-end gap-3">
+                        <button onclick="closeCalendarImport()" class="px-5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800">Cancel</button>
+                        <button onclick="handleCalendarImportParse()" class="px-5 py-2.5 rounded-lg bg-primary hover:bg-sky-600 text-white font-bold flex items-center gap-2">
+                            <span class="material-symbols-outlined text-lg">visibility</span>Parse & Preview
+                        </button>
+                    </div>
+                </div>
+                ` : `
+                <!-- Step 2: Preview + Edit + Import -->
+                <div class="mb-4 flex items-center justify-between">
+                    <div>
+                        <p class="font-bold text-lg dark:text-white">${rows.length} events to import</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Edit any field before importing. Rows missing a date, time, or customer name will be skipped.</p>
+                    </div>
+                    <button onclick="state.calendarImportPreview = []; render();" class="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 underline">
+                        ← Start over
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+                    <table class="w-full text-xs">
+                        <thead class="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase text-[10px] font-bold tracking-wider">
+                            <tr>
+                                <th class="px-2 py-2 text-left">Status</th>
+                                <th class="px-2 py-2 text-left">Date</th>
+                                <th class="px-2 py-2 text-left">Time</th>
+                                <th class="px-2 py-2 text-left">Customer</th>
+                                <th class="px-2 py-2 text-left">Phone</th>
+                                <th class="px-2 py-2 text-left">Address</th>
+                                <th class="px-2 py-2 text-left">City</th>
+                                <th class="px-2 py-2 text-left">Zip</th>
+                                <th class="px-2 py-2 text-left">Pet</th>
+                                <th class="px-2 py-2 text-left">Service</th>
+                                <th class="px-2 py-2"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows.map((r, idx) => {
+                                const statusBadge = r.status === 'success' ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full font-bold">✓ Imported</span>'
+                                    : r.status === 'skipped' ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-full font-bold" title="' + escapeHtml(r.error) + '">↺ Skipped</span>'
+                                    : r.status === 'failed' ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full font-bold" title="' + escapeHtml(r.error) + '">✕ Failed</span>'
+                                    : '<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-full font-bold">Pending</span>';
+                                return `
+                                <tr class="border-t border-slate-100 dark:border-slate-800 ${r.status === 'failed' ? 'bg-red-50/50 dark:bg-red-900/10' : ''}">
+                                    <td class="px-2 py-2 whitespace-nowrap">${statusBadge}</td>
+                                    <td class="px-2 py-2">${rowEditCell(r, idx, 'date', 'date')}</td>
+                                    <td class="px-2 py-2">${rowEditCell(r, idx, 'time', 'time')}</td>
+                                    <td class="px-2 py-2 min-w-[140px]">${rowEditCell(r, idx, 'customerName')}</td>
+                                    <td class="px-2 py-2 min-w-[110px]">${rowEditCell(r, idx, 'phone', 'tel')}</td>
+                                    <td class="px-2 py-2 min-w-[180px]">${rowEditCell(r, idx, 'address')}</td>
+                                    <td class="px-2 py-2 min-w-[100px]">${rowEditCell(r, idx, 'city')}</td>
+                                    <td class="px-2 py-2 min-w-[80px]">${rowEditCell(r, idx, 'zip')}</td>
+                                    <td class="px-2 py-2 min-w-[100px]">${rowEditCell(r, idx, 'petName')}</td>
+                                    <td class="px-2 py-2 min-w-[120px]">${rowEditCell(r, idx, 'service')}</td>
+                                    <td class="px-2 py-2">
+                                        <button onclick="removeCalendarImportRow(${idx})" class="p-1 text-slate-400 hover:text-red-500" title="Remove this row">
+                                            <span class="material-symbols-outlined text-base">delete</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                                ${r.error && r.status === 'failed' ? `<tr class="border-t border-red-100 dark:border-red-900/30 bg-red-50/30 dark:bg-red-900/10"><td colspan="11" class="px-2 py-1 text-[10px] text-red-700 dark:text-red-400">⚠️ ${escapeHtml(r.error)}</td></tr>` : ''}
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                ${results ? `
+                <div class="mt-4 p-4 rounded-xl ${results.failures.length === 0 ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800'}">
+                    <p class="font-bold ${results.failures.length === 0 ? 'text-green-900 dark:text-green-100' : 'text-amber-900 dark:text-amber-100'}">
+                        ${results.failures.length === 0 ? '🎉' : '⚠️'} Imported ${results.successes.length} of ${results.total} appointments${results.failures.length ? ` (${results.failures.length} failed)` : ''}
+                    </p>
+                    ${results.failures.length ? '<p class="text-sm text-amber-800 dark:text-amber-200 mt-1">Fix the failed rows and click Import again — successes are skipped automatically.</p>' : ''}
+                </div>
+                ` : ''}
+                `}
+            </div>
+
+            <!-- Footer -->
+            ${rows.length > 0 ? `
+            <div class="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3 flex-shrink-0">
+                <button onclick="closeCalendarImport()" class="px-5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800">
+                    ${results && results.successes.length > 0 ? 'Done' : 'Cancel'}
+                </button>
+                ${!state.calendarImportRunning ? `
+                <button onclick="runCalendarImport()" class="px-5 py-2.5 rounded-lg bg-primary hover:bg-sky-600 text-white font-bold flex items-center gap-2 disabled:opacity-50">
+                    <span class="material-symbols-outlined text-lg">cloud_upload</span>
+                    ${results ? 'Re-run for Failed Rows' : `Import ${rows.length} Appointments`}
+                </button>
+                ` : `
+                <button class="px-5 py-2.5 rounded-lg bg-primary text-white font-bold flex items-center gap-2 cursor-wait" disabled>
+                    <span class="material-symbols-outlined text-lg animate-spin">progress_activity</span>
+                    Importing…
+                </button>
+                `}
+            </div>
+            ` : ''}
+        </div>
+    </div>`;
+}

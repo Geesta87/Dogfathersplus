@@ -1014,7 +1014,7 @@ function render() {
         } else if (state.showOnboarding) {
             app.innerHTML = renderOnboarding();
         } else if (state.currentUser.role === 'admin') {
-            app.innerHTML = renderAdminDashboard() + renderChangePasswordModal();
+            app.innerHTML = renderAdminDashboard() + renderChangePasswordModal() + (typeof renderCalendarImportModal === 'function' ? renderCalendarImportModal() : '');
         } else if (state.currentUser.role === 'groomer') {
             app.innerHTML = renderGroomerDashboard() + renderChangePasswordModal() + renderCompleteAppointmentModal() + renderBeforePhotoModal() + renderPetProfileModal();
         } else {

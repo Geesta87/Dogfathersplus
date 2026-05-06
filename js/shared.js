@@ -306,6 +306,12 @@ let state = {
     groomerActiveCustomerThread: null, // customer_id whose thread groomer is viewing
     customerMessagesSection: 'staff', // customer-side: 'staff' (only one thread) — placeholder for future
     adminMessagesSection: 'groomers', // admin-side: 'groomers' | 'customers'
+    // Calendar import (admin) — for migrating from iCloud / Outlook / Google
+    showCalendarImport: false,
+    calendarImportRawText: '',           // pasted .ics or .csv content
+    calendarImportPreview: [],           // array of editable parsed rows
+    calendarImportRunning: false,        // disables UI during import
+    calendarImportResults: null,         // { successes: [...], failures: [...] } after import
     // Phase 3: Groomer Schedule Calendar
     scheduleViewMode: 'monthly', // 'today' | 'weekly' | 'monthly'
     selectedCalendarDate: null, // Currently selected date (YYYY-MM-DD)
