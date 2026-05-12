@@ -312,6 +312,10 @@ let state = {
     calendarImportPreview: [],           // array of editable parsed rows
     calendarImportRunning: false,        // disables UI during import
     calendarImportResults: null,         // { successes: [...], failures: [...] } after import
+    // Google Calendar live integration (admin)
+    googleConnection: null,              // row from google_calendar_connections, null if not connected
+    googleCalendars: [],                 // list of admin's available calendars (after listing)
+    googleSyncing: false,                // disables UI during sync
     // Phase 3: Groomer Schedule Calendar
     scheduleViewMode: 'monthly', // 'today' | 'weekly' | 'monthly'
     selectedCalendarDate: null, // Currently selected date (YYYY-MM-DD)

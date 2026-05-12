@@ -4523,7 +4523,8 @@ function renderAdminDashboard() {
         {id:'coverage',label:'Coverage',icon:'map'},
         {id:'loyalty',label:'Loyalty',icon:'favorite', badge: state.pendingRedemptions?.length || 0},
         {id:'messages',label:'Messages',icon:'chat_bubble', badge: (state.adminMessages?.filter(m => !m.is_read && m.to_admin)?.length || 0) + (state.customerMessages?.filter(m => !m.read_by_staff && m.sender_role === 'customer')?.length || 0)},
-        {id:'services',label:'Services/Products',icon:'storefront'}
+        {id:'services',label:'Services/Products',icon:'storefront'},
+        {id:'integrations',label:'Integrations',icon:'sync'}
     ];
     
     const todayAppts = data.appointments.filter(a => a.status === 'confirmed' || a.status === 'pending');
@@ -5635,6 +5636,10 @@ function renderAdminContent() {
     // Messages Tab - Admin-Groomer Communication
     if (state.currentTab === 'messages') {
         return renderAdminMessagesTab();
+    }
+
+    if (state.currentTab === 'integrations') {
+        return renderAdminIntegrationsTab();
     }
 
     // Coverage Regions Tab
@@ -7329,3 +7334,326 @@ function renderCalendarImportModal() {
         </div>
     </div>`;
 }
+
+// =============================================
+// ADMIN INTEGRATIONS TAB (Google Calendar sync)
+// =============================================
+
+const GOOGLE_OAUTH_REDIRECT = 'https://cxtxkyitvybmyflsjexr.supabase.co/functions/v1/google-oauth-callback';
+const GOOGLE_OAUTH_SCOPES = 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/userinfo.email';
+// Owner sets this in the Google Cloud Console — see admin Integrations tab for setup steps.
+// Stored as a build-time constant so it can be public (Client ID is not a secret).
+let GOOGLE_OAUTH_CLIENT_ID = window.__GOOGLE_OAUTH_CLIENT_ID__ || '';
+
+function buildGoogleOAuthUrl(adminUserId) {
+    const u = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    u.searchParams.set('client_id', GOOGLE_OAUTH_CLIENT_ID);
+    u.searchParams.set('redirect_uri', GOOGLE_OAUTH_REDIRECT);
+    u.searchParams.set('response_type', 'code');
+    u.searchParams.set('scope', GOOGLE_OAUTH_SCOPES);
+    u.searchParams.set('access_type', 'offline');     // get refresh_token
+    u.searchParams.set('prompt', 'consent');           // always return refresh_token
+    u.searchParams.set('include_granted_scopes', 'true');
+    u.searchParams.set('state', adminUserId);
+    return u.toString();
+}
+
+async function loadGoogleConnection() {
+    if (!supabaseClient || !state.currentUser || state.currentUser.role !== 'admin') return;
+    try {
+        const { data } = await supabaseClient
+            .from('google_calendar_connections')
+            .select('*')
+            .eq('admin_user_id', state.currentUser.id)
+            .maybeSingle();
+        state.googleConnection = data || null;
+    } catch (err) {
+        _warn('loadGoogleConnection failed:', err);
+        state.googleConnection = null;
+    }
+}
+
+// Show a one-time toast if the admin just returned from the OAuth flow.
+// Strips the query params from the URL afterward.
+function handleGoogleOAuthReturn() {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('gcal_connect');
+    const msg = params.get('gcal_msg');
+    if (!status) return;
+    if (status === 'success') {
+        showToast(`✅ Google Calendar: ${msg || 'Connected'}`, 'success');
+    } else {
+        showToast(`⚠️ Google Calendar: ${msg || 'Connection failed'}`, 'error');
+    }
+    // Clean URL so a refresh doesn't repeat the toast.
+    params.delete('gcal_connect');
+    params.delete('gcal_msg');
+    const newSearch = params.toString();
+    const newUrl = window.location.pathname + (newSearch ? '?' + newSearch : '') + window.location.hash;
+    window.history.replaceState({}, '', newUrl);
+    // Reload the connection in case we just connected.
+    loadGoogleConnection().then(() => render());
+}
+
+function connectGoogleCalendar() {
+    if (!GOOGLE_OAUTH_CLIENT_ID) {
+        showToast('Google Client ID not configured — see setup steps below', 'error');
+        return;
+    }
+    if (!state.currentUser?.id) return;
+    window.location.href = buildGoogleOAuthUrl(state.currentUser.id);
+}
+
+async function disconnectGoogleCalendar() {
+    if (!confirm('Disconnect Google Calendar? Already-imported appointments will stay; new events will stop syncing.')) return;
+    if (!state.googleConnection) return;
+    showLoading();
+    try {
+        const { error } = await supabaseClient
+            .from('google_calendar_connections')
+            .delete()
+            .eq('id', state.googleConnection.id);
+        if (error) throw error;
+        state.googleConnection = null;
+        state.googleCalendars = [];
+        showToast('Google Calendar disconnected', 'info');
+    } catch (err) {
+        showToast('Disconnect failed: ' + err.message, 'error');
+    } finally {
+        hideLoading();
+        render();
+    }
+}
+
+async function invokeGcalSyncFunction(action, extra = {}) {
+    if (!supabaseClient || !state.session?.access_token) {
+        throw new Error('Not signed in');
+    }
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/google-calendar-sync`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${state.session.access_token}`,
+            'apikey': SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({ action, ...extra })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Sync function ${res.status}`);
+    return data;
+}
+
+async function loadGoogleCalendarList() {
+    if (!state.googleConnection) return;
+    showLoading();
+    try {
+        const data = await invokeGcalSyncFunction('list_calendars');
+        state.googleCalendars = data.calendars || [];
+        showToast(`Found ${state.googleCalendars.length} calendar${state.googleCalendars.length === 1 ? '' : 's'}`, 'success');
+    } catch (err) {
+        showToast('Failed to list calendars: ' + err.message, 'error');
+    } finally {
+        hideLoading();
+        render();
+    }
+}
+
+async function selectGoogleCalendar(calendarId, calendarName) {
+    showLoading();
+    try {
+        await invokeGcalSyncFunction('select_calendar', { calendar_id: calendarId, calendar_name: calendarName });
+        // Refresh connection so UI shows the selection
+        await loadGoogleConnection();
+        showToast(`Selected: ${calendarName}`, 'success');
+    } catch (err) {
+        showToast('Selection failed: ' + err.message, 'error');
+    } finally {
+        hideLoading();
+        render();
+    }
+}
+
+async function runGoogleCalendarSync() {
+    if (state.googleSyncing) return;
+    if (!state.googleConnection?.selected_calendar_id) {
+        showToast('Pick a calendar to sync first', 'warning');
+        return;
+    }
+    state.googleSyncing = true;
+    render();
+    try {
+        const data = await invokeGcalSyncFunction('sync', { days_back: 7, days_forward: 90 });
+        const summary = `Imported ${data.imported || 0}, updated ${data.updated || 0}, skipped ${data.skipped || 0}${data.failed ? `, failed ${data.failed}` : ''}`;
+        showToast(`✅ ${summary}`, data.failed ? 'warning' : 'success');
+        await loadGoogleConnection();
+        try { await loadAdminData(); } catch (_) {}
+    } catch (err) {
+        showToast('Sync failed: ' + err.message, 'error');
+    } finally {
+        state.googleSyncing = false;
+        render();
+    }
+}
+
+function renderAdminIntegrationsTab() {
+    const conn = state.googleConnection;
+    const cals = state.googleCalendars || [];
+    const lastSummary = conn?.last_sync_summary;
+    const lastSyncedHuman = conn?.last_synced_at ? new Date(conn.last_synced_at).toLocaleString() : 'Never';
+
+    return `
+    <div class="space-y-6 max-w-4xl mx-auto">
+        <div>
+            <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white">Integrations</h1>
+            <p class="text-slate-500 dark:text-slate-400 mt-1">Connect external services to keep Dogfathers in sync.</p>
+        </div>
+
+        <!-- Google Calendar -->
+        <div class="bg-white dark:bg-surface-dark rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+            <div class="p-6 border-b border-slate-100 dark:border-slate-800 flex items-start gap-4">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 via-red-500 to-yellow-400 flex items-center justify-center text-white flex-shrink-0">
+                    <span class="material-symbols-outlined">event</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h2 class="text-xl font-bold dark:text-white">Google Calendar</h2>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                        Auto-import appointments from your Google Calendar (or your iPhone Calendar if you sync iCloud to Google).
+                        Customers, addresses, and times are pulled in automatically.
+                    </p>
+                </div>
+                ${conn ? `
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-xs font-bold whitespace-nowrap">
+                        <span class="w-2 h-2 bg-green-500 rounded-full"></span>Connected
+                    </span>
+                ` : `
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-full text-xs font-bold whitespace-nowrap">
+                        Not connected
+                    </span>
+                `}
+            </div>
+
+            <div class="p-6">
+                ${!conn ? `
+                    <!-- Not connected -->
+                    <div class="space-y-4">
+                        ${!GOOGLE_OAUTH_CLIENT_ID ? `
+                            <div class="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl text-sm">
+                                <p class="font-semibold text-amber-900 dark:text-amber-100 mb-2">⚙️ One-time setup required</p>
+                                <p class="text-amber-800 dark:text-amber-200 mb-2">Before connecting, the Dogfathers tech needs to create a Google Cloud OAuth client. Setup steps:</p>
+                                <ol class="text-amber-800 dark:text-amber-200 space-y-1 list-decimal list-inside text-xs">
+                                    <li>Go to <a class="underline font-bold" href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a> and create a project (or use an existing one)</li>
+                                    <li><b>APIs & Services → Library →</b> enable <b>Google Calendar API</b></li>
+                                    <li><b>APIs & Services → OAuth consent screen →</b> External, fill in app name + support email, add scope <code class="bg-amber-100 dark:bg-amber-900/40 px-1 rounded">.../auth/calendar.readonly</code></li>
+                                    <li><b>APIs & Services → Credentials → Create Credentials → OAuth Client ID →</b> Web application. Add Authorized redirect URI: <code class="bg-amber-100 dark:bg-amber-900/40 px-1 rounded break-all">${GOOGLE_OAUTH_REDIRECT}</code></li>
+                                    <li>Copy the <b>Client ID</b> and <b>Client Secret</b></li>
+                                    <li>In Supabase dashboard → Edge Functions → Manage Secrets, add: <code class="bg-amber-100 dark:bg-amber-900/40 px-1 rounded">GOOGLE_CLIENT_ID</code> and <code class="bg-amber-100 dark:bg-amber-900/40 px-1 rounded">GOOGLE_CLIENT_SECRET</code></li>
+                                    <li>Set <code class="bg-amber-100 dark:bg-amber-900/40 px-1 rounded">window.__GOOGLE_OAUTH_CLIENT_ID__</code> in the app (one-line config), then come back and click Connect.</li>
+                                </ol>
+                            </div>
+                        ` : ''}
+                        <button onclick="connectGoogleCalendar()" ${!GOOGLE_OAUTH_CLIENT_ID ? 'disabled' : ''}
+                            class="inline-flex items-center gap-3 px-6 py-3 bg-white border-2 border-slate-200 hover:border-slate-300 rounded-xl text-slate-700 font-bold transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                            <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.5 29.3 4.6 24 4.6 13.2 4.6 4.6 13.2 4.6 24S13.2 43.4 24 43.4 43.4 34.8 43.4 24c0-1.2-.1-2.3-.3-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 16 19 13.6 24 13.6c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.5 29.3 4.6 24 4.6 16.3 4.6 9.7 8.6 6.3 14.7z"/><path fill="#4CAF50" d="M24 43.4c5.2 0 9.9-2 13.5-5.2l-6.2-5.3c-2 1.5-4.5 2.4-7.3 2.4-5.2 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.4 16.2 43.4 24 43.4z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.2 5.5l6.2 5.3c-.4.4 6.7-4.9 6.7-14.8 0-1.2-.1-2.3-.3-3.5z"/></svg>
+                            Connect Google Calendar
+                        </button>
+                    </div>
+                ` : `
+                    <!-- Connected -->
+                    <div class="space-y-5">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                            <div class="min-w-0">
+                                <p class="text-xs uppercase tracking-wider text-slate-500 font-bold">Connected as</p>
+                                <p class="font-semibold dark:text-white truncate">${escapeHtml(conn.google_email || 'Google account')}</p>
+                            </div>
+                            <button onclick="disconnectGoogleCalendar()" class="px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg whitespace-nowrap">
+                                Disconnect
+                            </button>
+                        </div>
+
+                        <!-- Calendar selection -->
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="block text-sm font-bold text-slate-700 dark:text-slate-300">Which calendar to sync</label>
+                                <button onclick="loadGoogleCalendarList()" class="text-xs font-bold text-primary hover:underline">Refresh list</button>
+                            </div>
+                            ${cals.length === 0 && !conn.selected_calendar_id ? `
+                                <button onclick="loadGoogleCalendarList()" class="w-full p-4 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl text-slate-500 hover:border-primary hover:text-primary transition-colors text-sm font-medium">
+                                    Click to load your calendars
+                                </button>
+                            ` : ''}
+                            ${conn.selected_calendar_id && cals.length === 0 ? `
+                                <div class="p-3 bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800 rounded-xl">
+                                    <p class="text-sm text-sky-900 dark:text-sky-100">Currently syncing: <b>${escapeHtml(conn.selected_calendar_name || conn.selected_calendar_id)}</b></p>
+                                </div>
+                            ` : ''}
+                            ${cals.length > 0 ? `
+                                <div class="space-y-2">
+                                    ${cals.map(c => `
+                                        <button onclick="selectGoogleCalendar('${escapeHtml(c.id).replace(/'/g, "\\'")}', '${escapeHtml(c.name).replace(/'/g, "\\'")}')"
+                                            class="w-full p-3 flex items-center justify-between gap-3 rounded-xl border ${conn.selected_calendar_id === c.id ? 'border-primary bg-primary/5' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'} transition-colors text-left">
+                                            <div class="min-w-0">
+                                                <p class="font-semibold text-sm dark:text-white truncate">${escapeHtml(c.name)}${c.primary ? ' (Primary)' : ''}</p>
+                                                <p class="text-xs text-slate-500 truncate">${escapeHtml(c.id)}</p>
+                                            </div>
+                                            ${conn.selected_calendar_id === c.id ? '<span class="material-symbols-outlined text-primary">check_circle</span>' : ''}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <!-- Sync now -->
+                        ${conn.selected_calendar_id ? `
+                            <div class="pt-4 border-t border-slate-100 dark:border-slate-800">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div>
+                                        <p class="text-sm font-bold text-slate-700 dark:text-slate-300">Manual sync</p>
+                                        <p class="text-xs text-slate-500">Last synced: ${lastSyncedHuman}${conn.last_sync_status ? ` (${conn.last_sync_status})` : ''}</p>
+                                    </div>
+                                    <button onclick="runGoogleCalendarSync()" ${state.googleSyncing ? 'disabled' : ''}
+                                        class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-sky-600 disabled:opacity-50 text-white font-bold rounded-lg">
+                                        <span class="material-symbols-outlined text-lg ${state.googleSyncing ? 'animate-spin' : ''}">${state.googleSyncing ? 'progress_activity' : 'sync'}</span>
+                                        ${state.googleSyncing ? 'Syncing…' : 'Sync Now'}
+                                    </button>
+                                </div>
+                                ${lastSummary ? `
+                                    <div class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                                        <div class="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                            <p class="font-bold text-green-700 dark:text-green-300 text-lg">${lastSummary.imported || 0}</p>
+                                            <p class="text-green-600 dark:text-green-400">Imported</p>
+                                        </div>
+                                        <div class="p-2 bg-sky-50 dark:bg-sky-900/20 rounded-lg">
+                                            <p class="font-bold text-sky-700 dark:text-sky-300 text-lg">${lastSummary.updated || 0}</p>
+                                            <p class="text-sky-600 dark:text-sky-400">Updated</p>
+                                        </div>
+                                        <div class="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                                            <p class="font-bold text-slate-700 dark:text-slate-300 text-lg">${lastSummary.skipped || 0}</p>
+                                            <p class="text-slate-600 dark:text-slate-400">Skipped</p>
+                                        </div>
+                                        <div class="p-2 ${(lastSummary.failed || 0) > 0 ? 'bg-red-50 dark:bg-red-900/20' : 'bg-slate-100 dark:bg-slate-800'} rounded-lg">
+                                            <p class="font-bold ${(lastSummary.failed || 0) > 0 ? 'text-red-700 dark:text-red-300' : 'text-slate-700 dark:text-slate-300'} text-lg">${lastSummary.failed || 0}</p>
+                                            <p class="${(lastSummary.failed || 0) > 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-slate-400'}">Failed</p>
+                                        </div>
+                                    </div>
+                                    ${(lastSummary.errors || []).length > 0 ? `
+                                        <details class="mt-3">
+                                            <summary class="text-xs font-bold text-red-600 cursor-pointer">Show failure details (${lastSummary.errors.length})</summary>
+                                            <ul class="mt-2 space-y-1 text-xs text-red-600 max-h-40 overflow-y-auto pl-4 list-disc">
+                                                ${lastSummary.errors.map(e => `<li>${escapeHtml(e)}</li>`).join('')}
+                                            </ul>
+                                        </details>
+                                    ` : ''}
+                                ` : ''}
+                            </div>
+                        ` : ''}
+
+                        <div class="text-xs text-slate-500 dark:text-slate-400 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                            💡 Tip: Set the synced calendar as your iPhone's default (Settings → Calendar → Default Calendar) so every new appointment you type on your phone auto-imports here within minutes.
+                        </div>
+                    </div>
+                `}
+            </div>
+        </div>
+    </div>`;
+}
+

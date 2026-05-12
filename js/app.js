@@ -93,6 +93,10 @@ async function initApp() {
         
         hideLoading();
         render();
+        // After login + render, handle any return from Google OAuth (sets toast + cleans URL).
+        if (typeof handleGoogleOAuthReturn === 'function') {
+            try { handleGoogleOAuthReturn(); } catch (e) { _warn('handleGoogleOAuthReturn:', e); }
+        }
         _log('App initialized successfully');
     } catch (err) {
         console.error('Init error:', err);
@@ -486,6 +490,10 @@ async function loadUserProfile(userId) {
             // Load user-specific data based on role
             if (profile.role === 'admin') {
                 await loadAdminData();
+                // Admin-only: load Google Calendar connection so the Integrations tab is populated.
+                if (typeof loadGoogleConnection === 'function') {
+                    try { await loadGoogleConnection(); } catch (e) { _warn('loadGoogleConnection:', e); }
+                }
             } else if (profile.role === 'groomer') {
                 // FIX: Load groomer data on refresh
                 _log('Loading groomer data for role: groomer');
