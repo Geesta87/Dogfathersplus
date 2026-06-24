@@ -560,43 +560,35 @@ async function redeemReward(rewardId, rewardName, pointsRequired) {
         `Redeem "${rewardName}" for ${pointsRequired} points? You currently have ${currentPoints} points.`,
         async () => {
             showLoading();
-            
+
             try {
-                // First, try to record the redemption
-                const { error: redemptionError } = await supabaseClient
-                    .from('reward_redemptions')
-                    .insert({
-                        customer_id: state.currentUser.id,
-                        reward_id: rewardId,
-                        points_cost: pointsRequired,
-                        status: 'pending'
+                // Redeem atomically server-side: records redemption AND deducts points
+                // with a balance check (loyalty_points cannot be edited from the client).
+                const { data, error } = await supabaseClient
+                    .rpc('redeem_loyalty_points', {
+                        p_customer_id: state.currentUser.id,
+                        p_reward_id: rewardId,
+                        p_points_cost: pointsRequired
                     });
-                
-                if (redemptionError) {
-                    console.error('Redemption record error:', redemptionError);
-                    hideLoading();
-                    showToast('Failed to record redemption. Please try again or contact support.', 'error');
-                    return;
-                }
-                
-                // Deduct points from user's profile
-                const newPoints = currentPoints - pointsRequired;
-                const { error: updateError } = await supabaseClient
-                    .from('profiles')
-                    .update({ loyalty_points: newPoints })
-                    .eq('id', state.currentUser.id);
-                
+
                 hideLoading();
-                
-                if (updateError) {
-                    console.error('Points update error:', updateError);
-                    showToast('Failed to redeem: ' + updateError.message, 'error');
+
+                if (error) {
+                    console.error('Redemption error:', error);
+                    showToast('Failed to redeem: ' + error.message, 'error');
                     return;
                 }
-                
-                // Update local state
-                state.currentUser.loyaltyPoints = newPoints;
-                
+
+                if (data && data.success === false) {
+                    showToast(data.error || 'Could not redeem this reward.', 'error');
+                    return;
+                }
+
+                // Update local state from authoritative server balance
+                state.currentUser.loyaltyPoints = (data && typeof data.new_balance === 'number')
+                    ? data.new_balance
+                    : (currentPoints - pointsRequired);
+
                 showToast(`🎉 "${rewardName}" redeemed! We'll apply this to your next visit.`, 'success');
                 render();
             } catch (err) {
@@ -657,22 +649,11 @@ async function updateAppointmentStatus(appointmentId, status) {
         const appointment = state.allAppointments.find(a => a.id === appointmentId);
         if (appointment && appointment.customer_id) {
             try {
-                // Get current customer points
-                const { data: customer } = await supabaseClient
-                    .from('profiles')
-                    .select('loyalty_points')
-                    .eq('id', appointment.customer_id)
-                    .single();
-                
-                if (customer) {
-                    const newPoints = (customer.loyalty_points || 0) + 50;
-                    await supabaseClient
-                        .from('profiles')
-                        .update({ loyalty_points: newPoints })
-                        .eq('id', appointment.customer_id);
-                    
-                    _log(`Awarded 50 loyalty points to customer ${appointment.customer_id}. New total: ${newPoints}`);
-                }
+                // Award via secured, idempotent RPC (loyalty_points is not client-writable)
+                await supabaseClient.rpc('award_completion_points', {
+                    p_appointment_id: appointmentId
+                });
+                _log(`Awarded completion points for appointment ${appointmentId}.`);
             } catch (pointsErr) {
                 console.error('Failed to award loyalty points:', pointsErr);
                 // Don't fail the whole operation for points error
@@ -1204,13 +1185,16 @@ async function nextOnboardingStep() {
             state.pets.push(pet);
         }
         
-        // Add 50 bonus points
-        await supabaseClient
-            .from('profiles')
-            .update({ loyalty_points: (state.currentUser.loyaltyPoints || 0) + 50 })
-            .eq('id', state.currentUser.id);
-        
-        state.currentUser.loyaltyPoints = (state.currentUser.loyaltyPoints || 0) + 50;
+        // Award one-time welcome bonus (server-authoritative + idempotent;
+        // loyalty_points cannot be set directly from the client)
+        try {
+            const { data: bonus } = await supabaseClient.rpc('claim_welcome_bonus');
+            if (bonus && bonus.success && typeof bonus.new_balance === 'number') {
+                state.currentUser.loyaltyPoints = bonus.new_balance;
+            }
+        } catch (bonusErr) {
+            _log('Welcome bonus not applied:', bonusErr);
+        }
         
         // Store final breed for display
         state.onboardingData.petBreed = finalBreed;
@@ -3150,18 +3134,16 @@ async function createNotification(userId, title, message, type, referenceType = 
 // Notify all admins
 async function notifyAllAdmins(title, message, type, referenceType = null, referenceId = null) {
     try {
-        // Get all admin IDs
-        const { data: admins } = await supabaseClient
-            .from('profiles')
-            .select('id')
-            .eq('role', 'admin')
-            .eq('is_active', true);
-        
-        if (admins) {
-            for (const admin of admins) {
-                await createNotification(admin.id, title, message, type, referenceType, referenceId);
-            }
-        }
+        // Server-side fan-out: customers can't read admin profiles, and this runs
+        // with elevated privileges to notify every active admin.
+        const { error } = await supabaseClient.rpc('notify_all_admins', {
+            p_title: title,
+            p_message: message,
+            p_type: type,
+            p_reference_type: referenceType,
+            p_reference_id: referenceId
+        });
+        if (error) console.error('Error notifying admins:', error);
     } catch (err) {
         console.error('Error notifying admins:', err);
     }

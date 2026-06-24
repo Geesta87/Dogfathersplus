@@ -506,23 +506,15 @@ async function groomerMarkComplete(appointmentId, groomerNotes = null, afterPhot
 // Helper function to award loyalty points (non-blocking, with one retry)
 async function awardLoyaltyPointsToCustomer(customerId, appointmentId) {
     const attempt = async () => {
-        const { data: customer, error: fetchErr } = await supabaseClient
-            .from('profiles')
-            .select('loyalty_points')
-            .eq('id', customerId)
-            .single();
-        if (fetchErr) throw fetchErr;
-        if (!customer) throw new Error('Customer profile not found');
-
-        const updatedPoints = (customer.loyalty_points || 0) + 50;
-        const { error: updateErr } = await supabaseClient
-            .from('profiles')
-            .update({ loyalty_points: updatedPoints })
-            .eq('id', customerId);
-        if (updateErr) throw updateErr;
-
-        _log(`Awarded 50 loyalty points to customer. New total: ${updatedPoints}`);
-        return updatedPoints;
+        // Secured, idempotent RPC — validates caller is the assigned groomer (or admin)
+        // and that the appointment is completed. loyalty_points is not client-writable.
+        const { data, error } = await supabaseClient.rpc('award_completion_points', {
+            p_appointment_id: appointmentId
+        });
+        if (error) throw error;
+        // success:false here means "already awarded" or "not completed" — not a retryable error
+        _log('award_completion_points result:', data);
+        return data;
     };
 
     try {

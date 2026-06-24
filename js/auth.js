@@ -309,10 +309,22 @@ function renderAuthPage() {
                         <span id="auth-btn-text">${state.authTab === 'login' ? 'Sign In' : 'Create Account'}</span>
                         <span class="material-symbols-outlined">arrow_forward</span>
                     </button>
+                    ${state.authTab === 'signup' ? `
+                    <p class="text-xs text-center text-text-sub-light dark:text-text-sub-dark mt-1">
+                        By creating an account, you agree to our
+                        <a href="terms.html" target="_blank" rel="noopener" class="text-primary hover:underline">Terms of Service</a>
+                        and
+                        <a href="privacy.html" target="_blank" rel="noopener" class="text-primary hover:underline">Privacy Policy</a>.
+                    </p>` : ''}
                 </form>
                 <div class="mt-6 p-4 bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-lg text-sm text-center text-text-sub-light dark:text-text-sub-dark">
                     <strong class="text-text-main-light dark:text-white">Create an account or sign in to book appointments!</strong>
                 </div>
+                <p class="mt-4 text-center text-xs text-text-sub-light dark:text-text-sub-dark">
+                    <a href="privacy.html" target="_blank" rel="noopener" class="hover:text-primary hover:underline">Privacy Policy</a>
+                    <span class="mx-2">&middot;</span>
+                    <a href="terms.html" target="_blank" rel="noopener" class="hover:text-primary hover:underline">Terms of Service</a>
+                </p>
                 
                 <!-- Staff access is via dedicated URLs (/admin, /groomer) — no link here by design. -->
 
