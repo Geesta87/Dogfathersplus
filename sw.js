@@ -6,7 +6,7 @@
 // other files won't reach returning users because the SW keeps serving the
 // old cached copies. Bumping APP_VERSION forces a new SW install, which
 // regenerates CACHE_VERSION and wipes old caches in the activate handler.
-const APP_VERSION = '1.0.2';
+const APP_VERSION = '1.0.3';
 const CACHE_VERSION = `${APP_VERSION}-${Date.now()}`;
 const CACHE_NAME = `dogfathers-plus-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `dogfathers-dynamic-${CACHE_VERSION}`;
@@ -97,8 +97,24 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-  
-  // For other assets - cache first, then network
+
+  // For our own app code (JS/CSS) - NETWORK FIRST so deploys reach returning
+  // users immediately. Falls back to cache only when offline. This prevents
+  // stale-bundle bugs (e.g. a new admin tab not appearing after a deploy).
+  if (url.origin === self.location.origin && /\.(js|css)$/i.test(url.pathname)) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const responseClone = response.clone();
+          caches.open(DYNAMIC_CACHE).then((cache) => cache.put(request, responseClone));
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // For other assets (cross-origin fonts, images) - cache first, then network
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       if (cachedResponse) {
