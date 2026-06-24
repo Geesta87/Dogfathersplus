@@ -4537,7 +4537,7 @@ function renderAdminDashboard() {
     <div class="flex h-screen w-full bg-admin-bg dark:bg-background-dark">
         <!-- Sidebar -->
         <aside class="w-[280px] flex-shrink-0 flex-col bg-admin-sidebar dark:bg-surface-dark border-r border-amber-100 dark:border-border-dark hidden lg:flex z-20">
-            <div class="p-6 flex flex-col h-full">
+            <div class="p-6 flex flex-col flex-1 min-h-0 overflow-y-auto">
                 <div class="flex items-center gap-4 mb-6 px-2">
                     <div class="w-12 h-12 rounded-2xl shadow-md shadow-admin-primary/20 overflow-hidden">
                         <img src="${LOGO_MAIN}" alt="Dogfathersplus" class="w-full h-full object-contain bg-white"/>
@@ -4547,18 +4547,17 @@ function renderAdminDashboard() {
                         <p class="text-admin-primary dark:text-amber-400 text-[11px] font-bold uppercase tracking-wider mt-0.5">Admin Portal</p>
                     </div>
                 </div>
-                <nav class="flex flex-col gap-4 pt-4">
+                <nav class="flex flex-col gap-1.5 pt-3">
                     ${navItems.map(item => `
-                        <button onclick="setTab('${item.id}')" class="flex items-center gap-4 px-5 py-4 rounded-xl transition-all group touch-target ${state.currentTab === item.id ? 'bg-gradient-to-r from-admin-primary/10 to-transparent text-admin-primary font-bold shadow-sm border-l-4 border-admin-primary' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-amber-50 dark:hover:bg-slate-800'}">
+                        <button onclick="setTab('${item.id}')" class="flex items-center gap-4 px-5 py-3 rounded-xl transition-all group touch-target ${state.currentTab === item.id ? 'bg-gradient-to-r from-admin-primary/10 to-transparent text-admin-primary font-bold shadow-sm border-l-4 border-admin-primary' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-amber-50 dark:hover:bg-slate-800'}">
                             <span class="material-symbols-outlined text-[24px] ${state.currentTab === item.id ? 'text-admin-primary' : 'text-slate-400 group-hover:text-admin-primary'}">${item.icon}</span>
                             <span class="text-[16px] flex-1 ${state.currentTab === item.id ? '' : 'font-medium'}">${item.label}</span>
                             ${item.badge > 0 ? `<span class="px-2.5 py-1 bg-admin-accent text-white text-xs font-bold rounded-full">${item.badge}</span>` : ''}
                         </button>
                     `).join('')}
                 </nav>
-                <div class="flex-1"></div>
             </div>
-            <div class="p-6 border-t border-amber-100 dark:border-border-dark">
+            <div class="p-6 border-t border-amber-100 dark:border-border-dark flex-shrink-0">
                 <button onclick="openChangePassword()" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-amber-50 dark:hover:bg-slate-800 font-medium transition-colors mb-2 touch-target">
                     <span class="material-symbols-outlined text-lg">password</span>Change Password
                 </button>
@@ -4583,12 +4582,12 @@ function renderAdminDashboard() {
 
         ${state.showMobileMenu ? `
         <div class="lg:hidden fixed inset-0 z-40 bg-black/50" onclick="toggleMobileMenu()">
-            <div class="absolute left-0 top-0 bottom-0 w-72 bg-admin-sidebar dark:bg-surface-dark" onclick="event.stopPropagation()">
-                <div class="p-6 border-b border-amber-100 dark:border-border-dark">
+            <div class="absolute left-0 top-0 bottom-0 w-72 bg-admin-sidebar dark:bg-surface-dark flex flex-col" onclick="event.stopPropagation()">
+                <div class="p-6 border-b border-amber-100 dark:border-border-dark flex-shrink-0">
                     <p class="text-admin-primary font-bold text-sm uppercase">Admin Portal</p>
                 </div>
-                <nav class="p-4">${navItems.map(i => `<button onclick="setTab('${i.id}')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left mb-1 touch-target ${state.currentTab === i.id ? 'bg-admin-primary/10 text-admin-primary font-bold' : 'hover:bg-amber-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'}"><span class="material-symbols-outlined">${i.icon}</span>${i.label}</button>`).join('')}</nav>
-                <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-amber-100 dark:border-border-dark safe-bottom">
+                <nav class="p-4 flex-1 overflow-y-auto">${navItems.map(i => `<button onclick="setTab('${i.id}')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left mb-1 touch-target ${state.currentTab === i.id ? 'bg-admin-primary/10 text-admin-primary font-bold' : 'hover:bg-amber-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'}"><span class="material-symbols-outlined">${i.icon}</span>${i.label}</button>`).join('')}</nav>
+                <div class="p-4 border-t border-amber-100 dark:border-border-dark safe-bottom flex-shrink-0">
                     <button onclick="toggleDarkMode()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-amber-50 dark:hover:bg-slate-800 mb-1 touch-target"><span class="material-symbols-outlined">${state.darkMode ? 'light_mode' : 'dark_mode'}</span>${state.darkMode ? 'Light Mode' : 'Dark Mode'}</button>
                     <button onclick="logout()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 touch-target"><span class="material-symbols-outlined">logout</span>Sign Out</button>
                 </div>
