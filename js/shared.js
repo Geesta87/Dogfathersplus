@@ -1233,7 +1233,46 @@ async function calculateAvailableSlotsJS(customerLat, customerLng, startDate, en
         if (!appointmentsByGroomerDate[key]) appointmentsByGroomerDate[key] = [];
         appointmentsByGroomerDate[key].push(a);
     });
-    
+
+    // 4b. Get blocked time (imported Google Calendar blocks + admin blocks).
+    // These make a groomer unavailable even with no appointment attached.
+    const { data: blocks } = await supabaseClient
+        .from('blocked_times')
+        .select('groomer_id, start_datetime, end_datetime, is_all_day')
+        .gte('end_datetime', startDate)
+        .lte('start_datetime', endDate + 'T23:59:59');
+
+    // Convert a timestamptz to {date: 'YYYY-MM-DD', minutes} in business (Pacific) time.
+    const toPacificParts = (iso) => {
+        const d = new Date(iso);
+        const date = d.toLocaleDateString('en-CA', { timeZone: TIMEZONE });
+        const t = d.toLocaleTimeString('en-GB', { timeZone: TIMEZONE, hour12: false, hour: '2-digit', minute: '2-digit' });
+        const [h, m] = t.split(':').map(Number);
+        return { date, minutes: (h * 60) + m };
+    };
+    const blocksByKey = {}; // `${groomerId||'all'}_${date}` -> [{startMin, endMin}]
+    const addBlock = (gid, date, sMin, eMin) => {
+        const key = `${gid || 'all'}_${date}`;
+        (blocksByKey[key] = blocksByKey[key] || []).push({ startMin: sMin, endMin: eMin });
+    };
+    (blocks || []).forEach(b => {
+        try {
+            const s = toPacificParts(b.start_datetime);
+            const e = toPacificParts(b.end_datetime);
+            if (b.is_all_day || s.date !== e.date) {
+                // Multi-day or all-day: block each calendar day fully.
+                let d = new Date(s.date + 'T12:00:00');
+                const last = new Date(e.date + 'T12:00:00');
+                while (d <= last) {
+                    addBlock(b.groomer_id, d.toISOString().split('T')[0], 0, 1440);
+                    d.setDate(d.getDate() + 1);
+                }
+            } else {
+                addBlock(b.groomer_id, s.date, s.minutes, e.minutes);
+            }
+        } catch (_) { /* skip malformed block */ }
+    });
+
     // 5. Generate all available slots
     const allSlots = [];
     const currentDate = new Date(startDate + 'T12:00:00');
@@ -1301,6 +1340,12 @@ async function calculateAvailableSlotsJS(customerLat, customerLng, startDate, en
 
                 // Check if already booked
                 if (bookedSlots.has(`${groomer.id}_${dateStr}_${slot}`)) continue;
+
+                // Check blocked time (imported calendar blocks / admin blocks)
+                const blkStart = toMinutes(slot);
+                const blkEnd = blkStart + SLOT_DURATION_MINUTES;
+                const dayBlocks = (blocksByKey[`${groomer.id}_${dateStr}`] || []).concat(blocksByKey[`all_${dateStr}`] || []);
+                if (dayBlocks.some(bl => blkStart < bl.endMin && blkEnd > bl.startMin)) continue;
 
                 // Buffer check: does the groomer's last appointment on this day
                 // end early enough (appt_end + buffer <= slot) AND does this slot
