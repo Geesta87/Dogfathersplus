@@ -1269,11 +1269,15 @@ async function calculateAvailableSlotsJS(customerLat, customerLng, startDate, en
 
     // 5. Generate all available slots
     const allSlots = [];
+    const todayStr = getTodayPacific();
     const currentDate = new Date(startDate + 'T12:00:00');
     const end = new Date(endDate + 'T12:00:00');
-    
+
     while (currentDate <= end) {
         const dateStr = currentDate.toISOString().split('T')[0];
+        // Business rule: no same-day booking — only offer tomorrow onward.
+        // (YYYY-MM-DD sorts lexicographically, so a string compare is safe.)
+        if (dateStr <= todayStr) { currentDate.setDate(currentDate.getDate() + 1); continue; }
         const dayOfWeek = currentDate.getDay();
         
         for (const groomer of eligibleGroomers) {

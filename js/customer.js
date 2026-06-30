@@ -3298,12 +3298,11 @@ async function handleBooking(e) {
         return;
     }
     
-    // Validate date is not in the past
-    const selectedDate = new Date(date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (selectedDate < today) {
-        showToast('Cannot book appointments in the past', 'error');
+    // Validate date: no same-day or past booking (earliest is tomorrow).
+    // Compare YYYY-MM-DD strings in business (Pacific) time to avoid the
+    // UTC/local drift that previously rejected every same-day attempt.
+    if (date <= getTodayPacific()) {
+        showToast("Same-day booking isn't available — please choose a future date.", 'error');
         return;
     }
     
