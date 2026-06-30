@@ -966,10 +966,10 @@ async function loadAdminData() {
             .from('reward_redemptions')
             .select(`
                 *,
-                customer:profiles(full_name, email),
+                customer:profiles!reward_redemptions_customer_id_fkey(full_name, email),
                 reward:rewards(name, points_required)
             `)
-            .order('created_at', { ascending: false });
+            .order('redeemed_at', { ascending: false });
         if (redemptionsError) console.error('Redemptions load error:', redemptionsError);
         _log('Redemptions loaded:', redemptions?.length || 0);
         state.rewardRedemptions = (redemptions || []).map(r => ({
