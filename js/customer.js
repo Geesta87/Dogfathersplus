@@ -364,22 +364,19 @@ async function createAppointment(appointmentData) {
 
 async function cancelAppointment(appointmentId, reason = 'No reason provided') {
     showLoading();
-    
-    // Direct database update (bypasses RPC functions that may not exist)
-    const { error } = await supabaseClient
-        .from('appointments')
-        .update({ 
-            status: 'cancelled',
-            cancelled_at: new Date().toISOString(),
-            cancelled_by: state.currentUser.id,
-            cancellation_reason: reason
-        })
-        .eq('id', appointmentId);
-    
+
+    // Cancellation goes through a guarded server-side RPC: customers have no direct
+    // UPDATE on appointments (RLS), so a direct update silently affects 0 rows. The
+    // RPC validates ownership and that the appointment is still cancellable.
+    const { data, error } = await supabaseClient.rpc('cancel_appointment', {
+        p_appointment_id: appointmentId,
+        p_reason: reason
+    });
+
     hideLoading();
-    
-    if (error) {
-        showToast('Failed to cancel appointment: ' + error.message, 'error');
+
+    if (error || (data && data.success === false)) {
+        showToast('Failed to cancel appointment: ' + (error?.message || data?.error || 'Unknown error'), 'error');
         return;
     }
     
