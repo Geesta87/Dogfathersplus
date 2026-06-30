@@ -775,7 +775,8 @@ function toRadians(degrees) {
 }
 
 
-// Geocode an address using OpenStreetMap Nominatim (free)
+// Geocode an address via the server-side Google Maps function (cached);
+// falls back to approximate city coordinates if that fails.
 async function geocodeAddress(address, city, stateCode = 'CA', zip = '') {
     if (!address && !zip && !city) return null;
     
@@ -789,31 +790,24 @@ async function geocodeAddress(address, city, stateCode = 'CA', zip = '') {
     }
     
     try {
-        // Try OpenStreetMap Nominatim
-        const query = encodeURIComponent(fullAddress);
-        const response = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1&countrycodes=us&addressdetails=1`,
-            { headers: { 'User-Agent': 'DogfathersPlus-App/1.0' } }
-        );
-        
-        if (response.ok) {
-            const data = await response.json();
-            if (data && data.length > 0) {
-                const addr = data[0].address || {};
-                const result = {
-                    latitude: parseFloat(data[0].lat),
-                    longitude: parseFloat(data[0].lon),
-                    display_name: data[0].display_name,
-                    zip: addr.postcode || zip || '',
-                    city: addr.city || addr.town || addr.village || addr.suburb || city || ''
-                };
-                geocodeCache.set(fullAddress, result);
-                _log('Geocoded:', fullAddress, '→', result.latitude, result.longitude, 'ZIP:', result.zip);
-                return result;
-            }
+        // Server-side Google Maps geocoding (key stays on the server; results cached)
+        const { data, error } = await supabaseClient.functions.invoke('geocode', {
+            body: { action: 'geocode', address, city, zip, state: stateCode }
+        });
+        if (!error && data && data.latitude != null && data.longitude != null) {
+            const result = {
+                latitude: parseFloat(data.latitude),
+                longitude: parseFloat(data.longitude),
+                display_name: fullAddress,
+                zip: zip || '',
+                city: city || ''
+            };
+            geocodeCache.set(fullAddress, result);
+            _log('Geocoded (Google):', fullAddress, '→', result.latitude, result.longitude);
+            return result;
         }
     } catch (err) {
-        _warn('Nominatim geocoding failed:', err);
+        _warn('Google geocoding failed:', err);
     }
     
     // Fallback: city-based approximate coordinates for LA-area cities
