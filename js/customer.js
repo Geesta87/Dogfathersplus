@@ -1362,8 +1362,14 @@ function renderCustomerContent() {
         return renderCustomerSkeleton();
     }
     
-    // Categorize appointments
-    const upcomingAppointments = appointments.filter(a => a.status === 'pending' || a.status === 'confirmed');
+    // Categorize appointments. Sort upcoming by date+time ascending so the
+    // hero card / countdown always points at the SOONEST appointment — the
+    // raw list is ordered by booking time (created_at desc), not by date.
+    const upcomingAppointments = appointments
+        .filter(a => a.status === 'pending' || a.status === 'confirmed')
+        .sort((a, b) =>
+            (`${a.appointment_date} ${a.start_time || ''}`)
+                .localeCompare(`${b.appointment_date} ${b.start_time || ''}`));
     const inProgressAppointments = appointments.filter(a => a.status === 'in_progress');
     const completedAppointments = appointments.filter(a => a.status === 'completed');
     const nextAppt = upcomingAppointments[0];
