@@ -7339,7 +7339,9 @@ function renderCalendarImportModal() {
 // =============================================
 
 const GOOGLE_OAUTH_REDIRECT = 'https://cxtxkyitvybmyflsjexr.supabase.co/functions/v1/google-oauth-callback';
-const GOOGLE_OAUTH_SCOPES = 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/userinfo.email';
+// Full calendar scope: needed for two-way sync (read events + create/update/delete
+// app-booked events on the connected calendar). Reconnect required to grant it.
+const GOOGLE_OAUTH_SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email';
 // Owner sets this in the Google Cloud Console — see admin Integrations tab for setup steps.
 // Stored as a build-time constant so it can be public (Client ID is not a secret).
 let GOOGLE_OAUTH_CLIENT_ID = window.__GOOGLE_OAUTH_CLIENT_ID__ || '';

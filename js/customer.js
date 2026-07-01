@@ -308,6 +308,10 @@ async function createAppointment(appointmentData) {
     if (!appointmentData.latitude && !appointmentData.longitude && data.id) {
         geocodeAndStoreAppointmentLocation(data.id, appointmentData.address, appointmentData.city, appointmentData.zip);
     }
+
+    // Two-way sync: push this booking out to the connected Google Calendar
+    // (best-effort, non-blocking — never blocks or fails the booking).
+    if (data.id) pushAppointmentToGoogle(data.id, 'upsert');
     
     // Note: Loyalty points are awarded when appointment is COMPLETED, not at booking
     // This prevents gaming the system by booking and cancelling
@@ -379,7 +383,10 @@ async function cancelAppointment(appointmentId, reason = 'No reason provided') {
         showToast('Failed to cancel appointment: ' + (error?.message || data?.error || 'Unknown error'), 'error');
         return;
     }
-    
+
+    // Two-way sync: remove the event from the connected Google Calendar (best-effort).
+    pushAppointmentToGoogle(appointmentId, 'delete');
+
     // Reload appointments based on role
     if (state.currentUser.role === 'admin') {
         await loadAdminData();
@@ -388,9 +395,24 @@ async function cancelAppointment(appointmentId, reason = 'No reason provided') {
     } else {
         await loadCustomerData(state.currentUser.id);
     }
-    
+
     showToast('Appointment cancelled', 'info');
     render();
+}
+
+// Best-effort push of an app booking to the connected Google Calendar.
+// action: 'upsert' (create/update the event) or 'delete' (remove it). Never throws
+// into the booking/cancel flow — Google sync is a convenience, not a requirement.
+async function pushAppointmentToGoogle(appointmentId, action) {
+    try {
+        const { data, error } = await supabaseClient.functions.invoke('gcal-push', {
+            body: { action, appointment_id: appointmentId }
+        });
+        if (error) { _warn('gcal-push error (non-blocking):', error); return; }
+        if (data && data.ok === false) _log('gcal-push skipped:', data.reason || data.skipped);
+    } catch (err) {
+        _warn('gcal-push failed (non-blocking):', err);
+    }
 }
 
 // Customer-facing cancel with confirmation and reason
