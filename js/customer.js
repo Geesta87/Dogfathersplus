@@ -2132,15 +2132,78 @@ function getMatrixPrice(serviceId, size, coatType) {
     return match ? parseFloat(match.price) : null;
 }
 
-// Get the selected pet's size and coat type for pricing
+// Derive size + coat pricing info from a pet object (no DOM dependency).
+function getPetPricingInfoForPet(pet) {
+    if (!pet) return { size: null, coatType: null, pet: null };
+    return {
+        size: getSizeFromWeight(parseFloat(pet.weight)),
+        coatType: pet.coat_type || detectCoatType(pet.breed),
+        pet
+    };
+}
+
+// Get the selected pet's size and coat type for pricing (reads the booking form)
 function getSelectedPetPricingInfo() {
     const petId = document.getElementById('booking-pet')?.value;
-    const pet = (state.pets || []).find(p => p.id === petId);
-    if (!pet) return { size: null, coatType: null, pet: null };
+    return getPetPricingInfoForPet((state.pets || []).find(p => p.id === petId));
+}
 
-    const size = getSizeFromWeight(parseFloat(pet.weight));
-    const coatType = pet.coat_type || detectCoatType(pet.breed);
-    return { size, coatType, pet };
+// Render the bookable services as selectable package cards. Price on each card is
+// computed for the given pet (size + coat); unavailable combos are disabled.
+function renderServiceCards(services, selectedServiceId, petInfo) {
+    const bookable = (services || []).filter(s => !s.is_addon && s.category !== 'fee' && s.is_active !== false);
+    petInfo = petInfo || { size: null, coatType: null, pet: null };
+    return bookable.map(s => {
+        const hasMatrix = serviceHasPricingMatrix(s.id);
+        let priceLabel = '', sub = '', disabled = false;
+        if (hasMatrix) {
+            if (!petInfo.pet) {
+                sub = 'Select your pet above';
+            } else if (!petInfo.size || !petInfo.coatType) {
+                sub = 'Add weight & breed in My Pets';
+            } else {
+                const p = getMatrixPrice(s.id, petInfo.size, petInfo.coatType);
+                if (p === null) {
+                    sub = `Not offered for ${COAT_LABELS[petInfo.coatType] || petInfo.coatType} coats`;
+                    disabled = true;
+                } else {
+                    priceLabel = '$' + p.toFixed(0);
+                    sub = `${SIZE_LABELS[petInfo.size] || petInfo.size} · ${COAT_LABELS[petInfo.coatType] || petInfo.coatType}`;
+                }
+            }
+        } else {
+            priceLabel = '$' + (parseFloat(s.base_price) || 0).toFixed(0);
+            sub = 'Flat rate';
+        }
+        const selected = s.id === selectedServiceId && !disabled;
+        const desc = (s.description || '').trim();
+        return `
+        <button type="button" ${disabled ? 'disabled' : ''} onclick="selectServiceCard('${s.id}')"
+            class="text-left rounded-xl border-2 p-3 transition-all ${selected ? 'border-primary bg-primary/5 dark:bg-primary/10 ring-1 ring-primary/30' : 'border-border-light dark:border-border-dark hover:border-primary/50'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}">
+            <div class="flex items-start justify-between gap-2">
+                <p class="font-bold text-sm dark:text-white">${escapeHtml(s.name)}</p>
+                ${priceLabel ? `<span class="text-base font-black text-primary whitespace-nowrap">${priceLabel}</span>` : ''}
+            </div>
+            <p class="text-[11px] text-text-sub-light dark:text-text-sub-dark mt-0.5">${(s.duration_minutes || 60)} min${sub ? ` · ${escapeHtml(sub)}` : ''}</p>
+            ${desc ? `<p class="text-[11px] leading-snug text-text-sub-light dark:text-text-sub-dark mt-1.5">${escapeHtml(desc.length > 120 ? desc.slice(0, 120) + '…' : desc)}</p>` : ''}
+            ${selected ? `<div class="flex items-center gap-1 text-primary text-xs font-semibold mt-1.5"><span class="material-symbols-outlined text-sm">check_circle</span>Selected</div>` : ''}
+        </button>`;
+    }).join('');
+}
+
+// Re-render the card grid using the live form's selected pet + package.
+function refreshServiceCards() {
+    const container = document.getElementById('service-cards-container');
+    if (!container) return;
+    const selectedId = document.getElementById('booking-service-select')?.value;
+    container.innerHTML = renderServiceCards(state.services || [], selectedId, getSelectedPetPricingInfo());
+}
+
+// A package card was tapped: point the hidden <select> at it and refresh.
+function selectServiceCard(serviceId) {
+    const sel = document.getElementById('booking-service-select');
+    if (sel) sel.value = serviceId;
+    refreshServiceCards();
 }
 
 function onBookingServiceChange(select) {
@@ -2149,6 +2212,7 @@ function onBookingServiceChange(select) {
 }
 
 function onBookingPetChange() {
+    refreshServiceCards();
     updateBookingAutoPrice();
 }
 
@@ -2268,6 +2332,9 @@ function renderBookingModal() {
     // Get first service description for initial display
     const firstService = services.length > 0 ? services.filter(s => !s.is_addon)[0] : null;
     const initialDescription = firstService?.description || 'Complete grooming service tailored to your pet\'s needs.';
+    // Default-selected package for the card grid + hidden <select>
+    const bookableServices = services.filter(s => !s.is_addon && s.category !== 'fee');
+    const initialServiceId = preselect.serviceId || (bookableServices[0] && bookableServices[0].id) || '';
     
     return `<div class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-2 sm:p-4" onclick="closeBookingModal()">
         <div class="bg-surface-light dark:bg-surface-dark rounded-xl sm:rounded-2xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
@@ -2283,55 +2350,27 @@ function renderBookingModal() {
             <form id="booking-form" class="p-4 sm:p-6 space-y-4 sm:space-y-5">
                 ${!hasRealServices ? '<div class="p-3 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg text-amber-800 dark:text-amber-200 text-sm mb-2"><span class="font-semibold">Note:</span> Services not loaded from database. Please contact admin to set up services.</div>' : ''}
                 
-                <!-- Pet & Service Selection -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <label class="block">
-                        <span class="text-sm font-semibold mb-2 block dark:text-white">Select Pet</span>
-                        <select id="booking-pet" onchange="onBookingPetChange()" class="w-full h-12 px-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark dark:text-white">
-                            ${pets.length > 0 ? pets.map(p => `<option value="${p.id}" ${preselect.petId === p.id ? 'selected' : ''}>${escapeHtml(p.name)} (${p.breed || 'Unknown'})</option>`).join('') : '<option value="">No pets - please add a pet first</option>'}
-                        </select>
-                    </label>
-                    <label class="block">
-                        <span class="text-sm font-semibold mb-2 block dark:text-white">Service</span>
-                        <select id="booking-service-select" onchange="onBookingServiceChange(this)" class="w-full h-12 px-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark dark:text-white">
-                            ${hasRealServices ? services.filter(s => !s.is_addon && s.category !== 'fee').map(s => `<option value="${s.id}" data-name="${escapeHtml(s.name)}" data-price="${s.base_price}" data-duration="${s.duration_minutes || 60}" data-description="${(s.description || '').replace(/"/g, '&quot;')}" ${preselect.serviceId === s.id ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('') : '<option value="default" data-name="Full Groom" data-price="85" data-duration="90" data-description="Complete grooming including bath, brush, haircut, nail trim, and ear cleaning.">Full Groom</option>'}
-                        </select>
-                    </label>
+                <!-- Pet Selection -->
+                <label class="block">
+                    <span class="text-sm font-semibold mb-2 block dark:text-white">Select Pet</span>
+                    <select id="booking-pet" onchange="onBookingPetChange()" class="w-full h-12 px-4 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark dark:text-white">
+                        ${pets.length > 0 ? pets.map(p => `<option value="${p.id}" ${preselect.petId === p.id ? 'selected' : ''}>${escapeHtml(p.name)} (${p.breed || 'Unknown'})</option>`).join('') : '<option value="">No pets - please add a pet first</option>'}
+                    </select>
+                </label>
+
+                <!-- Service selection as package cards. The hidden <select> keeps the
+                     existing booking code (price calc, submit, confirmation) working. -->
+                <div>
+                    <span class="text-sm font-semibold mb-2 block dark:text-white">Choose a Package</span>
+                    <select id="booking-service-select" class="hidden" onchange="onBookingServiceChange(this)">
+                        ${hasRealServices ? services.filter(s => !s.is_addon && s.category !== 'fee').map(s => `<option value="${s.id}" data-name="${escapeHtml(s.name)}" data-price="${s.base_price}" data-duration="${s.duration_minutes || 60}" data-description="${(s.description || '').replace(/"/g, '&quot;')}" ${initialServiceId === s.id ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('') : '<option value="default" data-name="Full Groom" data-price="85" data-duration="90" data-description="Complete grooming including bath, brush, haircut, nail trim, and ear cleaning.">Full Groom</option>'}
+                    </select>
+                    <div id="service-cards-container" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        ${hasRealServices ? renderServiceCards(services, initialServiceId, getPetPricingInfoForPet(pets.find(p => p.id === (preselect.petId || (pets[0] && pets[0].id))))) : ''}
+                    </div>
+                    <p class="text-[11px] text-text-sub-light dark:text-text-sub-dark mt-2">Prices are calculated for your selected pet's size &amp; coat. Add-ons and fees are billed by your groomer.</p>
                 </div>
 
-                <!-- Service Description Box -->
-                <div id="service-description-box" class="p-3 bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-lg">
-                    <div class="flex items-start gap-2">
-                        <span class="material-symbols-outlined text-primary text-lg mt-0.5">info</span>
-                        <div>
-                            <p class="text-sm font-semibold text-primary dark:text-sky-400">What's included:</p>
-                            <p class="text-sm text-text-sub-light dark:text-text-sub-dark" id="service-desc-text">${initialDescription}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Auto-calculated price display (based on pet profile) -->
-                <div id="booking-auto-price" class="hidden">
-                    <div class="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <span class="material-symbols-outlined text-green-600 dark:text-green-400 text-lg">calculate</span>
-                                <div>
-                                    <span class="text-sm font-semibold text-green-800 dark:text-green-200">Your Price</span>
-                                    <p id="booking-price-detail" class="text-xs text-green-600 dark:text-green-400"></p>
-                                </div>
-                            </div>
-                            <span id="booking-price-display" class="text-xl font-black text-green-600 dark:text-green-400"></span>
-                        </div>
-                    </div>
-                </div>
-                <div id="booking-price-warning" class="hidden">
-                    <div class="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg text-sm text-amber-800 dark:text-amber-200">
-                        <span class="material-symbols-outlined text-amber-500 text-base align-middle mr-1">warning</span>
-                        <span id="booking-price-warning-text"></span>
-                    </div>
-                </div>
-                
                 <!-- Address Section -->
                 <div class="space-y-3">
                     <label class="block">
