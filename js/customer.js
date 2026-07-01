@@ -2233,6 +2233,14 @@ function getBookingPrice() {
     return parseFloat(serviceSelect?.selectedOptions[0]?.dataset?.price) || 85;
 }
 
+// Returns { name, fee } if the given YYYY-MM-DD date carries an automatic
+// holiday surcharge, else null. Mirrors the server-side pricing trigger.
+function getHolidayInfo(dateStr) {
+    if (!dateStr || !state.holidays) return null;
+    const h = state.holidays[dateStr];
+    return h && h.fee > 0 ? h : null;
+}
+
 function renderBookingModal() {
     const user = state.currentUser;
     const pets = state.pets || [];
@@ -3486,8 +3494,21 @@ function showBookingConfirmation() {
                 <div><p class="text-xs text-text-sub-light dark:text-text-sub-dark">Notes</p><p class="text-sm dark:text-white">${notes}</p></div>
             </div>` : ''}
         </div>
+        ${(() => {
+            const base = parseFloat(servicePrice) || 0;
+            if (!base) return '';
+            const holiday = getHolidayInfo(dateInput?.value);
+            const fee = holiday ? (holiday.fee || 0) : 0;
+            const total = base + fee;
+            return `
+        <div class="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-xl p-4 mt-3 space-y-1.5">
+            <div class="flex justify-between text-sm dark:text-white"><span>${escapeHtml(serviceName)}</span><span>$${base.toFixed(0)}</span></div>
+            ${fee ? `<div class="flex justify-between text-sm text-amber-700 dark:text-amber-300"><span class="flex items-center gap-1"><span class="material-symbols-outlined text-base">celebration</span>Holiday fee (${escapeHtml(holiday.name)})</span><span>+$${fee.toFixed(0)}</span></div>` : ''}
+            <div class="flex justify-between font-bold text-base pt-1.5 border-t border-primary/20 dark:text-white"><span>Total</span><span class="text-primary">$${total.toFixed(0)}</span></div>
+        </div>`;
+        })()}
     `;
-    
+
     const summaryEl = document.getElementById('booking-summary-content');
     const summaryPanel = document.getElementById('booking-confirmation-summary');
     const form = document.getElementById('booking-form');

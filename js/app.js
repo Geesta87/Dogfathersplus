@@ -623,14 +623,15 @@ async function markCustomerThreadRead(customerId) {
 async function loadPublicData() {
     try {
         // Run all queries in parallel for faster loading
-        const [servicesResult, pricingResult, productsResult, rewardsResult, packagesResult, hoursResult, groomersResult] = await Promise.all([
+        const [servicesResult, pricingResult, productsResult, rewardsResult, packagesResult, hoursResult, groomersResult, holidaysResult] = await Promise.all([
             supabaseClient.from('services').select('*').order('sort_order'),
             supabaseClient.from('service_pricing').select('*'),
             supabaseClient.from('products').select('*').order('sort_order'),
             supabaseClient.from('rewards').select('*').eq('is_active', true),
             supabaseClient.from('ride_along_packages').select('*').eq('is_active', true).order('sort_order'),
             supabaseClient.from('business_hours').select('*').order('day_of_week'),
-            supabaseClient.from('profiles').select('id, full_name, phone, email, service_regions, is_active').eq('role', 'groomer')
+            supabaseClient.from('profiles').select('id, full_name, phone, email, service_regions, is_active').eq('role', 'groomer'),
+            supabaseClient.from('holidays').select('holiday_date, name, fee')
         ]);
 
         if (servicesResult.error) console.error('Services load error:', servicesResult.error);
@@ -664,6 +665,14 @@ async function loadPublicData() {
             }));
         }
         _log('Groomers loaded (public):', state.groomers.length);
+
+        // Holidays that carry an automatic surcharge (keyed by YYYY-MM-DD date string)
+        if (holidaysResult.error) console.error('Holidays load error:', holidaysResult.error);
+        state.holidays = {};
+        (holidaysResult.data || []).forEach(h => {
+            state.holidays[h.holiday_date] = { name: h.name, fee: parseFloat(h.fee) || 0 };
+        });
+        _log('Holidays loaded:', Object.keys(state.holidays).length);
     } catch (err) {
         console.error('Failed to load public data:', err);
     }
