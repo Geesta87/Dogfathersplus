@@ -7502,6 +7502,14 @@ function renderAdminIntegrationsTab() {
     const lastSummary = conn?.last_sync_summary;
     const lastSyncedHuman = conn?.last_synced_at ? new Date(conn.last_synced_at).toLocaleString() : 'Never';
 
+    // Load iCloud connection status once when the tab first renders.
+    if (state.icloudStatus === undefined) {
+        state.icloudStatus = null;
+        setTimeout(() => { try { loadICloudStatus(); } catch (_) {} }, 0);
+    }
+    const ic = state.icloudStatus;
+    const icCals = state.icloudCalendars || [];
+
     return `
     <div class="space-y-6 max-w-4xl mx-auto">
         <div>
@@ -7655,6 +7663,144 @@ function renderAdminIntegrationsTab() {
                 `}
             </div>
         </div>
+
+        <!-- iCloud Calendar (two-way: app bookings -> the team's real calendar) -->
+        <div class="bg-white dark:bg-surface-dark rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+            <div class="p-6 border-b border-slate-100 dark:border-slate-800 flex items-start gap-4">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center text-white flex-shrink-0">
+                    <span class="material-symbols-outlined">phone_iphone</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h2 class="text-xl font-bold dark:text-white">iCloud Calendar <span class="text-[10px] font-black text-primary align-middle bg-primary/10 px-1.5 py-0.5 rounded">TWO-WAY</span></h2>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                        Sends app bookings straight to your iCloud/iPhone calendar (and removes them if cancelled) — the calendar your team books on every day.
+                    </p>
+                </div>
+                ${ic?.connected ? `
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-xs font-bold whitespace-nowrap"><span class="w-2 h-2 bg-green-500 rounded-full"></span>Connected</span>
+                ` : `
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-full text-xs font-bold whitespace-nowrap">Not connected</span>
+                `}
+            </div>
+            <div class="p-6">
+                ${!ic?.connected ? `
+                    <div class="space-y-4 max-w-lg">
+                        <div class="p-4 bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800 rounded-xl text-sm">
+                            <p class="font-semibold text-sky-900 dark:text-sky-100 mb-1">First, create an app-specific password (2 min)</p>
+                            <ol class="text-sky-800 dark:text-sky-200 space-y-1 list-decimal list-inside text-xs">
+                                <li>Go to <a class="underline font-bold" href="https://account.apple.com" target="_blank">account.apple.com</a> and sign in with your Apple ID.</li>
+                                <li>Open <b>Sign-In and Security → App-Specific Passwords → Generate</b>.</li>
+                                <li>Name it "Dogfathers" and copy the password (looks like <code>abcd-efgh-ijkl-mnop</code>).</li>
+                            </ol>
+                        </div>
+                        <label class="block">
+                            <span class="text-sm font-bold text-slate-700 dark:text-slate-300">Apple ID (email)</span>
+                            <input id="icloud-apple-id" type="email" autocomplete="off" placeholder="you@icloud.com" class="mt-1 w-full h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white">
+                        </label>
+                        <label class="block">
+                            <span class="text-sm font-bold text-slate-700 dark:text-slate-300">App-specific password</span>
+                            <input id="icloud-app-password" type="password" autocomplete="off" placeholder="abcd-efgh-ijkl-mnop" class="mt-1 w-full h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white">
+                        </label>
+                        <button onclick="connectICloud()" class="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-black text-white font-bold rounded-xl">
+                            <span class="material-symbols-outlined">link</span> Connect iCloud
+                        </button>
+                    </div>
+                ` : `
+                    <div class="space-y-5">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                            <div class="min-w-0">
+                                <p class="text-xs uppercase tracking-wider text-slate-500 font-bold">Connected as</p>
+                                <p class="font-semibold dark:text-white truncate">${escapeHtml(ic.apple_id || 'Apple ID')}</p>
+                            </div>
+                            <button onclick="disconnectICloud()" class="px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg whitespace-nowrap">Disconnect</button>
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="block text-sm font-bold text-slate-700 dark:text-slate-300">Which calendar to send bookings to</label>
+                                <button onclick="loadICloudCalendars()" class="text-xs font-bold text-primary hover:underline">Refresh list</button>
+                            </div>
+                            ${ic.has_calendar && icCals.length === 0 ? `
+                                <div class="p-3 bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800 rounded-xl">
+                                    <p class="text-sm text-sky-900 dark:text-sky-100">App bookings sync to: <b>${escapeHtml(ic.selected_calendar_name || '')}</b></p>
+                                </div>
+                            ` : ''}
+                            ${icCals.length === 0 && !ic.has_calendar ? `
+                                <button onclick="loadICloudCalendars()" class="w-full p-4 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl text-slate-500 hover:border-primary hover:text-primary transition-colors text-sm font-medium">Click to load your calendars</button>
+                            ` : ''}
+                            ${icCals.length > 0 ? `
+                                <div class="space-y-2">
+                                    ${icCals.map(c => `
+                                        <button onclick="selectICloudCalendar('${escapeHtml(c.url).replace(/'/g, "\\'")}', '${escapeHtml(c.name).replace(/'/g, "\\'")}')"
+                                            class="w-full p-3 flex items-center justify-between gap-3 rounded-xl border ${ic.selected_calendar_name === c.name ? 'border-primary bg-primary/5' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'} transition-colors text-left">
+                                            <p class="font-semibold text-sm dark:text-white truncate">${escapeHtml(c.name)}</p>
+                                            ${ic.selected_calendar_name === c.name ? '<span class="material-symbols-outlined text-primary">check_circle</span>' : ''}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="text-xs text-slate-500 dark:text-slate-400 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                            💡 App bookings and cancellations sync to this calendar automatically — nothing else to press.
+                        </div>
+                    </div>
+                `}
+            </div>
+        </div>
     </div>`;
+}
+
+// ---- iCloud Calendar integration handlers ----
+async function loadICloudStatus() {
+    try {
+        const { data, error } = await supabaseClient.functions.invoke('icloud-calendar', { body: { action: 'status' } });
+        if (!error && data) { state.icloudStatus = data; render(); }
+    } catch (_) { /* non-blocking */ }
+}
+async function connectICloud() {
+    const appleId = document.getElementById('icloud-apple-id')?.value?.trim();
+    const appPassword = document.getElementById('icloud-app-password')?.value?.trim();
+    if (!appleId || !appPassword) { showToast('Enter your Apple ID and app-specific password', 'error'); return; }
+    showLoading();
+    try {
+        const { data, error } = await supabaseClient.functions.invoke('icloud-calendar', { body: { action: 'connect', apple_id: appleId, app_password: appPassword } });
+        hideLoading();
+        if (error || data?.error) { showToast(data?.error || error?.message || 'Connection failed', 'error'); return; }
+        state.icloudStatus = { connected: true, apple_id: appleId, has_calendar: false };
+        state.icloudCalendars = data.calendars || [];
+        showToast('Connected to iCloud! Now pick your calendar below.', 'success');
+        render();
+    } catch (err) { hideLoading(); showToast('Connection failed: ' + err.message, 'error'); }
+}
+async function loadICloudCalendars() {
+    showLoading();
+    try {
+        const { data, error } = await supabaseClient.functions.invoke('icloud-calendar', { body: { action: 'list_calendars' } });
+        hideLoading();
+        if (error || data?.error) { showToast(data?.error || 'Could not load calendars', 'error'); return; }
+        state.icloudCalendars = data.calendars || [];
+        render();
+    } catch (err) { hideLoading(); showToast('Failed: ' + err.message, 'error'); }
+}
+async function selectICloudCalendar(url, name) {
+    showLoading();
+    try {
+        const { error } = await supabaseClient.functions.invoke('icloud-calendar', { body: { action: 'select_calendar', calendar_url: url, calendar_name: name } });
+        hideLoading();
+        if (error) { showToast('Failed to select calendar', 'error'); return; }
+        state.icloudStatus = { ...(state.icloudStatus || {}), connected: true, selected_calendar_name: name, has_calendar: true };
+        showToast('Done! App bookings will now sync to this iCloud calendar.', 'success');
+        render();
+    } catch (err) { hideLoading(); showToast('Failed: ' + err.message, 'error'); }
+}
+async function disconnectICloud() {
+    showLoading();
+    try {
+        await supabaseClient.functions.invoke('icloud-calendar', { body: { action: 'disconnect' } });
+        hideLoading();
+        state.icloudStatus = { connected: false };
+        state.icloudCalendars = [];
+        showToast('iCloud disconnected', 'info');
+        render();
+    } catch (err) { hideLoading(); showToast('Failed: ' + err.message, 'error'); }
 }
 

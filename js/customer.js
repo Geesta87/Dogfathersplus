@@ -400,18 +400,18 @@ async function cancelAppointment(appointmentId, reason = 'No reason provided') {
     render();
 }
 
-// Best-effort push of an app booking to the connected Google Calendar.
-// action: 'upsert' (create/update the event) or 'delete' (remove it). Never throws
-// into the booking/cancel flow — Google sync is a convenience, not a requirement.
+// Best-effort push of an app booking to the connected iCloud calendar (the team's
+// real calendar, on their phones). action: 'upsert' (create/update) or 'delete'.
+// Never throws into the booking/cancel flow — calendar sync is a convenience.
 async function pushAppointmentToGoogle(appointmentId, action) {
     try {
-        const { data, error } = await supabaseClient.functions.invoke('gcal-push', {
-            body: { action, appointment_id: appointmentId }
+        const { data, error } = await supabaseClient.functions.invoke('icloud-calendar', {
+            body: { action: 'push', op: action, appointment_id: appointmentId }
         });
-        if (error) { _warn('gcal-push error (non-blocking):', error); return; }
-        if (data && data.ok === false) _log('gcal-push skipped:', data.reason || data.skipped);
+        if (error) { _warn('icloud push error (non-blocking):', error); return; }
+        if (data && data.ok === false) _log('icloud push skipped:', data.reason || data.skipped);
     } catch (err) {
-        _warn('gcal-push failed (non-blocking):', err);
+        _warn('icloud push failed (non-blocking):', err);
     }
 }
 
