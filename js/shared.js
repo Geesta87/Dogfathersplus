@@ -1195,13 +1195,12 @@ async function calculateAvailableSlotsJS(customerLat, customerLng, startDate, en
         .lte('start_date', endDate)
         .eq('status', 'approved');
 
-    // 4. Get existing appointments (include duration so buffer checks work)
+    // 4. Get existing booked slots via a SECURITY DEFINER RPC. A direct table read
+    // would be limited by RLS to the caller's OWN appointments, so imported/other
+    // customers' bookings would be invisible and their times wrongly offered as free.
+    // The RPC returns slot occupancy only (times, groomer, coarse coords) — no PII.
     const { data: appointments } = await supabaseClient
-        .from('appointments')
-        .select('id, appointment_date, start_time, duration_minutes, assigned_groomer_id, latitude, longitude')
-        .gte('appointment_date', startDate)
-        .lte('appointment_date', endDate)
-        .not('status', 'in', '("cancelled","no_show")');
+        .rpc('get_booked_slots', { p_start: startDate, p_end: endDate });
     
     // Build lookup maps
     const availabilityMap = {};
