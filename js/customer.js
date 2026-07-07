@@ -1237,6 +1237,24 @@ async function completeOnboarding() {
     render();
 }
 
+// Notifications control for the account menus. Reflects the current permission state.
+function renderNotifMenuButton() {
+    const cls = 'w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-background-light dark:hover:bg-background-dark dark:text-white mb-1 touch-target';
+    const perm = (typeof Notification !== 'undefined') ? Notification.permission : 'unsupported';
+    if (typeof pushSupported === 'function' && pushSupported()) {
+        if (perm === 'granted') {
+            return `<button onclick="subscribeToPush(true).then(()=>render())" class="${cls}"><span class="material-symbols-outlined text-green-600">notifications_active</span><span class="flex-1 text-left">Notifications On</span></button>`;
+        }
+        if (perm === 'denied') {
+            return `<button onclick="showToast('Notifications are blocked. Re-enable them in your browser or phone settings.','info')" class="${cls}"><span class="material-symbols-outlined">notifications_off</span><span class="flex-1 text-left">Notifications Blocked</span></button>`;
+        }
+        return `<button onclick="subscribeToPush(true).then(()=>render())" class="${cls}"><span class="material-symbols-outlined">notifications</span>Enable Notifications</button>`;
+    }
+    if (typeof isIosSafariNotInstalled === 'function' && isIosSafariNotInstalled()) {
+        return `<button onclick="showToast('First add the app to your Home Screen (Share → Add to Home Screen), then enable notifications.','info')" class="${cls}"><span class="material-symbols-outlined">notifications</span>Enable Notifications</button>`;
+    }
+    return '';
+}
 
 function renderCustomerDashboard() {
     const user = state.currentUser;
@@ -1302,6 +1320,7 @@ function renderCustomerDashboard() {
             <nav class="p-4 flex-1 overflow-y-auto min-h-0">${navItems.map(i => `<button onclick="setTab('${i.id}')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left mb-1 touch-target ${state.currentTab === i.id ? 'bg-primary text-white' : 'hover:bg-background-light dark:hover:bg-background-dark dark:text-white'}"><span class="material-symbols-outlined">${i.icon}</span><span class="flex-1">${i.label}</span>${i.badge ? `<span class="ml-auto min-w-5 h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">${i.badge > 9 ? '9+' : i.badge}</span>` : ''}</button>`).join('')}</nav>
             <div class="p-4 border-t border-border-light dark:border-border-dark safe-bottom flex-shrink-0">
                 <button onclick="toggleDarkMode()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-background-light dark:hover:bg-background-dark dark:text-white mb-1 touch-target"><span class="material-symbols-outlined">${state.darkMode ? 'light_mode' : 'dark_mode'}</span>${state.darkMode ? 'Light Mode' : 'Dark Mode'}</button>
+                ${renderNotifMenuButton()}
                 <button onclick="openChangePassword()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-background-light dark:hover:bg-background-dark dark:text-white mb-1 touch-target"><span class="material-symbols-outlined">password</span>Change Password</button>
                 <button onclick="logout()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 touch-target"><span class="material-symbols-outlined">logout</span>Sign Out</button>
             </div>
@@ -1321,6 +1340,7 @@ function renderCustomerDashboard() {
             <div class="p-4 border-t border-border-light dark:border-border-dark">
                 <button onclick="refreshData()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-background-light dark:hover:bg-background-dark dark:text-white mb-1 touch-target"><span class="material-symbols-outlined">refresh</span>Refresh Data</button>
                 <button onclick="toggleDarkMode()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-background-light dark:hover:bg-background-dark dark:text-white mb-1 touch-target"><span class="material-symbols-outlined">${state.darkMode ? 'light_mode' : 'dark_mode'}</span>${state.darkMode ? 'Light Mode' : 'Dark Mode'}</button>
+                ${renderNotifMenuButton()}
                 <button onclick="openChangePassword()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-background-light dark:hover:bg-background-dark dark:text-white mb-1 touch-target"><span class="material-symbols-outlined">password</span>Change Password</button>
                 <button onclick="logout()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 touch-target"><span class="material-symbols-outlined">logout</span>Sign Out</button>
             </div>
