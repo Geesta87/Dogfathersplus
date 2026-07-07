@@ -312,6 +312,13 @@ async function createAppointment(appointmentData) {
     // Two-way sync: push this booking out to the connected Google Calendar
     // (best-effort, non-blocking — never blocks or fails the booking).
     if (data.id) pushAppointmentToGoogle(data.id, 'upsert');
+
+    // Send the booking-confirmation push (best-effort). Also make sure this device
+    // is subscribed if the customer already granted notification permission.
+    if (data.id) {
+        if (typeof refreshPushSubscription === 'function') { await refreshPushSubscription(); }
+        if (typeof sendConfirmationPush === 'function') { sendConfirmationPush(data.id); }
+    }
     
     // Note: Loyalty points are awarded when appointment is COMPLETED, not at booking
     // This prevents gaming the system by booking and cancelling
@@ -1246,21 +1253,30 @@ function renderCustomerDashboard() {
     ];
     const isFullWidth = ['store', 'ridealongs', 'education'].includes(state.currentTab);
 
-    // PWA Install Banner (only shown when install is available)
-    const installBanner = state.showInstallPrompt && !state.isPWA ? `
+    // Install + notification prompts. Priority: iOS-install tip (push needs install on
+    // iPhone) → enable-notifications → Android/desktop install banner. One at a time.
+    const wrap = (icon, title, sub, btn) => `
     <div class="fixed bottom-20 lg:bottom-4 left-4 right-4 lg:left-auto lg:right-4 lg:w-80 z-50 bg-gradient-to-r from-primary to-sky-600 text-white p-4 rounded-2xl shadow-2xl shadow-primary/30 flex items-center gap-3 safe-bottom">
-        <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-            <span class="material-symbols-outlined text-2xl">install_mobile</span>
-        </div>
-        <div class="flex-1 min-w-0">
-            <p class="font-bold text-sm">Install Dogfathers Plus</p>
-            <p class="text-xs text-white/80">Add to home screen for the best experience</p>
-        </div>
-        <button onclick="installPWA()" class="px-3 py-2 bg-white text-primary font-bold text-xs rounded-lg hover:bg-white/90 transition-colors flex-shrink-0">Install</button>
-        <button onclick="state.showInstallPrompt = false; render();" class="p-1 hover:bg-white/20 rounded-lg transition-colors">
-            <span class="material-symbols-outlined text-lg">close</span>
-        </button>
-    </div>` : '';
+        <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined text-2xl">${icon}</span></div>
+        <div class="flex-1 min-w-0"><p class="font-bold text-sm">${title}</p><p class="text-xs text-white/80">${sub}</p></div>
+        ${btn || ''}
+        <button onclick="state.dismissedPrompt = true; render();" class="p-1 hover:bg-white/20 rounded-lg transition-colors flex-shrink-0"><span class="material-symbols-outlined text-lg">close</span></button>
+    </div>`;
+    const notifPerm = (typeof Notification !== 'undefined') ? Notification.permission : 'unsupported';
+    const iosNeedsInstall = typeof isIosSafariNotInstalled === 'function' && isIosSafariNotInstalled();
+    const canPush = typeof pushSupported === 'function' && pushSupported();
+    let installBanner = '';
+    if (!state.dismissedPrompt) {
+        if (iosNeedsInstall) {
+            installBanner = wrap('ios_share', 'Install for reminders 🔔', 'Tap <b>Share</b> → <b>Add to Home Screen</b> to get booking reminders on your phone.', '');
+        } else if (canPush && notifPerm === 'default' && state.currentUser) {
+            installBanner = wrap('notifications_active', 'Turn on reminders', 'Get booking confirmations & appointment reminders.',
+                `<button onclick="subscribeToPush(true).then(()=>render())" class="px-3 py-2 bg-white text-primary font-bold text-xs rounded-lg hover:bg-white/90 transition-colors flex-shrink-0">Enable</button>`);
+        } else if (state.showInstallPrompt && !state.isPWA) {
+            installBanner = wrap('install_mobile', 'Install Dogfathers Plus', 'Add to home screen for the best experience.',
+                `<button onclick="installPWA()" class="px-3 py-2 bg-white text-primary font-bold text-xs rounded-lg hover:bg-white/90 transition-colors flex-shrink-0">Install</button>`);
+        }
+    }
 
     return `
     ${installBanner}

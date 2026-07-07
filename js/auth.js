@@ -111,6 +111,8 @@ async function handleSignIn(email, password) {
         hideLoading();
         showToast(`Welcome back, ${state.currentUser?.name || 'there'}!`, 'success');
         render();
+        // If notifications were already granted, silently register this device.
+        if (typeof refreshPushSubscription === 'function') { refreshPushSubscription(); }
         return true;
     } catch (err) {
         console.error('Sign in exception:', err);

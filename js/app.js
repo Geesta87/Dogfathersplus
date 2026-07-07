@@ -1183,6 +1183,91 @@ if ('serviceWorker' in navigator) {
     });
 }
 
+// ============================================
+// WEB PUSH NOTIFICATIONS
+// ============================================
+const VAPID_PUBLIC_KEY = 'BFJHH2aTFiIMqs0DNhzOGFgpMzRbPcgMfwt8lPYVtuClG0hv0p5sPc481rOgzJ-lCkUIO6LW56PyHcBQzCW8_nM';
+
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(base64);
+    const arr = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+    return arr;
+}
+
+function pushSupported() {
+    return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+}
+
+// iOS only allows web push once the PWA is installed to the home screen.
+function isIosSafariNotInstalled() {
+    const iOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const standalone = window.navigator.standalone === true ||
+        window.matchMedia('(display-mode: standalone)').matches;
+    return iOS && !standalone;
+}
+
+// Subscribe the current user's device to web push. `interactive` controls toasts.
+async function subscribeToPush(interactive = true) {
+    try {
+        if (!pushSupported()) {
+            if (interactive) showToast("This device doesn't support notifications.", 'error');
+            return false;
+        }
+        if (!state.currentUser) return false;
+        if (Notification.permission === 'denied') {
+            if (interactive) showToast('Notifications are blocked. Turn them on in your browser/app settings.', 'info');
+            return false;
+        }
+        const perm = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+        if (perm !== 'granted') return false;
+        const reg = await navigator.serviceWorker.ready;
+        let sub = await reg.pushManager.getSubscription();
+        if (!sub) {
+            sub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+            });
+        }
+        const j = sub.toJSON();
+        const { error } = await supabaseClient.from('push_subscriptions').upsert({
+            user_id: state.currentUser.id,
+            endpoint: sub.endpoint,
+            p256dh: j.keys.p256dh,
+            auth: j.keys.auth,
+            user_agent: (navigator.userAgent || '').slice(0, 200)
+        }, { onConflict: 'endpoint' });
+        if (error) { _warn('save subscription failed:', error); if (interactive) showToast('Could not save notification setting.', 'error'); return false; }
+        state.pushEnabled = true;
+        if (interactive) showToast('Notifications are on! 🔔', 'success');
+        return true;
+    } catch (err) {
+        _warn('Push subscribe failed:', err);
+        if (interactive) showToast('Could not enable notifications.', 'error');
+        return false;
+    }
+}
+
+// Fire-and-forget booking confirmation push.
+async function sendConfirmationPush(appointmentId) {
+    try {
+        await supabaseClient.functions.invoke('notifications', {
+            body: { action: 'send_confirmation', appointment_id: appointmentId }
+        });
+    } catch (err) { _warn('confirmation push failed:', err); }
+}
+
+// On load, if the user already granted permission, silently (re)subscribe so a new
+// device/browser gets registered. Called after login.
+async function refreshPushSubscription() {
+    if (pushSupported() && Notification.permission === 'granted' && state.currentUser) {
+        await subscribeToPush(false);
+    }
+}
+
 // Handle PWA install prompt
 let deferredPrompt;
 window.addEventListener('beforeinstallprompt', (e) => {

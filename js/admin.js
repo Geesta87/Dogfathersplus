@@ -7510,6 +7510,13 @@ function renderAdminIntegrationsTab() {
     const ic = state.icloudStatus;
     const icCals = state.icloudCalendars || [];
 
+    // Load push-notification hub data once when the tab first renders.
+    if (state.notifHub === undefined) {
+        state.notifHub = null;
+        setTimeout(() => { try { loadNotificationHub(); } catch (_) {} }, 0);
+    }
+    const notif = state.notifHub;
+
     return `
     <div class="space-y-6 max-w-4xl mx-auto">
         <div>
@@ -7746,7 +7753,110 @@ function renderAdminIntegrationsTab() {
                 `}
             </div>
         </div>
+
+        <!-- Push Notifications hub -->
+        <div class="bg-white dark:bg-surface-dark rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+            <div class="p-6 border-b border-slate-100 dark:border-slate-800 flex items-start gap-4">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white flex-shrink-0">
+                    <span class="material-symbols-outlined">notifications_active</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h2 class="text-xl font-bold dark:text-white">Push Notifications</h2>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Automatic booking confirmations and appointment reminders sent to customers' phones.</p>
+                </div>
+                ${notif ? `<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-full text-xs font-bold whitespace-nowrap">${notif.subscribers} device${notif.subscribers===1?'':'s'} on</span>` : ''}
+            </div>
+            <div class="p-6 space-y-5">
+                ${!notif ? '<p class="text-sm text-slate-400">Loading…</p>' : `
+                    ${(notif.settings || []).map(s => {
+                        const labels = { confirmation: 'Booking confirmation', reminder_24h: '24-hour reminder', reminder_1h: '1-hour reminder' };
+                        const when = { confirmation: 'Sent right after a customer books.', reminder_24h: 'Sent ~24 hours before the appointment.', reminder_1h: 'Sent ~1 hour before the appointment.' };
+                        return `
+                        <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                            <div class="flex items-center justify-between gap-3 mb-3">
+                                <div><p class="font-bold text-sm dark:text-white">${labels[s.type] || s.type}</p><p class="text-xs text-slate-500">${when[s.type] || ''}</p></div>
+                                <button onclick="toggleNotif('${s.type}', ${!s.enabled})" class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${s.enabled ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-600'}">
+                                    <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${s.enabled ? 'translate-x-6' : 'translate-x-1'}"></span>
+                                </button>
+                            </div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Title</label>
+                            <input id="notif-title-${s.type}" value="${escapeHtml(s.title)}" class="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white text-sm mb-2">
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Message</label>
+                            <textarea id="notif-body-${s.type}" rows="2" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white text-sm resize-none">${escapeHtml(s.body)}</textarea>
+                            <div class="flex items-center justify-between mt-2">
+                                <p class="text-[11px] text-slate-400">Use {pet}, {date}, {time}</p>
+                                <button onclick="saveNotifTemplate('${s.type}')" class="text-xs font-bold text-primary hover:underline">Save</button>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                    <div class="flex flex-wrap gap-2 pt-1">
+                        <button onclick="sendTestPush()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold text-sm rounded-lg dark:text-white"><span class="material-symbols-outlined text-lg">send</span>Send test to my device</button>
+                    </div>
+                    <div class="pt-4 border-t border-slate-100 dark:border-slate-800">
+                        <p class="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Broadcast a message to everyone</p>
+                        <input id="broadcast-title" placeholder="Title (e.g. Holiday hours)" class="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white text-sm mb-2">
+                        <textarea id="broadcast-body" rows="2" placeholder="Message to all subscribed customers…" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white text-sm resize-none mb-2"></textarea>
+                        <button onclick="broadcastPush()" class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-sky-600 text-white font-bold text-sm rounded-lg"><span class="material-symbols-outlined text-lg">campaign</span>Send to all</button>
+                    </div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                        💡 Customers get these once they tap "Enable" in the app. On iPhone they must first install the app (Share → Add to Home Screen) — Apple's rule for web notifications.
+                    </div>
+                `}
+            </div>
+        </div>
     </div>`;
+}
+
+// ---- Push notification hub handlers ----
+async function loadNotificationHub() {
+    try {
+        const [s, c] = await Promise.all([
+            supabaseClient.from('notification_settings').select('*').order('type'),
+            supabaseClient.from('push_subscriptions').select('id', { count: 'exact', head: true })
+        ]);
+        state.notifHub = { settings: s.data || [], subscribers: c.count || 0 };
+        render();
+    } catch (err) { _warn('notif hub load failed', err); state.notifHub = { settings: [], subscribers: 0 }; render(); }
+}
+async function toggleNotif(type, enabled) {
+    const { error } = await supabaseClient.from('notification_settings').update({ enabled, updated_at: new Date().toISOString() }).eq('type', type);
+    if (error) { showToast('Failed to update', 'error'); return; }
+    if (state.notifHub) { const s = state.notifHub.settings.find(x => x.type === type); if (s) s.enabled = enabled; }
+    render();
+    showToast(enabled ? 'Notification turned on' : 'Notification turned off', 'info');
+}
+async function saveNotifTemplate(type) {
+    const title = document.getElementById(`notif-title-${type}`)?.value?.trim();
+    const body = document.getElementById(`notif-body-${type}`)?.value?.trim();
+    if (!title || !body) { showToast('Title and message are required', 'error'); return; }
+    const { error } = await supabaseClient.from('notification_settings').update({ title, body, updated_at: new Date().toISOString() }).eq('type', type);
+    if (error) { showToast('Failed to save', 'error'); return; }
+    if (state.notifHub) { const s = state.notifHub.settings.find(x => x.type === type); if (s) { s.title = title; s.body = body; } }
+    showToast('Saved ✓', 'success');
+}
+async function sendTestPush() {
+    showLoading();
+    try {
+        const { data, error } = await supabaseClient.functions.invoke('notifications', { body: { action: 'test' } });
+        hideLoading();
+        if (error) { showToast('Test failed', 'error'); return; }
+        if (data?.sent > 0) showToast('Test sent! Check your device.', 'success');
+        else showToast('No subscribed device found. Tap "Enable" in the app on your phone first.', 'info');
+    } catch (err) { hideLoading(); showToast('Test failed: ' + err.message, 'error'); }
+}
+async function broadcastPush() {
+    const title = document.getElementById('broadcast-title')?.value?.trim() || 'Dogfathers Plus';
+    const body = document.getElementById('broadcast-body')?.value?.trim();
+    if (!body) { showToast('Enter a message', 'error'); return; }
+    if (!confirm('Send this message to all subscribed customers?')) return;
+    showLoading();
+    try {
+        const { data, error } = await supabaseClient.functions.invoke('notifications', { body: { action: 'broadcast', title, body } });
+        hideLoading();
+        if (error || data?.error) { showToast('Broadcast failed', 'error'); return; }
+        showToast(`Sent to ${data.sent} device(s) across ${data.recipients} customer(s).`, 'success');
+        document.getElementById('broadcast-body').value = '';
+    } catch (err) { hideLoading(); showToast('Broadcast failed: ' + err.message, 'error'); }
 }
 
 // ---- iCloud Calendar integration handlers ----
